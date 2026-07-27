@@ -1,0 +1,27 @@
+# Core
+numpy>=1.26
+pandas>=2.0
+pyyaml>=6.0
+requests>=2.31
+tqdm>=4.66
+
+# Geospatial
+rasterio>=1.3
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+rasterstats>=0.19
+
+# Analysis
+scipy>=1.11
+scikit-learn>=1.3
+
+# Earth Engine (optional path — requires `earthengine authenticate`)
+earthengine-api>=0.1.380
+
+# Visualisation / dashboard
+matplotlib>=3.8
+plotly>=5.18
+folium>=0.15
+streamlit>=1.49
+streamlit-folium>=0.18

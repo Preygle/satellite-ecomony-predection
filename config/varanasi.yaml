@@ -1,0 +1,164 @@
+# =============================================================================
+# Varanasi — Study Area Configuration
+# Satellite-Based Urban Growth and Economic Activity Intelligence System
+# =============================================================================
+
+city:
+  name: Varanasi
+  state: Uttar Pradesh
+  country: India
+  country_iso3: IND
+  # Kashi Vishwanath / city centre reference point
+  centre:
+    lat: 25.3176
+    lon: 82.9739
+
+aoi:
+  # Analysis envelope: Varanasi Municipal Corporation + Ring Road corridor +
+  # peri-urban growth belt + Babatpur airport corridor to the NW.
+  # ~35 km (E-W) x 33 km (N-S)
+  bbox:
+    min_lon: 82.80
+    min_lat: 25.15
+    max_lon: 83.15
+    max_lat: 25.45
+
+crs:
+  geographic: "EPSG:4326"      # storage / web maps
+  projected: "EPSG:32644"      # UTM zone 44N — metric analysis for Varanasi
+  mollweide: "ESRI:54009"      # GHSL native grid
+
+grid:
+  # Analysis grid for zonal statistics and the ghost-growth classifier.
+  cell_size_m: 500
+  # Ignore near-empty cells when computing activity ratios. Expressed as a
+  # FRACTION of cell area, not absolute m^2 — the same absolute threshold
+  # means 2% of a 500 m cell but 50% of a 100 m cell, and analysis runs on
+  # the 100 m frame.
+  min_builtup_fraction_for_analysis: 0.02
+
+# -----------------------------------------------------------------------------
+# Analysis epochs.
+# Chosen to align with GHSL 5-year epochs so built-up change is directly
+# comparable, and with the VIIRS era (2012+) for the economic-activity signal.
+# -----------------------------------------------------------------------------
+epochs:
+  baseline: 2010
+  mid: 2015
+  recent: 2020
+  current: 2025
+
+# Full annual series where the sensor supports it
+timeseries:
+  nightlights_start: 2013     # VIIRS annual V2 stable coverage
+  nightlights_end: 2024
+  vegetation_start: 2015      # Sentinel-2
+  vegetation_end: 2025
+  thermal_start: 2013         # Landsat 8 onward
+  thermal_end: 2025
+
+# -----------------------------------------------------------------------------
+# Thresholds — all documented, all tunable. See docs/METHODOLOGY.md.
+# -----------------------------------------------------------------------------
+thresholds:
+  builtup:
+    # GHS-BUILT-S is m^2 of built surface per 100m cell (max 10000).
+    # 20% surface fraction is the GHSL-conventional "urban fabric" cut.
+    surface_fraction_urban: 0.20
+    # A cell is "new built-up" if it crosses the cut between two epochs
+    new_growth_min_delta_m2: 1000
+
+  nightlights:
+    # VIIRS annual radiance, nW/cm2/sr. Below this is effectively unlit.
+    unlit_radiance: 0.5
+    # Bright commercial/industrial core
+    high_activity_radiance: 15.0
+
+  vegetation:
+    ndvi_green_threshold: 0.30      # NDVI above this = vegetated
+    green_loss_min_delta: -0.10     # NDVI drop counting as green cover loss
+
+  thermal:
+    # Surface Urban Heat Island intensity: LST minus rural reference mean,
+    # in degrees C. Hotspot = this or hotter.
+    suhi_hotspot_delta_c: 3.0
+
+  ghost_growth:
+    # A cell is a candidate "ghost growth" / underutilised zone when it has
+    # substantial NEW built-up but the activity signal stays low.
+    # See analysis/ghost.py for the full composite index.
+    #
+    # "New" is defined RELATIVELY — what share of the cell's *current*
+    # built-up appeared since the baseline. An absolute cut cannot work:
+    # 0.15 sits at the 99th percentile of observed GHSL change in Varanasi,
+    # while a cell that went 0.50 -> 0.56 is mostly old development and a
+    # cell that went 0.00 -> 0.25 is entirely new. Share captures that;
+    # absolute delta does not.
+    min_new_share: 0.50              # >=50% of current built-up is post-baseline
+    min_new_builtup_fraction: 0.02   # ...and at least 2% of the cell, absolutely
+    max_activity_percentile: 25      # activity in bottom quartile of built cells
+
+    # Zones are defined by local DENSITY of flagged cells, not by contiguity —
+    # flagged cells at 100 m are genuinely fragmented, so contiguity-based
+    # grouping returns nothing and that would be a method artefact, not a
+    # finding. See analysis/ghost.py:cluster_zones.
+    zone_neighbourhood_m: 600
+    zone_density_ratio: 2.0          # flagged at >=2x the citywide background rate
+    zone_min_area_km2: 0.25
+
+# -----------------------------------------------------------------------------
+# Data sources.
+# `auth: none` sources are downloaded directly by the pipeline and work
+# out of the box. `auth: gee` sources require the user to run
+# `earthengine authenticate` once — see scripts/gee_export.py.
+# -----------------------------------------------------------------------------
+sources:
+  ghsl:
+    auth: none
+    base_url: "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL"
+    release: R2023A
+    resolution_m: 100
+    products:
+      built_surface: GHS_BUILT_S
+      population: GHS_POP
+      settlement_model: GHS_SMOD
+    epochs: [2010, 2015, 2020, 2025]
+
+  worldpop:
+    auth: none
+    base_url: "https://data.worldpop.org/GIS/Population"
+    year: 2020
+    variant: Global_2000_2020_Constrained
+
+  osm:
+    auth: none
+    overpass_endpoints:
+      - "https://overpass-api.de/api/interpreter"
+      - "https://overpass.kumi.systems/api/interpreter"
+      - "https://overpass.osm.jp/api/interpreter"
+    user_agent: "urbanintel-varanasi/0.1 (academic urban growth research)"
+    timeout_s: 180
+
+  gee:
+    auth: gee
+    assets:
+      viirs_annual: "NOAA/VIIRS/DNB/ANNUAL_V22"
+      viirs_monthly: "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG"
+      dmsp: "NOAA/DMSP-OLS/NIGHTTIME_LIGHTS"
+      s2_sr: "COPERNICUS/S2_SR_HARMONIZED"
+      landsat8: "LANDSAT/LC08/C02/T1_L2"
+      landsat9: "LANDSAT/LC09/C02/T1_L2"
+      landsat5: "LANDSAT/LT05/C02/T1_L2"
+      modis_lst: "MODIS/061/MOD11A2"
+      dynamic_world: "GOOGLE/DYNAMICWORLD/V1"
+      open_buildings_temporal: "GOOGLE/Research/open-buildings-temporal/v1"
+      esa_worldcover: "ESA/WorldCover/v200"
+      srtm: "USGS/SRTMGL1_003"
+    export_scale_m: 30
+    max_cloud_pct: 35
+
+paths:
+  data_raw: data/raw
+  data_interim: data/interim
+  data_processed: data/processed
+  outputs: outputs

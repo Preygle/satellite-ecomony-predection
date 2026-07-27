@@ -1,0 +1,27 @@
+# Reference papers (~60 MB of binaries). Not source, and every one is
+# re-obtainable from the DOIs in RECOMMENDED_PAPERS.md. Delete this line if
+# you want them versioned.
+*.pdf
+
+# Data and outputs (large; regenerate with scripts/prefetch.py)
+data/
+outputs/
+*.tif
+*.zip
+*.part
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
