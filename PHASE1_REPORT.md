@@ -41,12 +41,19 @@ airport corridor. Analysis at 100 m (359 × 339), reporting at 500 m
 
 ### Urban expansion, 2010–2025
 
+> **Correction (Phase 2).** GHS-BUILT-S R2023A supplies epochs to 2030, but
+> only **1975–2020 are observational — 2025 and 2030 are the GHSL model's own
+> projections.** The 2025 row below is therefore a *projected* value, not a
+> measurement, and was originally presented here without that qualification.
+> The observational record for this project ends at 2020. Figures over
+> 2010–2020 are unaffected.
+
 | Year | Built-up surface | Urban extent (≥20% built) | Population |
 |---|---|---|---|
 | 2010 | 72.48 km² | 128.43 km² | 4.17 M |
 | 2015 | 81.05 km² | 142.25 km² | 4.41 M |
 | 2020 | 89.73 km² | 154.39 km² | 4.60 M |
-| 2025 | 95.95 km² | 158.16 km² | 4.75 M |
+| 2025 *(projected)* | 95.95 km² | 158.16 km² | 4.75 M |
 
 - **Built-up surface grew 32.4%** (+23.47 km²) over 15 years.
 - **Urban extent grew 23.1%**, a compound 1.40% per year.
@@ -196,7 +203,8 @@ Fixed to treat it as maximally significant.
 2. **Predictive expansion model.** Implement the PLUS model (Liang et al.
    2021, `CEUS` 85:101569) driven by the layers already produced — distance
    to centre, road density, existing built-up, slope. Validate by training on
-   2010→2020 and testing against observed 2025.
+   2010→2015 and testing against observed 2015→2020. (Originally written as
+   "testing against observed 2025"; corrected in Phase 2 — 2025 is projected.)
 3. **Add building height.** Google Open Buildings Temporal (4 m, annual,
    2016–2023, covers India) supplies the vertical dimension. A cell whose
    height rises while area is flat is densifying, not expanding — and a tall

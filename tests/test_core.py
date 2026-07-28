@@ -266,6 +266,94 @@ def test_activity_index_requires_a_signal():
     raise AssertionError("expected ValueError with no signals")
 
 
+# ----------------------------------------------------------- growth model --
+
+def test_change_metrics_confines_all_quadrants_to_eligible():
+    """Regression: every confusion quadrant must respect the eligible mask.
+
+    Counting `~predicted & ~observed` over the full array credits the model
+    for every already-urban cell it left alone, inflating correct rejections
+    and driving overall accuracy toward 1 regardless of skill.
+    """
+    from urbanintel.analysis import growth_model as GM
+
+    eligible = np.zeros((10, 10), dtype=bool)
+    eligible[:5, :] = True                 # only half the array can change
+    observed = np.zeros((10, 10), dtype=bool)
+    observed[0, :4] = True                 # 4 real conversions
+    predicted = np.zeros((10, 10), dtype=bool)
+    predicted[0, :2] = True                # 2 correct
+    predicted[1, :2] = True                # 2 false alarms
+
+    m = GM.change_metrics(predicted, observed, eligible)
+    assert m.hits == 2
+    assert m.misses == 2
+    assert m.false_alarms == 2
+    # Correct rejections must not count the 50 ineligible cells.
+    assert m.correct_rejections == 50 - 2 - 2 - 2
+    assert m.hits + m.misses + m.false_alarms + m.correct_rejections == int(eligible.sum())
+
+
+def test_figure_of_merit_formula():
+    from urbanintel.analysis import growth_model as GM
+
+    eligible = np.ones((10, 10), dtype=bool)
+    observed = np.zeros((10, 10), dtype=bool); observed[0, :10] = True
+    predicted = np.zeros((10, 10), dtype=bool); predicted[0, :5] = True; predicted[1, :5] = True
+    m = GM.change_metrics(predicted, observed, eligible)
+    # hits 5, misses 5, false alarms 5 -> 5/15
+    assert abs(m.figure_of_merit - 5 / 15) < 1e-9
+
+
+def test_allocate_respects_demand_and_skips_urban():
+    from urbanintel.analysis import growth_model as GM
+
+    fr = _frame(res=100, h=40, w=40)
+    built = np.zeros(fr.shape, dtype="float32")
+    built[:10, :10] = 1.0                       # already urban block
+    suit = np.random.default_rng(0).random(fr.shape).astype("float32")
+    new = GM.allocate(suit, built, 100, fr, urban_threshold=0.20, iterations=4)
+    assert new.sum() == 100
+    assert not (new & (built >= 0.20)).any()    # never re-converts urban land
+
+
+def test_extrapolate_demand_positive_for_growing_city():
+    from urbanintel.analysis import growth_model as GM
+
+    fr = _frame(res=100, h=50, w=50)
+    built = {}
+    for i, y in enumerate((2010, 2015, 2020)):
+        a = np.zeros(fr.shape, dtype="float32")
+        a[: 10 + i * 3, :10] = 1.0              # steadily growing
+        built[y] = a
+    d = GM.extrapolate_demand(built, fr, target_year=2030)
+    assert d > 0
+
+
+def test_model_learns_a_planted_driver():
+    """A synthetic city where conversion depends only on distance."""
+    from urbanintel.analysis import growth_model as GM
+
+    fr = _frame(res=100, h=80, w=80)
+    rng = np.random.default_rng(3)
+    yy, xx = np.mgrid[0:80, 0:80]
+    dist = np.sqrt((xx - 40) ** 2 + (yy - 40) ** 2).astype("float32") * 0.1
+
+    t0 = np.zeros(fr.shape, dtype="float32")
+    t0[dist < 1.5] = 1.0                         # urban core
+    # conversion probability falls off with distance
+    p = np.clip(1.0 - (dist - 1.5) / 2.0, 0, 1) * 0.6
+    t1 = t0.copy()
+    convert = (rng.random(fr.shape) < p) & (t0 < 0.2)
+    t1[convert] = 1.0
+
+    X, names = GM.build_drivers(t0, fr, distance_km=dist)
+    m = GM.fit(t0, t1, X, names, fr, period=(2010, 2015))
+    # Distance to centre must carry a negative weight: nearer converts more.
+    assert m.coefficients["distance_centre_km"] < 0
+    assert m.auc > 0.7
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
