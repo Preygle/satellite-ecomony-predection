@@ -54,9 +54,11 @@ Applied to Varanasi over a 1,206 km² area of interest, the system finds that
 built-up surface grew from 72.48 km² to 95.95 km² between 2010 and 2025
 (+32.4%) while population grew 13.9% — land consumption outpacing population
 growth by a factor of 2.3. Of newly urbanised land, 48.8% is leapfrog
-development detached from the existing urban fabric. The ghost-growth screen
-identifies 7.24 km² across nine spatially coherent zones, all peripheral —
-independently consistent with the leapfrog finding.
+development detached from the existing urban fabric. With the full VIIRS annual
+series 2013–2024 integrated, the ghost-growth screen identifies 0.35 km² across
+15 spatially coherent zones, all peripheral — independently consistent with the
+leapfrog finding — and separates a further 6.88 km² as *emerging*, development
+that is dim but measurably brightening.
 
 Results are delivered through an interactive dashboard providing map layers,
 growth trends, and prioritised planning insights.
@@ -1043,10 +1045,21 @@ Built-up area grew 2.3× faster than population.
 **Urban form of new development:** infill 7.1% (0.95 km²), edge expansion
 44.2% (5.94 km²), leapfrog 48.8% (6.56 km²).
 
-**Ghost-growth screen:** 7.24 km² across 9 zones, all peripheral, each 73–96%
-post-2010 development. *This figure is an upper bound pending nighttime light
-trend integration.*
+**Ghost-growth screen:** 0.35 km² across 15 zones, all peripheral, each 57–100%
+post-2010 development. An earlier run reported 7.24 km² and stated it was an
+upper bound pending nighttime-light integration. That has now been done: the
+7.24 km² resolves into 0.35 km² genuinely dim and not rising, plus 6.88 km²
+*emerging* — dim but brightening. A further 5.70 km² of *declining* land
+appeared, drawn entirely from the previously *established active* class.
 
-**Verification status:** 20 of 20 automated tests passing; pipeline produces
-35 raster layers and a 4,765-cell reporting grid; dashboard executes without
-error.
+**Green cover:** 0.05 km² of vegetation lost specifically to built-up
+conversion, 2018–2024. The gross green-cover change over the same window is
+dominated by the rabi cropping calendar rather than urban canopy and is not
+reported as a finding.
+
+**Urban heat island:** mean intensity 1.10 °C above an in-scene rural reference
+of 41.12 °C, maximum 9.27 °C, hotspot area 26.57 km².
+
+**Verification status:** 25 of 25 automated tests passing; pipeline produces
+51 raster layers and a 4,765-cell reporting grid with no skipped layers;
+dashboard executes without error.

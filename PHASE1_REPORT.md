@@ -13,20 +13,20 @@ projections.
 | Detect new built-up areas | ✅ Complete — 4 epochs, 100 m, classified by urban form |
 | Commercial growth zones | ✅ Complete — OSM POI density by sector, class-weighted road density |
 | Rapid infrastructure development | ✅ Complete — growth-intensity surface + hotspot mask |
-| Green cover loss | ⚙️ **Code complete, needs Earth Engine** — Sentinel-2 NDVI, monsoon-aware |
-| Urban heat island hotspots | ⚙️ **Code complete, needs Earth Engine** — Landsat LST, SUHI, vulnerability |
-| Ghost / underutilised zones | ✅ Complete — 9 zones identified |
+| Green cover loss | ✅ Complete — Sentinel-2 NDVI, monsoon-aware, 2018→2024 |
+| Urban heat island hotspots | ✅ Complete — Landsat LST, SUHI, vulnerability |
+| Ghost / underutilised zones | ✅ Complete — 15 zones identified |
 | Predictive expansion models | ⬜ Phase 2 |
 | Investment corridors | ⬜ Phase 3 |
 | Smart dashboard | ✅ Complete — 5 tabs, 12 map layers, verified running |
 
 **Roughly 50% of the full system**, which is the Phase 1 target.
 
-The two ⚙️ items are fully implemented and tested — `analysis/vegetation.py`,
-`analysis/thermal.py`, and their Earth Engine exporters all exist and are
-wired into the pipeline. They activate the moment `earthengine authenticate`
-is run. They are listed as incomplete rather than done because **they have not
-yet been executed against real data**, and claiming otherwise would be false.
+> **Update (Earth Engine now authenticated).** The green-cover and heat-island
+> layers, previously listed as code-complete but unexecuted, have now been run
+> against real data. The full VIIRS annual series 2013–2024 is included, which
+> changes the ghost-growth result substantially — see §2 and §3. Two data
+> defects were found and fixed in the process; both are recorded in §4.
 
 ---
 
@@ -86,39 +86,52 @@ reported because they answer different questions.)*
 
 ### Ghost growth
 
-**7.24 km² flagged, concentrated into 9 zones.**
+**0.35 km² flagged, distributed across 15 zones.**
+
+Activity index now rests on all three signals — nightlights 0.45, POI 0.35,
+population 0.20.
 
 | Zone | Zone area | Flagged | Score | Residual | New share | Location |
 |---|---|---|---|---|---|---|
-| 1 | 0.97 km² | 0.22 km² | 0.94 | −0.34 | 93% | 25.300, 83.062 |
-| 2 | 0.41 km² | 0.11 km² | 0.74 | −0.20 | 85% | 25.307, 83.039 |
-| 3 | 0.33 km² | 0.10 km² | 1.00 | −0.54 | 92% | 25.433, 83.098 |
-| 4 | 0.34 km² | 0.10 km² | 1.00 | −0.40 | 93% | 25.286, 83.027 |
-| 5 | 0.43 km² | 0.10 km² | 0.92 | −0.33 | 95% | 25.397, 83.126 |
-| 6 | 0.28 km² | 0.08 km² | 1.00 | −0.47 | 92% | 25.399, 83.026 |
-| 7 | 0.33 km² | 0.07 km² | 1.00 | −0.52 | 83% | 25.427, 83.116 |
-| 8 | 0.34 km² | 0.07 km² | 1.00 | −0.49 | 73% | 25.257, 83.096 |
-| 9 | 0.26 km² | 0.05 km² | 0.90 | −0.33 | 96% | 25.282, 83.068 |
+| 1 | 2.43 km² | 0.10 km² | 0.87 | −0.25 | 98% | 25.451, 83.097 |
+| 2 | 1.32 km² | 0.05 km² | 0.98 | −0.38 | 90% | 25.452, 83.052 |
+| 3 | 1.81 km² | 0.04 km² | 0.96 | −0.33 | 69% | 25.238, 82.796 |
+| 4 | 1.20 km² | 0.02 km² | 1.00 | −0.51 | 100% | 25.235, 83.128 |
+| 5 | 0.88 km² | 0.02 km² | 1.00 | −0.43 | 97% | 25.173, 83.150 |
+| 6 | 0.79 km² | 0.02 km² | 1.00 | −0.34 | 97% | 25.172, 82.794 |
+| 7 | 0.89 km² | 0.02 km² | 0.95 | −0.29 | 57% | 25.456, 82.809 |
+| 8 | 0.63 km² | 0.01 km² | 1.00 | −0.35 | 98% | 25.454, 82.976 |
+| 9 | 0.60 km² | 0.01 km² | 1.00 | −0.28 | 96% | 25.453, 83.070 |
+| 10 | 0.60 km² | 0.01 km² | 1.00 | −0.43 | 97% | 25.420, 83.155 |
+| 11 | 0.60 km² | 0.01 km² | 1.00 | −0.28 | 90% | 25.339, 82.796 |
+| 12 | 0.63 km² | 0.01 km² | 1.00 | −0.25 | 57% | 25.441, 82.798 |
+| 13 | 0.60 km² | 0.01 km² | 0.83 | −0.21 | 100% | 25.311, 83.153 |
+| 14 | 0.69 km² | 0.01 km² | 0.56 | −0.14 | 58% | 25.342, 82.962 |
+| 15 | 0.69 km² | 0.01 km² | 0.50 | −0.13 | 95% | 25.310, 83.097 |
 
 "New share" is the proportion of each zone's current built-up that appeared
-after 2010 — every zone is 73–96% new. "Residual" is how far activity falls
-below what comparably developed land elsewhere in Varanasi achieves.
+after 2010. "Residual" is how far activity falls below what comparably
+developed land elsewhere in Varanasi achieves.
 
-**All nine zones are peripheral**, which is internally consistent with 48.8%
+**All 15 zones remain peripheral**, which is internally consistent with 48.8%
 leapfrog growth: detached development is exactly where built-but-inactive land
-should concentrate. That the two independent analyses agree is the strongest
-evidence available at this stage that the signal is real.
+should concentrate.
+
+Zones 14 and 15 sit at scores 0.56 and 0.50 with the shallowest residuals in
+the set (−0.14, −0.13). They are the marginal cases and should be treated as
+the boundary of the method's discrimination, not as findings of equal standing
+with zones 4–6.
 
 ### Growth typology (500 m reporting grid)
 
-| Class | Area |
-|---|---|
-| Undeveloped | 1,101.09 km² |
-| Established active | 146.39 km² |
-| Healthy growth | 4.53 km² |
-| **Ghost growth** | **7.24 km²** |
-| Emerging | 0.00 km² — *requires nightlight trend* |
-| Declining | 0.00 km² — *requires nightlight trend* |
+| Class | Area | Change from the no-nightlight run |
+|---|---|---|
+| Undeveloped | 1,101.09 km² | — |
+| Established active | 140.69 km² | −5.70 |
+| Healthy growth | 4.54 km² | +0.01 |
+| **Ghost growth** | **0.35 km²** | **−6.89** |
+| Emerging | 6.88 km² | +6.88 |
+| Declining | 5.70 km² | +5.70 |
 
 ### Commercial activity (OpenStreetMap)
 
@@ -127,20 +140,80 @@ health/education 510, finance/office 178, industrial 95, transport 52.
 
 ---
 
-## 3. Important caveat on the ghost-growth figure
+## 3. The upper bound resolved — and what it cost
 
-**7.24 km² is an upper bound.** Without a nightlight time series, cells that
-are dim *but brightening* — neighbourhoods mid-occupation — cannot be
-separated from cells that are dim and staying dim. Everything low falls into
-`ghost_growth`, which is why `emerging` reads 0.00 km².
+The previous version of this report stated 7.24 km² and called it **an upper
+bound**, on the grounds that without a nightlight time series, cells that are
+dim *but brightening* could not be separated from cells that are dim and
+staying dim. Everything low fell into `ghost_growth`.
 
-Running the Earth Engine export will split that 7.24 km² into genuine ghost
-growth and normal fill-up, and the true figure will be **lower**. The pipeline
-records this caveat in `outputs/varanasi_summary.json` and the dashboard
-displays it.
+With the 2013–2024 VIIRS series in place, that prediction is confirmed and the
+split is almost exact:
 
-The activity index currently rests on 2 of 3 signals (POI 0.64, population
-0.36). Nightlights would add the third and the largest single weight.
+```
+old ghost_growth   7.24 km²
+new ghost_growth   0.35 km²   genuinely dim and not rising
+new emerging       6.88 km²   dim but brightening — filling up
+                   -------
+                   7.23 km²
+```
+
+**95% of what was flagged as ghost growth is a neighbourhood mid-occupation,
+not a failed one.** The single most important number in the earlier report was
+wrong by a factor of twenty, in the direction the report predicted.
+
+A second class appeared that could not exist before: **5.70 km² of `declining`**
+— established land whose activity is both below expectation and falling. It
+came entirely out of `established_active` (146.39 → 140.69 km², an exact
+match). This is a different and arguably more actionable finding than ghost
+growth: it is not stalled new development, it is existing urban fabric losing
+activity.
+
+The honest reading of this sequence: the method's *structure* was right — the
+report said the figure was an upper bound and said why — but the headline
+number was unusable until the third signal arrived. A screening tool missing
+its largest single weight does not produce a conservative estimate; it produces
+one that is wrong by an order of magnitude.
+
+### Sum of lights, 2013–2024
+
+| Year | Sum of lights | Year | Sum of lights |
+|---|---|---|---|
+| 2013 | 518,008 | 2019 | 651,218 |
+| 2014 | 493,110 | 2020 | 656,448 |
+| 2015 | 488,194 | 2021 | 669,991 |
+| 2016 | 546,727 | 2022 | 707,999 |
+| 2017 | 644,241 | 2023 | 786,284 |
+| 2018 | 658,338 | 2024 | 905,354 |
+
+Total lit output rose **74.8%** over twelve years, against 23.8% built-up
+growth over 2010–2020. Lit fraction of the AOI in 2024 is 95.5%.
+
+Note the 2013–2015 *decline* before the rise, and the acceleration after 2022
+(+11.1% then +15.1% year on year). The series crosses a product-version
+boundary at 2021/2022 (VNL V2.1 → V2.2, see §4), but the join step of +5.7%
+sits between its neighbours and is not the source of the late acceleration —
+the largest jumps are both inside V2.2.
+
+### Green cover and heat, now measured
+
+| Metric | Value |
+|---|---|
+| Green cover 2018 → 2024 | 71.0% → 77.9% |
+| Green lost | 6.37 km² |
+| **Green lost specifically to built-up conversion** | **0.05 km² (0.8% of loss)** |
+| Rural reference temperature (pre-monsoon 2024) | 41.12 °C |
+| Mean urban heat-island intensity | 1.10 °C |
+| Maximum intensity | 9.27 °C |
+| Hotspot area (≥3 °C above rural) | 26.57 km² |
+
+**Do not report the +6.9 percentage-point green gain as a finding.** The Oct–Mar
+window is the *rabi* cropping season, so NDVI across a largely agricultural AOI
+tracks the wheat and pulse crop far more than it tracks urban tree canopy; a
+wetter year reads as a greener one. The figure that is robust to this is
+`lost_to_builtup` — 0.05 km² — because intersecting NDVI loss with built-up
+*gain* removes anything that is merely a cropping-calendar difference. That is
+the number to present.
 
 ---
 
@@ -175,16 +248,62 @@ A fifth, in `nightlights.trend`: a perfect linear fit gives zero residual, and
 the code mapped that to t = 0 (p = 1), discarding exactly the cleanest trends.
 Fixed to treat it as maximally significant.
 
+Two further defects surfaced the moment Earth Engine was authenticated. Both
+are data-provenance errors rather than logic errors, and neither would have
+raised an exception — they are the kind that produce a plausible wrong number.
+
+6. **Nine of twelve nightlight years silently missing.** The config pointed the
+   whole 2013–2024 series at `NOAA/VIIRS/DNB/ANNUAL_V22`. That collection only
+   holds **2022–2025**; the Earth Engine catalogue keeps 2013–2021 in a
+   separate asset, `ANNUAL_V21`. Every year before 2022 resolved to an *empty*
+   collection. The nightlight trend — the entire basis for separating
+   `ghost_growth` from `emerging` — would have been fitted on three consecutive
+   years instead of twelve. Fixed with `gee.viirs_annual_asset()`, which picks
+   the collection by year with the cutover in config, plus an explicit error
+   when a year yields zero images (an empty EE collection otherwise fails later
+   with `Image.bandNames: Parameter 'image' is required and may not be null`,
+   which points at the wrong thing entirely). All 12 years now resolve.
+
+   *Residual caveat:* V2.1 and V2.2 are different product versions sharing the
+   same core compositing algorithm. Joining them is a version step, not a
+   sensor change — far smaller than the DMSP↔VIIRS discontinuity — but it is
+   real, and any trend crossing 2021/2022 inherits it.
+
+7. **The vegetation baseline was one day of imagery.** `vegetation_start` was
+   2015, but the Sentinel-2 **L2A** archive over Varanasi is nearly empty that
+   early: the Oct 2015 – Mar 2016 window contains **3 scenes, all from
+   2015-12-28**, against 148 scenes on 35 distinct days for 2024. A "seasonal
+   median" over one date is a single observation with that day's phenology,
+   haze and view geometry baked in. Differencing it against a full-season
+   composite measured the difference in *sampling*, and produced an apparent
+   green-cover rise from **27.9% to 77.9%** — a headline finding that was
+   entirely an artefact.
+
+   Fixed by moving the baseline to 2018, the first year with more than 30
+   acquisition days, and by adding `gee.require_composite_depth()`, which
+   refuses any composite built from fewer than `min_composite_dates` (20)
+   distinct dates. The corrected comparison uses 25 dates against 29. This
+   guard is the general fix: the class of error cannot recur silently for any
+   index, year or city.
+
+Defects 6 and 7 share a shape worth naming for the panel: **both were invisible
+without ground knowledge of the archive.** Neither threw an exception, both
+produced numbers of the right order of magnitude, and the vegetation one would
+have been reported as a striking positive result. They were caught by checking
+provenance against expectation — asking whether a 50-point rise in green cover
+in six years was physically plausible — not by any test.
+
 ---
 
 ## 5. Verification
 
-- **20/20 unit tests pass** (`python tests/test_core.py`), covering frame
+- **25/25 unit tests pass** (`python tests/test_core.py`), covering frame
   nesting, area conservation under aggregation, the priority reducer, urban
-  form classification, trend recovery, and the ghost screen on synthetic data
-  with a known answer.
-- **Pipeline runs end-to-end** producing 35 raster layers, a 4,765-cell
-  reporting grid, and a summary JSON with full provenance.
+  form classification, trend recovery, the ghost screen on synthetic data with
+  a known answer, and the land-change metric accounting.
+- **Pipeline runs end-to-end with no skipped layers**, producing 51 raster
+  layers, a 4,765-cell reporting grid, and a summary JSON with full provenance.
+  The `skipped` block is now empty.
 - **Dashboard verified running** via Streamlit's headless `AppTest`: 0
   exceptions, 7 metrics, 5 tabs.
 - **Colour palette validated** with a CVD checker, not chosen by eye — the
@@ -233,13 +352,22 @@ Fixed to treat it as maximally significant.
 - **Screening, not census.** VIIRS at ~460 m cannot resolve one empty housing
   block. The unit of a reliable finding is a neighbourhood.
 - **OSM coverage is uneven.** Varanasi's core is well mapped; the periphery is
-  not. Since all 9 ghost zones are peripheral, some of their low POI count may
-  reflect mapping effort rather than absence of activity. This is precisely
-  why the index requires agreement across signals — and why adding nightlights
-  matters.
+  not. Since all 15 ghost zones are peripheral, some of their low POI count may
+  reflect mapping effort rather than absence of activity. This is why the index
+  requires agreement across signals, and why the nightlight weight (0.45)
+  exceeding the POI weight (0.35) matters.
 - **GHS-BUILT-S is modelled, not measured**, and is documented to under-detect
   low-rise informal development.
 - **No ground truth yet.** Nothing here has been validated against
-  observation.
-- **`emerging` and `declining` are structurally empty** in this run, not
-  genuinely zero.
+  observation. With the flagged area now at 0.35 km² across 15 zones, ground
+  validation is both more tractable and more necessary — a 0.01 km² zone is
+  four 50 m cells, small enough that a single mapping error could produce it.
+- **The green-cover series is dominated by the rabi crop**, not by urban
+  canopy. Only `lost_to_builtup` (0.05 km²) is robust to the cropping
+  calendar. See §3.
+- **The nightlight series crosses a product-version boundary** at 2021/2022
+  (VNL V2.1 → V2.2). Trends spanning it inherit a version step.
+- **The literature predicts the residual error of nighttime-light products
+  concentrates at the urban fringe** (`docs/LITERATURE_NTL_AND_UNET.md` §3.4),
+  and every zone here is peripheral. Using observed VIIRS rather than a
+  simulated long series avoids the worst of this, but does not eliminate it.

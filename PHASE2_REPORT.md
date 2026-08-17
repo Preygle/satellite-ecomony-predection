@@ -290,7 +290,7 @@ bring the action taken; without that record the mark is unobtainable.
 ## 10. Phase 3
 
 1. **Earth Engine authentication** — unlocks green cover, heat island, and
-   the nightlight trend that will refine the 7.24 km² ghost figure downward.
+   the nightlight trend that refines the ghost figure. (Completed since: 7.24 → 0.35 km², with 6.88 km² reclassified as emerging.)
 2. **Master plan digitisation** — the strongest available upgrade. Comparing
    planned against actual development yields both "development where none was
    planned" and "planned development that never materialised", and adds the

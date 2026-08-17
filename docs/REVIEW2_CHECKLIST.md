@@ -173,13 +173,37 @@ against similar land. And the flag requires the development to be recent —
 long-standing low-activity land is classified `declining`, a different
 category.
 
-**Q4 — Your ghost figure is 7.24 km². How confident are you?**
+**Q4 — Your ghost figure is 0.35 km². How confident are you?**
 
-It is an upper bound, and the system says so in its own output. Without a
-nighttime-light time series we cannot separate a neighbourhood that is filling
-up from one that never will, so everything low is currently classified as
-ghost growth. Integrating the trend will reduce the figure. There is also no
-ground truth yet — validation against high-resolution imagery is planned.
+More confident than we were, and the reason is worth stating because it is the
+strongest evidence the method works as designed.
+
+An earlier run reported **7.24 km²** and labelled it an upper bound in the
+system's own output, on the grounds that without a nighttime-light time series
+a neighbourhood filling up cannot be separated from one that never will. The
+full VIIRS series 2013–2024 has since been integrated, and the 7.24 km² split
+almost exactly: **0.35 km² genuinely dim and not rising, 6.88 km² emerging**.
+The stated caveat was correct, and the correction went in the predicted
+direction — by a factor of twenty.
+
+Two honest qualifications. First, **there is still no ground truth**;
+validation against high-resolution imagery or a site visit is Phase 3, and at
+0.35 km² the zones are small enough — some are four 50 m cells — that a single
+mapping error could produce one. Zones 14 and 15, at scores 0.56 and 0.50, are
+the boundary of the method's discrimination and should be presented as such.
+Second, all 15 zones are peripheral, and the nighttime-light literature finds
+that residual error in NTL products concentrates at exactly the urban fringe
+(`LITERATURE_NTL_AND_UNET.md` §3.4). Using observed VIIRS rather than a
+simulated long series avoids the worst of that, but not all of it.
+
+**Q4b — If the number moved by 20×, why should we trust the new one?**
+
+Because the *structure* did not change — only the input completeness did. The
+classifier, thresholds and expected-activity curve are unchanged; the activity
+index went from two signals to three, and the third carries the largest weight
+(0.45). A screening tool missing its largest single weight does not produce a
+conservative estimate, it produces one that is wrong by an order of magnitude,
+and the earlier report said so in advance rather than in hindsight.
 
 **Q5 — What is novel here?**
 

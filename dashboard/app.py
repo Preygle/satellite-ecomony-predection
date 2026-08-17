@@ -67,8 +67,27 @@ st.markdown(
 # --------------------------------------------------------------------------
 # Data loading
 # --------------------------------------------------------------------------
+def outputs_stamp(slug: str, outputs_dir: str) -> float:
+    """Newest mtime across the pipeline outputs, or 0.0 if none exist.
+
+    Passed into ``load_outputs`` purely to take part in its cache key. Without
+    it the key is ``(slug, outputs_dir)``, neither of which changes when the
+    pipeline re-runs — so a dashboard left open serves the previous run's
+    summary indefinitely and no amount of reloading corrects it. That is how a
+    stale "Needs Earth Engine" notice survived a run in which Earth Engine had
+    in fact produced every layer.
+    """
+    out = Path(outputs_dir)
+    stamps = [p.stat().st_mtime
+              for p in (out / f"{slug}_summary.json", out / f"{slug}_grid.geojson")
+              if p.exists()]
+    return max(stamps) if stamps else 0.0
+
+
 @st.cache_data(show_spinner=False)
-def load_outputs(slug: str, outputs_dir: str):
+def load_outputs(slug: str, outputs_dir: str, stamp: float):  # noqa: ARG001
+    # `stamp` is deliberately unused in the body — it exists to invalidate the
+    # cache when the outputs change. Do not remove it as a dead parameter.
     out = Path(outputs_dir)
     summary_p = out / f"{slug}_summary.json"
     grid_p = out / f"{slug}_grid.geojson"
@@ -84,7 +103,8 @@ def load_outputs(slug: str, outputs_dir: str):
 
 
 cfg = load_config()
-summary, gdf = load_outputs(cfg.city_slug, str(cfg.outputs_dir))
+summary, gdf = load_outputs(cfg.city_slug, str(cfg.outputs_dir),
+                            outputs_stamp(cfg.city_slug, str(cfg.outputs_dir)))
 
 if summary is None:
     st.title("Urban Growth & Economic Activity Intelligence")
