@@ -77,6 +77,31 @@ Data portals: EOG VNL — https://eogdata.mines.edu/products/vnl/ · Black Marbl
 
 ---
 
+## Tier 7 — Guide-requested sets: VIIRS implementations and U-Net architectures
+
+Requested after the review of Chen et al. (2024). Both sets, the comparison
+tables and the derived common trends are in
+**[`docs/LITERATURE_NTL_AND_UNET.md`](docs/LITERATURE_NTL_AND_UNET.md)**.
+
+| # | Citation | Set |
+|---|---|---|
+| 21 | Zheng, Q., Weng, Q., Wang, K. (2019). *Developing a new cross-sensor calibration model for DMSP-OLS and Suomi-NPP VIIRS night-light imageries.* **ISPRS J. Photogramm. Remote Sens.** 153, 36–47. DOI: 10.1016/j.isprsjprs.2019.04.019 | A |
+| 22 | Li, X., Zhou, Y., Zhao, M., Zhao, X. (2020). *A harmonized global nighttime light dataset 1992–2018.* **Scientific Data** 7, 168. DOI: 10.1038/s41597-020-0510-y | A |
+| 23 | Zhao, M. et al. (2020). *Building a Series of Consistent Night-Time Light Data (1992–2018) in Southeast Asia by Integrating DMSP-OLS and NPP-VIIRS.* **IEEE TGRS** 58(3), 1843–1856. DOI: 10.1109/TGRS.2019.2949797 | A |
+| 24 | Chen, Z. et al. (2021). *An extended time series (2000–2018) of global NPP-VIIRS-like nighttime light data from a cross-sensor calibration.* **ESSD** 13, 889–906. DOI: 10.5194/essd-13-889-2021 | A |
+| 25 | Nechaev, D. et al. (2021). *Cross-Sensor Nighttime Lights Image Calibration for DMSP/OLS and SNPP/VIIRS with Residual U-Net.* **Remote Sensing** 13(24), 5026. DOI: 10.3390/rs13245026 | **A + B** |
+| 26 | Zhang, L. et al. (2024). *A Prolonged Artificial Nighttime-light Dataset of China (1984–2020).* **Scientific Data** 11, 414. DOI: 10.1038/s41597-024-03223-1 | A |
+| 27 | Ronneberger, O., Fischer, P., Brox, T. (2015). *U-Net: Convolutional Networks for Biomedical Image Segmentation.* **MICCAI**, LNCS 9351, 234–241. DOI: 10.1007/978-3-319-24574-4_28 | B |
+| 28 | Sirko, W. et al. (2021). *Continental-Scale Building Detection from High Resolution Satellite Imagery.* **arXiv:2107.12283** | B |
+| 29 | Shojaei, H., Nadi, S., Shafizadeh-Moghadam, H., Tayyebi, A., Van Genderen, J. (2022). *An efficient built-up land expansion model using a modified U-Net.* **Int. J. Digital Earth** 15(1), 148–163. DOI: 10.1080/17538947.2021.2017035 | B |
+| 30 | Wang, J., Hadjikakou, M., Hewitt, R.J., Bryan, B.A. (2022). *Simulating large-scale urban land-use patterns and dynamics using the U-Net deep learning architecture.* **Comput. Environ. Urban Syst.** 97, 101855. DOI: 10.1016/j.compenvurbsys.2022.101855 | B |
+| 31 | Gui, B., Bhardwaj, A., Sam, L. (2025). *A novel multi-scale deep learning framework for adaptive urban expansion simulation.* **Sustainable Cities and Society** 130, 106594. DOI: 10.1016/j.scs.2025.106594 | B |
+
+Note that #17 in Tier 5 is the same paper as #31; the Tier 5 entry lacked full
+bibliographic detail and is superseded by this one.
+
+---
+
 ## Notes
 
 - **Green cover loss** is covered operationally by Dynamic World (#6, `trees`/`grass` classes) + NDVI time series; no dedicated paper needed unless you want a cooling-effect argument, in which case pair #10 and #11 with an NDVI–LST correlation analysis.

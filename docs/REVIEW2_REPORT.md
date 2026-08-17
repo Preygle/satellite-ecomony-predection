@@ -292,6 +292,36 @@ electricity consumption. That correlation is at *provincial aggregate* level;
 it should not be read as evidence for per-pixel economic inference, a
 distinction not always observed in the applied literature.
 
+### 2.1.1 Comparative analysis of cross-sensor calibration implementations
+
+The harmonisation literature was examined in depth as a comparative set of five
+implementations — Zheng et al. (2019), Li et al. (2020), Zhao et al. (2020),
+Chen et al. (2021) and Nechaev et al. (2021) — selected on a stated criterion:
+each must perform DMSP↔VIIRS calibration, release a continuous annual product,
+and validate by regression against real VIIRS. The full comparison, and the
+parallel set of U-Net-based implementations, is in
+[`LITERATURE_NTL_AND_UNET.md`](LITERATURE_NTL_AND_UNET.md).
+
+Three conclusions from that analysis bear directly on the methodology adopted
+in Chapter 3. First, reported accuracy rises monotonically with spatial
+aggregation and varies far less with model family: Chen et al. (2024) report
+R² of 0.617 at pixel level rising to 0.964 at national level, and describe
+their own U-Net's accuracy as close to that of an auto-encoder. Second, the
+enabling ingredient in the two implementations that succeed at the hard
+direction (DMSP→VIIRS) is auxiliary daytime data — a vegetation index — rather
+than the architecture. Third, and most consequentially here, the residual error
+of simulated NTL products is spatially structured and concentrates at the urban
+fringe: Chen et al. document their own product underestimating fringe radiance
+because neighbouring dark pixels pull bright ones down, and the competing
+ChenVNL product underestimating peri-urban areas while overestimating cores.
+
+Since every ghost-growth zone identified in this project is peripheral, the
+fringe is precisely where a simulated product is least trustworthy. This
+independently reinforces the decision stated above to restrict the analysis to
+observed VIIRS (VNL V2, 2012 onward) rather than adopting a harmonised
+long-series product, and to report findings at neighbourhood rather than pixel
+scale.
+
 ## 2.2 Built-up and Impervious Surface Mapping
 
 Goldblatt et al. [7] demonstrated an influential approach: using nighttime

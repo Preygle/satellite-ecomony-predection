@@ -193,6 +193,11 @@ docs/                           SETUP, METHODOLOGY, DATASETS
 ## Literature
 
 Method choices are grounded in [`RECOMMENDED_PAPERS.md`](RECOMMENDED_PAPERS.md).
+Two focused sets — VIIRS cross-sensor calibration implementations, and U-Net
+architectures in urban remote sensing — with comparison tables and the trends
+drawn from them are in
+[`docs/LITERATURE_NTL_AND_UNET.md`](docs/LITERATURE_NTL_AND_UNET.md).
+
 The load-bearing references:
 
 - Jin et al. 2017, *Applied Geography* 80:112 — multi-source ghost-city identification
