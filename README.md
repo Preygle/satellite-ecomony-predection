@@ -140,14 +140,19 @@ neighbourhood. Limitations are stated in
 
 ---
 
-## Methodology
+## Documentation
 
-[`docs/METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) — the short
-version: datasets, the six implementation steps, and the expected output.
-Start here.
-
-[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) — the full version, with
-thresholds, reprojection details and the ghost-growth screen.
+| Document | What it covers |
+|---|---|
+| [`METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) | **Start here.** Datasets, the six implementation steps, expected output |
+| [`WORKFLOW.md`](docs/WORKFLOW.md) | What runs, in what order — the seven pipeline stages and the prediction step |
+| [`DESIGN.md`](docs/DESIGN.md) | How the system is put together — layers, modules, key decisions |
+| [`METHODOLOGY.md`](docs/METHODOLOGY.md) | The full method, with thresholds and the ghost-growth screen |
+| [`DATASETS.md`](docs/DATASETS.md) | Every dataset, why it is used, and what is deliberately not used |
+| [`LITERATURE_REVIEW.md`](docs/LITERATURE_REVIEW.md) | Chapter 2 — 20 papers by theme, comparison, research gap |
+| [`PAPER_SUMMARIES.md`](docs/PAPER_SUMMARIES.md) | Each paper: title, technology, results, use to this project |
+| [`CONVENTIONS.md`](docs/CONVENTIONS.md) | Abbreviations, official dataset identifiers, writing rules |
+| [`SETUP.md`](docs/SETUP.md) | Installation and Earth Engine setup |
 
 ---
 
