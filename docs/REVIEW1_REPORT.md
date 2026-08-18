@@ -139,6 +139,10 @@ file.
 | O7 | Predict future urban expansion | Suitability model + constrained CA, validated on a held-out period against a random baseline |
 | O8 | Deliver the results as usable planning intelligence | Interactive dashboard; machine-readable grid export with full provenance |
 
+> The methodology behind these objectives — datasets, implementation steps
+> and expected output — is in
+> [`METHODOLOGY_SIMPLE.md`](METHODOLOGY_SIMPLE.md).
+
 ### Expected outcomes
 
 **Software.** A reproducible pipeline (`python -m urbanintel.pipeline`), a

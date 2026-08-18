@@ -140,6 +140,17 @@ neighbourhood. Limitations are stated in
 
 ---
 
+## Methodology
+
+[`docs/METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) — the short
+version: datasets, the six implementation steps, and the expected output.
+Start here.
+
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) — the full version, with
+thresholds, reprojection details and the ghost-growth screen.
+
+---
+
 ## Writing and naming conventions
 
 Official dataset identifiers, the full abbreviation list, and the writing rules
