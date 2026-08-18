@@ -66,7 +66,7 @@ unusual for an Indian city. What is unusual is that nobody measures whether the
 new land is occupied. That gap is the project.
 
 **If asked why the table stops at 2020:** the observational record ends there.
-GHSL's 2025 and 2030 epochs are the GHSL model's own projections — see slide 24.
+GHSL (Global Human Settlement Layer)'s 2025 and 2030 epochs are the GHSL model's own projections — see slide 24.
 
 ---
 
@@ -101,9 +101,9 @@ turned out to matter most — hold that thought for slide 16.
 > | Signal | Source | Resolution | Measures |
 > |---|---|---|---|
 > | Built-up surface | GHS-BUILT-S (Sentinel-2 + Landsat) | 100 m | Built surface density |
-> | Economic activity | VIIRS DNB nighttime lights | ~460 m | Radiance ≈ human activity |
-> | Commercial function | OpenStreetMap POIs | vector | What kind of activity |
-> | Vegetation | Sentinel-2 NDVI | 10 m | Green cover |
+> | Economic activity | VIIRS (Visible Infrared Imaging Radiometer Suite) DNB nighttime lights | ~460 m | Radiance ≈ human activity |
+> | Commercial function | OpenStreetMap POIs (Points of Interest) | vector | What kind of activity |
+> | Vegetation | Sentinel-2 NDVI (Normalized Difference Vegetation Index) | 10 m | Green cover |
 > | Surface heat | Landsat 8/9 thermal | 30 m | Land surface temperature |
 >
 > **VIIRS resolves ~460 m. The smallest honest unit of a finding is a
@@ -134,7 +134,7 @@ from one that has read a tutorial.
 > | O7 | Predict future expansion, validated | ✅ |
 > | O8 | Deliver as an interactive dashboard | ✅ |
 >
-> **Scope:** Varanasi, 1,206 km² AOI. Analysis 100 m, reporting 500 m.
+> **Scope:** Varanasi, 1,206 km² AOI (Area of Interest). Analysis 100 m, reporting 500 m.
 > Observational epochs 2010 / 2015 / 2020, projection to 2030.
 >
 > **Explicitly out of scope:** building-level occupancy (below sensor
@@ -161,7 +161,7 @@ objective. The out-of-scope list shows the boundary was chosen, not stumbled int
 > | Zheng, Weng & Wang 2019 | Statistical calibration | China 1996–2017 |
 > | Li et al. 2020 | Sigmoid | Harmonized global 1992–2018 |
 > | Zhao et al. 2020 | Sigmoid | SE Asia 1992–2018 |
-> | Chen Z. et al. 2021 | Auto-encoder CNN + NDVI | ChenVNL, global |
+> | Chen Z. et al. 2021 | Auto-encoder CNN (Convolutional Neural Network) + NDVI | ChenVNL, global |
 > | Nechaev et al. 2021 | **Residual U-Net** | DMSP-like, global |
 >
 > **Set B — U-Net architectures (6 implementations)**
@@ -330,7 +330,7 @@ One sentence, then move on.
 > | Signal | Weight |
 > |---|---|
 > | VIIRS nighttime radiance | 0.45 |
-> | OSM POI density | 0.35 |
+> | OSM POI (Point of Interest) density | 0.35 |
 > | Gridded population | 0.20 |
 >
 > All normalised **per unit built-up area** — raw radiance mostly measures how

@@ -59,8 +59,8 @@ New-Item -ItemType Junction -Path .\data -Target D:\satellite-prediction-data
 python scripts/prefetch.py
 ```
 
-Downloads 8 GHSL tiles (built-up surface + population × 4 epochs) and the OSM
-POI/road extract for the AOI.
+Downloads 8 GHSL (Global Human Settlement Layer) tiles (built-up surface + population × 4 epochs) and the OSM (OpenStreetMap)
+POI/road extract for the AOI (Area of Interest).
 
 The JRC server throttles to roughly 30 KB/s per connection, so the tiles are
 fetched concurrently; expect **30–45 minutes** on a typical link. It is
@@ -69,14 +69,14 @@ fetches what is missing. Tune with `--workers N`.
 
 If Overpass is busy (it frequently is), the client rotates across three public
 endpoints and backs off. Failures are non-fatal: the pipeline records the gap
-and continues without the POI layer.
+and continues without the POI (Point of Interest) layer.
 
 ```bash
 python -m urbanintel.pipeline --no-gee
 streamlit run dashboard/app.py
 ```
 
-## 3. Earth Engine path — adds nightlights, NDVI, LST
+## 3. Earth Engine path — adds nightlights, NDVI (Normalized Difference Vegetation Index), LST (Land Surface Temperature)
 
 Needed for green cover loss, urban heat island, and the nightlight axis of the
 activity index.
@@ -151,7 +151,7 @@ GHSL tiles are computed from the bbox, so no tile IDs need editing.
 | Overpass `429` / `504` | Public endpoint under load. Wait and re-run, or set a different endpoint first in the config list |
 | `EEException: not signed up` | Earth Engine account not yet approved, or wrong `--project` |
 | `Total request size ... exceeds` | AOI too large for direct download — use `--drive` |
-| `only N valid rural reference cells` | AOI has too little non-built land for a SUHI baseline; widen `aoi.bbox` |
+| `only N valid rural reference cells` | AOI has too little non-built land for a SUHI (Surface Urban Heat Island) baseline; widen `aoi.bbox` |
 | Dashboard: "No pipeline output found" | Run the pipeline first; check `outputs/` |
 | `'streamlit' is not recognized...` | The console script isn't on PATH. Use `python -m streamlit run dashboard/app.py`, or `run_dashboard.bat` |
 | `No module named 'urbanintel'` | Run `pip install -e .`, or prefix with `PYTHONPATH=src` |

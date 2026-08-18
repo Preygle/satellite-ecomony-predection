@@ -20,8 +20,8 @@ This one is built on two data paths:
 
 | Path | Sources | Credentials | Gives you |
 |---|---|---|---|
-| **Open** | GHSL, OpenStreetMap | none | Built-up growth, urban form, population, POI/road activity, ghost-growth screening |
-| **Earth Engine** | VIIRS, Sentinel-2, Landsat, Dynamic World, Open Buildings | one-time `earthengine authenticate` | Nightlights, NDVI/green cover, land surface temperature, building height |
+| **Open** | GHSL (Global Human Settlement Layer), OpenStreetMap | none | Built-up growth, urban form, population, POI/road activity, ghost-growth screening |
+| **Earth Engine** | VIIRS (Visible Infrared Imaging Radiometer Suite), Sentinel-2, Landsat, Dynamic World, Open Buildings | one-time `earthengine authenticate` | Nightlights, NDVI/green cover, land surface temperature, building height |
 
 The pipeline runs end-to-end on the open path alone and folds in the Earth
 Engine layers automatically once they exist. Missing layers are recorded with
@@ -99,9 +99,9 @@ data/processed/rasters/
    using a landscape-expansion-index method (Liu et al. 2010). Leapfrog share
    is the leading indicator for ghost growth.
 2. **Economic activity** — VIIRS nightlight radiance and its per-pixel trend,
-   plus OSM commercial POI density. Always normalised **per unit built-up
+   plus OSM commercial POI (Point of Interest) density. Always normalised **per unit built-up
    area**, because raw radiance mostly measures how big a place is.
-3. **Green cover loss** — Sentinel-2 NDVI change, intersected with built-up
+3. **Green cover loss** — Sentinel-2 NDVI (Normalized Difference Vegetation Index) change, intersected with built-up
    gain so the reported figure is *conversion to urban*, not the cropping
    calendar.
 4. **Urban heat island** — Landsat land surface temperature minus an in-scene
@@ -137,6 +137,15 @@ Output is a six-class growth typology:
 resolve one empty housing block; the unit of a reliable finding is a
 neighbourhood. Limitations are stated in
 [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) and surfaced in the dashboard.
+
+---
+
+## Writing and naming conventions
+
+Official dataset identifiers, the full abbreviation list, and the writing rules
+this project follows are in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
+Dataset identifiers are never shortened or renamed; readable labels are used
+only in figure captions and dashboard headings.
 
 ---
 
@@ -204,8 +213,8 @@ The load-bearing references:
 - Lu et al. 2018, *Remote Sensing* 10:1037 — nighttime + daytime ghost-city mapping
 - Liu et al. 2010, *Landscape and Urban Planning* — landscape expansion index (urban form)
 - Henderson, Storeygard & Weil 2012, *AER* 102:994 — what nightlights can and cannot say about output
-- Zhou et al. 2019, *Remote Sensing* 11:48 — SUHI definition and the urban/rural reference
-- Ermida et al. 2020, *Remote Sensing* 12:1471 — Landsat LST in Earth Engine
+- Zhou et al. 2019, *Remote Sensing* 11:48 — SUHI (Surface Urban Heat Island) definition and the urban/rural reference
+- Ermida et al. 2020, *Remote Sensing* 12:1471 — Landsat LST (Land Surface Temperature) in Earth Engine
 
 ---
 

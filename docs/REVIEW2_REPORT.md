@@ -116,12 +116,12 @@ urban heat island, ghost cities, Google Earth Engine, Varanasi
 |---|---|
 | AOI | Area of Interest |
 | CVD | Colour Vision Deficiency |
-| DMSP-OLS | Defense Meteorological Satellite Program – Operational Linescan System |
+| DMSP-OLS (Defense Meteorological Satellite Program — Operational Linescan System) | Defense Meteorological Satellite Program – Operational Linescan System |
 | GEE | Google Earth Engine |
 | GHSL | Global Human Settlement Layer |
 | LST | Land Surface Temperature |
-| NDBI | Normalised Difference Built-up Index |
-| NDVI | Normalised Difference Vegetation Index |
+| NDBI (Normalized Difference Built-up Index) | Normalised Difference Built-up Index |
+| NDVI (Normalized Difference Vegetation Index) | Normalised Difference Vegetation Index |
 | NTL | Nighttime Lights |
 | OSM | OpenStreetMap |
 | POI | Point of Interest |
@@ -417,7 +417,7 @@ earlier CA-Markov formulations on spatial realism.
 
 Chen et al. [18] produced global 1 km urban land expansion projections under
 Shared Socioeconomic Pathways to 2100, useful as a scenario framing.
-Deep-learning alternatives coupling CNN or LSTM architectures with CA continue
+Deep-learning alternatives coupling CNN (Convolutional Neural Network) or LSTM architectures with CA continue
 to emerge, though with greater data and computational requirements.
 
 Prediction is scoped to a later project phase and is not implemented at
@@ -573,7 +573,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | GHSL R2023A | GHS-BUILT-S | 100 m | 1975–2030, 5-yearly | none | Built-up expansion |
 | GHSL R2023A | GHS-POP | 100 m | 1975–2030, 5-yearly | none | Population |
-| OpenStreetMap | Overpass API | vector | current | none | Commercial POIs, roads |
+| OpenStreetMap | Overpass API | vector | current | none | Commercial POIs (Points of Interest), roads |
 | NOAA/CSU Mines | VIIRS annual V22 | 463 m | 2012–2025 | GEE | Nighttime lights |
 | ESA | Sentinel-2 L2A | 10 m | 2017– | GEE | NDVI, NDBI |
 | USGS | Landsat 8/9 C2 L2 | 30 m | 2013– | GEE | Land surface temperature |

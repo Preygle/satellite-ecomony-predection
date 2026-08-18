@@ -2,6 +2,14 @@
 
 Curated 2026-07-26. Citations verified against publisher records unless marked *(unverified)*.
 
+> **Abbreviations.** VIIRS is the Visible Infrared Imaging Radiometer Suite;
+> DMSP-OLS is the Defense Meteorological Satellite Program — Operational
+> Linescan System; NTL means nighttime light; LULC means land use and land
+> cover. Full list in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
+>
+> Paper titles are reproduced exactly as published and are never altered to
+> insert an expansion.
+
 ---
 
 ## Tier 0 — Keep from your existing five
@@ -21,7 +29,7 @@ Curated 2026-07-26. Citations verified against publisher records unless marked *
 | # | Citation | Role |
 |---|---|---|
 | 4 | Elvidge, C.D., Zhizhin, M., Ghosh, T., Hsu, F.-C., Taneja, J. (2021). *Annual Time Series of Global VIIRS Nighttime Lights Derived from Monthly Averages: 2012 to 2019.* **Remote Sensing** 13(5), 922. DOI: 10.3390/rs13050922 | **VNL V2** — the annual VIIRS series everyone uses. Outlier-removed, background-nulled. In GEE. |
-| 5 | Román, M.O., Wang, Z., Sun, Q., et al. (2018). *NASA's Black Marble nighttime lights product suite.* **Remote Sensing of Environment** 210, 113–143. | **VNP46A** — BRDF/atmosphere/moonlight-corrected. Use for *activity change* detection, not raw brightness. GEE: `NASA/VIIRS/002/VNP46A2`. |
+| 5 | Román, M.O., Wang, Z., Sun, Q., et al. (2018). *NASA's Black Marble nighttime lights product suite.* **Remote Sensing of Environment** 210, 113–143. | **VNP46A** — BRDF/atmosphere/moonlight-corrected. Use for *activity change* detection, not raw radiance. GEE: `NASA/VIIRS/002/VNP46A2`. |
 
 Data portals: EOG VNL — https://eogdata.mines.edu/products/vnl/ · Black Marble — https://blackmarble.gsfc.nasa.gov/
 
@@ -34,7 +42,7 @@ Data portals: EOG VNL — https://eogdata.mines.edu/products/vnl/ · Black Marbl
 | 6 | Brown, C.F., Brumby, S.P., Guzder-Williams, B., et al. (2022). *Dynamic World, Near real-time global 10 m land use land cover mapping.* **Scientific Data** 9, 251. DOI: 10.1038/s41597-022-01307-4 | 10 m NRT LULC, 2015→present. Gives built-up **and** trees **and** grass in one product. Overall accuracy ~73.8%. |
 | 7 | Gong, P., Li, X., Wang, J., et al. (2020). *Annual maps of global artificial impervious area (GAIA) between 1985 and 2018.* **Remote Sensing of Environment** 236, 111510. DOI: 10.1016/j.rse.2019.111510 | Annual 30 m global impervious, 1985–2018, >90% OA. Replaces Tang 2021's pipeline. |
 | 8 | Marconcini, M., Metz-Marconcini, A., Üreyen, S., et al. (2020). *Outlining where humans live, the World Settlement Footprint 2015.* **Scientific Data** 7, 242. | WSF 2015 (10 m). Companion: WSF **Evolution** (annual 30 m, 1985–2015) — cite Marconcini et al. (2021), *GI_Forum* 9, 33–38. |
-| 9 | Pesaresi, M., Politis, P. et al. — **GHSL GHS-BUILT-S R2023A**. European Commission JRC. https://human-settlement.emergency.copernicus.eu/ghs_buS2023.php | Built-up surface density, 1975–2030, Sentinel-2 + Landsat. Best independent validation baseline. |
+| 9 | Pesaresi, M., Politis, P. et al. — **GHSL (Global Human Settlement Layer) GHS-BUILT-S R2023A**. European Commission JRC. https://human-settlement.emergency.copernicus.eu/ghs_buS2023.php | Built-up surface density, 1975–2030, Sentinel-2 + Landsat. Best independent validation baseline. |
 
 ---
 
@@ -53,7 +61,7 @@ Data portals: EOG VNL — https://eogdata.mines.edu/products/vnl/ · Black Marbl
 |---|---|---|
 | 12 | Williams, S., Xu, W., Tan, S.B., Foster, M.J., Chen, C. (2018). *Mapping China's Ghost Cities through the Combination of Nighttime Satellite Data and Daytime Satellite Data.* **Remote Sensing** 10(7), 1037. DOI: 10.3390/rs10071037 | Literally your "built-up high / NTL low" classifier. |
 | 13 | Jin, X., Long, Y., Sun, W., Lu, Y., Yang, X., Tang, J. (2017). *"Ghost cities" identification using multi-source remote sensing datasets: A case study in Yangtze River Delta.* **Applied Geography** 80, 112–121. | Multi-source (NTL + built-up + population) identification framework. |
-| 14 | *Inferring ghost cities on the globe in newly developed urban areas based on urban vitality with multi-source data.* **Cities** (2025). https://www.sciencedirect.com/science/article/abs/pii/S0197397525000669 | Most recent; global, uses NTL + LST + POI + population density as vitality. Closest match to your "ghost growth zone" pillar. |
+| 14 | *Inferring ghost cities on the globe in newly developed urban areas based on urban vitality with multi-source data.* **Cities** (2025). https://www.sciencedirect.com/science/article/abs/pii/S0197397525000669 | Most recent; global, uses NTL + LST + POI (Point of Interest) + population density as vitality. Closest match to your "ghost growth zone" pillar. |
 
 ---
 
@@ -67,7 +75,7 @@ Data portals: EOG VNL — https://eogdata.mines.edu/products/vnl/ · Black Marbl
 
 ---
 
-## Tier 6 — Economic activity (do this properly, not just NTL brightness)
+## Tier 6 — Economic activity (do this properly, not just nighttime light radiance)
 
 | # | Citation | Role |
 |---|---|---|
@@ -104,6 +112,6 @@ bibliographic detail and is superseded by this one.
 
 ## Notes
 
-- **Green cover loss** is covered operationally by Dynamic World (#6, `trees`/`grass` classes) + NDVI time series; no dedicated paper needed unless you want a cooling-effect argument, in which case pair #10 and #11 with an NDVI–LST correlation analysis.
+- **Green cover loss** is covered operationally by Dynamic World (#6, `trees`/`grass` classes) + NDVI (Normalized Difference Vegetation Index) time series; no dedicated paper needed unless you want a cooling-effect argument, in which case pair #10 and #11 with an NDVI–LST correlation analysis.
 - **Caution:** Anucharn 2025's R² ≈ 0.97 for NTL↔electricity is a *province-level aggregate* correlation. Do not cite it as evidence of per-pixel economic inference.
 - **Biggest architectural decision:** if your growth window is 2013→present, skip DMSP–VIIRS harmonization entirely (#4/#5 suffice) and drop both Scientific Data harmonization papers.

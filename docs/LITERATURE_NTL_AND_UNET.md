@@ -5,6 +5,12 @@ Prepared in response to the mentor's remarks on *Chen et al. (2024), "A global
 annual simulated VIIRS nighttime light dataset from 1992 to 2023"*, Scientific
 Data 11:1380.
 
+> **Abbreviations.** VIIRS is the Visible Infrared Imaging Radiometer Suite,
+> the current nighttime-light sensor. DMSP-OLS is the Defense Meteorological
+> Satellite Program — Operational Linescan System, the older one. NTL means
+> nighttime light. Every abbreviation used in this project is listed in
+> [`CONVENTIONS.md`](CONVENTIONS.md).
+
 Two sets are required:
 
 - **Set A** — at least five VIIRS papers that share a *similar model
@@ -27,14 +33,14 @@ Read from the PDF in the project root, not from the abstract.
 | Aspect | Chen et al. 2024 |
 |---|---|
 | Problem | DMSP-OLS (1992–2013) and NPP-VIIRS (2012–) are incompatible; no global VIIRS-like series exists before 2000 |
-| Model | **NTLSRU-Net** — U-Net CNN reframed as an image super-resolution network |
+| Model | **NTLSRU-Net** — U-Net CNN (Convolutional Neural Network) reframed as an image super-resolution network |
 | Direction | **DMSP → VIIRS** (upgrade: 1 km, 6-bit, saturated → 500 m, wide dynamic range) |
-| Inputs | Calibrated DMSP NTL **+ Landsat NDVI** (two channels) |
+| Inputs | Calibrated DMSP NTL **+ Landsat NDVI (Normalized Difference Vegetation Index)** (two channels) |
 | Architecture | 23 conv layers + 4 transposed-conv layers, 3×3 kernels, stride 1, receptive field 37 px. **All pooling layers removed**; batch-norm removed on the expansive path; skip-connection features compressed by 1×1 conv before fusion; zero padding to preserve size |
 | Training | 12,049 image-patch triples (DMSP/NDVI/VIIRS) from the 2012–2013 overlap; 80/13/7 train/test/val; MSE loss; Adam |
 | Inference | 2°×2° tiles (480 px), 0.3° overlap, central 380×380 retained, mosaicked |
 | Output | **SVNL**, global annual 500 m simulated VIIRS, 1992–2023 |
-| Validation | R² / RMSE / MAE at pixel, city, province and national scale; profile analysis; GDP regression |
+| Validation | R² / RMSE (Root Mean Square Error) / MAE at pixel, city, province and national scale; profile analysis; GDP regression |
 | Code | https://github.com/cxxtribal/NTLSRU-Net (Python 3.7 + ArcGIS 10.2) |
 
 Its headline numbers, which anchor every comparison below:
@@ -270,7 +276,7 @@ matching*.
 
 | # | Study | Architecture | Task | Study area |
 |---|---|---|---|---|
-| B1 | Ronneberger, Fischer & Brox (2015) | **U-Net** (original) | Semantic segmentation | — (foundational) |
+| B1 | Ronneberger, Fischer & Brox (2015) | **U-Net** (original) | Semantic segmentation — labelling every pixel of an image with a class | — (foundational) |
 | B2 | Nechaev et al. (2021) | **Residual U-Net** | NTL cross-sensor calibration | Global |
 | B3 | Sirko et al. (2021) | **U-Net** + mixup, self-training | Building footprint segmentation | Africa (continental) |
 | B4 | Shojaei et al. (2022) | **Modified U-Net** | Built-up land expansion simulation | Tehran & Karaj, Iran |
@@ -320,9 +326,10 @@ Genderen, J. (2022).** *An efficient built-up land expansion model using a
 modified U-Net.* Int. J. Digital Earth **15**(1), 148–163.
 DOI 10.1080/17538947.2021.2017035
 
-The closest published analogue to our Phase 2 module. Pixel-wise semantic
-segmentation for built-up expansion, driven by altitude, slope, and distance to
-barren land, cropland, greenery, roads and urban areas, over 1998 / 2008 / 2018.
+The closest published analogue to our Phase 2 module. The network labels every
+pixel as built-up or not — what the paper calls pixel-wise semantic
+segmentation — driven by altitude, slope, and distance to barren land,
+cropland, greenery, roads and urban areas, over 1998 / 2008 / 2018.
 Baseline: **random forest**.
 
 Our Phase 2 driver set (distance to centre, distance to urban edge, road
@@ -436,7 +443,7 @@ or in what we are allowed to claim.
 |---|---|---|
 | §3.4 residual bias concentrates at the urban fringe | **Do not use simulated pre-2012 NTL for ghost-zone detection.** All nine of our ghost zones are peripheral — the exact location where SVNL and ChenVNL disagree with real VIIRS. Use observed VIIRS (VNL V2, 2012–) only. | Already the design: `config/varanasi.yaml` sources `NOAA/VIIRS/DNB/ANNUAL_V22` |
 | §3.1 pixel-level NTL is the weakest unit | The reporting grid must stay coarser than the claim. We report at 500 m and state the unit of a reliable finding as a neighbourhood. | Already implemented (100 m analysis / 500 m reporting) |
-| §3.3 auxiliary daytime data breaks NTL ambiguity | Our activity index already fuses NTL with POI density and population rather than trusting radiance alone. Same principle, different auxiliary source. | Already implemented (`analysis/ghost.py`) |
+| §3.3 auxiliary daytime data breaks NTL ambiguity | Our activity index already fuses NTL with POI (Point of Interest) density and population rather than trusting radiance alone. Same principle, different auxiliary source. | Already implemented (`analysis/ghost.py`) |
 | §5.2 U-Net reaches parity with CA, at the cost of labels and GPU | **Justifies the Phase 2 choice of logistic suitability + constrained CA.** We have no GPU, no labelled training set, and we need interpretable coefficients for a planning audience. The literature says we give up little accuracy for that. | Decision now documented rather than assumed |
 | B4 is the closest published analogue | Adopt its baseline discipline: it benchmarks against random forest, we benchmark against random allocation (12.3× skill). Add an RF baseline in Phase 3 for a like-for-like comparison. | **Phase 3 action** |
 | B3 is the paper behind Open Buildings | Cite Sirko et al. when Open Buildings Temporal is introduced as the building-height source. | **Phase 3 action** |

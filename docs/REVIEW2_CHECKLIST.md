@@ -153,7 +153,7 @@ spatial monitoring — which is the condition the system is designed for, and
 which is far more common nationally than the metro case. It also provides a
 useful methodological stress test: the Ganga bisects the area of interest,
 which forces correct handling of water in the heat-island baseline, and the
-surrounding intensive agriculture forces correct attribution of NDVI change.
+surrounding intensive agriculture forces correct attribution of NDVI (Normalized Difference Vegetation Index) change.
 
 **Q2 — Nighttime lights are only ~460 m. How can you claim anything about
 specific developments?**
@@ -181,7 +181,7 @@ strongest evidence the method works as designed.
 An earlier run reported **7.24 km²** and labelled it an upper bound in the
 system's own output, on the grounds that without a nighttime-light time series
 a neighbourhood filling up cannot be separated from one that never will. The
-full VIIRS series 2013–2024 has since been integrated, and the 7.24 km² split
+full VIIRS (Visible Infrared Imaging Radiometer Suite) series 2013–2024 has since been integrated, and the 7.24 km² split
 almost exactly: **0.35 km² genuinely dim and not rising, 6.88 km² emerging**.
 The stated caveat was correct, and the correction went in the predicted
 direction — by a factor of twenty.

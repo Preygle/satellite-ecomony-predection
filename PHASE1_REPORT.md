@@ -6,15 +6,18 @@ projections.
 
 ---
 
+> Abbreviations and official dataset identifiers used throughout this report
+> are listed in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
+
 ## 1. What Phase 1 delivers
 
 | Project pillar | Phase 1 status |
 |---|---|
 | Detect new built-up areas | ✅ Complete — 4 epochs, 100 m, classified by urban form |
-| Commercial growth zones | ✅ Complete — OSM POI density by sector, class-weighted road density |
+| Commercial growth zones | ✅ Complete — OSM POI (Point of Interest) density by sector, class-weighted road density |
 | Rapid infrastructure development | ✅ Complete — growth-intensity surface + hotspot mask |
-| Green cover loss | ✅ Complete — Sentinel-2 NDVI, monsoon-aware, 2018→2024 |
-| Urban heat island hotspots | ✅ Complete — Landsat LST, SUHI, vulnerability |
+| Green cover loss | ✅ Complete — Sentinel-2 NDVI (Normalized Difference Vegetation Index), monsoon-aware, 2018→2024 |
+| Urban heat island hotspots | ✅ Complete — Landsat LST (Land Surface Temperature), SUHI (Surface Urban Heat Island), vulnerability |
 | Ghost / underutilised zones | ✅ Complete — 15 zones identified |
 | Predictive expansion models | ⬜ Phase 2 |
 | Investment corridors | ⬜ Phase 3 |
@@ -24,7 +27,7 @@ projections.
 
 > **Update (Earth Engine now authenticated).** The green-cover and heat-island
 > layers, previously listed as code-complete but unexecuted, have now been run
-> against real data. The full VIIRS annual series 2013–2024 is included, which
+> against real data. The full VIIRS (Visible Infrared Imaging Radiometer Suite) annual series 2013–2024 is included, which
 > changes the ghost-growth result substantially — see §2 and §3. Two data
 > defects were found and fixed in the process; both are recorded in §4.
 
@@ -42,7 +45,7 @@ airport corridor. Analysis at 100 m (359 × 339), reporting at 500 m
 ### Urban expansion, 2010–2025
 
 > **Correction (Phase 2).** GHS-BUILT-S R2023A supplies epochs to 2030, but
-> only **1975–2020 are observational — 2025 and 2030 are the GHSL model's own
+> only **1975–2020 are observational — 2025 and 2030 are the GHSL (Global Human Settlement Layer) model's own
 > projections.** The 2025 row below is therefore a *projected* value, not a
 > measurement, and was originally presented here without that qualification.
 > The observational record for this project ends at 2020. Figures over
@@ -135,7 +138,7 @@ with zones 4–6.
 
 ### Commercial activity (OpenStreetMap)
 
-1,999 POIs and 38,455 road ways: retail 581, food/hospitality 583,
+1,999 POIs (Points of Interest) and 38,455 road ways: retail 581, food/hospitality 583,
 health/education 510, finance/office 178, industrial 95, transport 52.
 
 ---
@@ -187,7 +190,7 @@ one that is wrong by an order of magnitude.
 | 2018 | 658,338 | 2024 | 905,354 |
 
 Total lit output rose **74.8%** over twelve years, against 23.8% built-up
-growth over 2010–2020. Lit fraction of the AOI in 2024 is 95.5%.
+growth over 2010–2020. Lit fraction of the AOI (Area of Interest) in 2024 is 95.5%.
 
 Note the 2013–2015 *decline* before the rise, and the acceleration after 2022
 (+11.1% then +15.1% year on year). The series crosses a product-version

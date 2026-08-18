@@ -62,9 +62,9 @@ The system takes Varanasi as its study area. Built-up surface is derived from
 the Global Human Settlement Layer (GHS-BUILT-S R2023A) across the observational
 epochs 2010, 2015 and 2020, and each newly urbanised parcel is classified as
 infill, edge expansion or leapfrog using a landscape-expansion-index method.
-Economic activity is estimated from VIIRS nighttime radiance, OpenStreetMap
+Economic activity is estimated from VIIRS (Visible Infrared Imaging Radiometer Suite) nighttime radiance, OpenStreetMap
 point-of-interest density and gridded population, normalised per unit of
-built-up area. Rather than applying a fixed brightness threshold, the system
+built-up area. Rather than applying a fixed radiance threshold, the system
 *learns* the activity level expected at each built-up intensity for that
 specific city and flags the negative residuals — which makes the method
 transferable to any city without re-tuning. A logistic suitability model coupled
@@ -96,7 +96,7 @@ genuinely stalled development from a neighbourhood that is simply mid-occupation
 
 **Assumptions.**
 
-1. Nighttime radiance, POI density and population density are jointly
+1. Nighttime radiance, POI (Point of Interest) density and population density are jointly
    informative about economic use, none of them individually sufficient.
 2. Within one city, the relationship between built-up intensity and activity is
    stable enough that a large negative residual is meaningful.
@@ -134,8 +134,8 @@ file.
 | O2 | Classify the *form* of new development | Every newly urbanised cell labelled infill / edge expansion / leapfrog, with area shares |
 | O3 | Construct a multi-signal economic-activity index | Composite of NTL, POI density and population, normalised per unit built-up area |
 | O4 | Detect ghost growth without fixed thresholds | Learned expected-activity curve + residual screen; output as a six-class growth typology |
-| O5 | Measure green-cover loss attributable to urbanisation | NDVI change intersected with built-up gain |
-| O6 | Map surface urban heat island and heat vulnerability | LST minus in-scene rural reference, water excluded; population-weighted vulnerability |
+| O5 | Measure green-cover loss attributable to urbanisation | NDVI (Normalized Difference Vegetation Index) change intersected with built-up gain |
+| O6 | Map surface urban heat island and heat vulnerability | LST (Land Surface Temperature) minus in-scene rural reference, water excluded; population-weighted vulnerability |
 | O7 | Predict future urban expansion | Suitability model + constrained CA, validated on a held-out period against a random baseline |
 | O8 | Deliver the results as usable planning intelligence | Interactive dashboard; machine-readable grid export with full provenance |
 
@@ -235,7 +235,7 @@ The error was found during Phase 2 validation and corrected across all reports.
 
 | Phase | Target | Deliverable | Aligned review | Date |
 |---|---|---|---|---|
-| Setup | — | AOI definition, data inventory, literature survey | Review 1 | 9–11 Jul 2026 |
+| Setup | — | AOI (Area of Interest) definition, data inventory, literature survey | Review 1 | 9–11 Jul 2026 |
 | Phase 1 | ~50% | Built-up expansion, urban form, activity index, ghost-growth detection, dashboard | Review 2 | 19 Aug 2026 |
 | Phase 2 | ~80% | Predictive expansion model, validation against a held-out period, corrections | Review 3 | 16 Sep 2026 |
 | Phase 3 | 100% | Ground validation, ward-level reporting, investment corridors, master-plan comparison | Review 4 | 12–16 Oct 2026 |

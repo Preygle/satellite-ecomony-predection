@@ -9,9 +9,9 @@ without touching code.
 
 | | |
 |---|---|
-| AOI | 82.80–83.15 °E, 25.15–25.45 °N (~1,206 km²) |
+| AOI (Area of Interest) | 82.80–83.15 °E, 25.15–25.45 °N (~1,206 km²) |
 | Analysis CRS | EPSG:32644 (UTM 44N) |
-| Analysis grid | 100 m — GHSL native, 359 × 339 |
+| Analysis grid | 100 m — GHSL (Global Human Settlement Layer) native, 359 × 339 |
 | Reporting grid | 500 m — 73 × 69 |
 
 The AOI covers Varanasi Municipal Corporation, the Ring Road corridor, the
@@ -21,7 +21,7 @@ the last two being where expansion is actually happening.
 **Why two grids.** Change detection is done at GHSL-native 100 m so that
 newly built cells are not smeared across coarse boundaries. Reporting is at
 500 m because a 121,000-polygon web map is unusable in a browser, and because
-VIIRS at ~460 m cannot support finer claims about activity. Reporting at 100 m
+VIIRS (Visible Infrared Imaging Radiometer Suite) at ~460 m cannot support finer claims about activity. Reporting at 100 m
 would be over-claiming.
 
 **Frame construction.** Bounds are snapped outward to whole multiples of the
@@ -32,8 +32,11 @@ and aggregation is a clean 5 × 5 block reduce with no resampling.
 
 ## 2. Built-up expansion
 
-**Source.** GHS-BUILT-S R2023A, m² of built surface per 100 m cell, epochs
-2010 / 2015 / 2020 / 2025.
+**Source.** `GHS-BUILT-S R2023A` — the GHSL built-up surface dataset from the
+European Commission Joint Research Centre. It records m² of built surface per
+100 m cell. Observational epochs 2010 / 2015 / 2020 are used; the 2025 and
+2030 epochs GHSL also supplies are its own projections, not measurements, and
+are excluded from every measured claim.
 
 **Reprojection (this one matters).** GHSL is in Mollweide, an equal-area
 projection; the analysis frame is UTM. Built-up m² and population are
@@ -68,8 +71,10 @@ This follows the landscape-expansion-index family (Liu et al. 2010,
 
 ## 3. Economic activity
 
-**Sources.** VIIRS annual `average_masked` radiance; OSM commercial POI
-density; GHS-POP population.
+**Sources.** `NOAA/VIIRS/DNB/ANNUAL_V21` (2013–2021) and
+`NOAA/VIIRS/DNB/ANNUAL_V22` (2022 onward), band `average_masked`, giving
+nighttime light radiance; OSM (OpenStreetMap) commercial POI (Point of Interest)
+density; and `GHS-POP R2023A` population.
 
 **The normalisation that makes it work.** Every activity measure is divided by
 the cell's built-up area before comparison. Raw radiance largely measures *how
@@ -105,7 +110,9 @@ inferred.
 
 ## 4. Green cover
 
-**Source.** Sentinel-2 NDVI, median composite over **October–March**.
+**Source.** `COPERNICUS/S2_SR_HARMONIZED` — Sentinel-2 Surface Reflectance
+Harmonized. NDVI (Normalized Difference Vegetation Index) is computed from its
+Near Infrared and Red bands, as a median composite over **October–March**.
 
 **Why that window.** Varanasi's June–September monsoon is heavily clouded, and
 a full-year median mixes post-monsoon flush with dry-season senescence, making
@@ -125,10 +132,11 @@ Unqualified NDVI decline is reported separately and is not called urbanisation.
 
 ## 5. Urban heat island
 
-**Source.** Landsat 8/9 Collection-2 Level-2 `ST_B10`, pre-monsoon
+**Source.** `LANDSAT/LC08/C02/T1_L2` and `LANDSAT/LC09/C02/T1_L2`, band
+`ST_B10` (surface temperature), pre-monsoon
 (March–May) median, cloud/shadow masked on `QA_PIXEL` bits 3 and 4.
 
-SUHI intensity = LST − **median LST of rural land cells in the same scene**
+SUHI (Surface Urban Heat Island) intensity = LST (Land Surface Temperature) − **median LST of rural land cells in the same scene**
 (Zhou et al. 2019). Two choices:
 
 - **Water is excluded from the rural reference.** The Ganga bisects the AOI

@@ -19,7 +19,7 @@ documented in §5 and corrected in the Phase 1 report.
 
 | Deliverable | Status |
 |---|---|
-| Transition model (logistic suitability) | ✅ Implemented, fitted, AUC 0.990 |
+| Transition model (logistic suitability) | ✅ Implemented, fitted, AUC (Area Under the Curve) 0.990 |
 | Constrained CA allocation | ✅ Implemented |
 | Hold-out validation with land-change metrics | ✅ FoM 0.068, **12.3× better than random** |
 | Random-allocation baseline | ✅ Implemented |
@@ -116,7 +116,7 @@ the quantity would confound two different errors.
 
 **Overall accuracy of 98.1% means nothing here, and is in fact worse than
 doing nothing.** A null model predicting no change anywhere scores 98.91%,
-because the overwhelming majority of the AOI simply does not convert. Any
+because the overwhelming majority of the AOI (Area of Interest) simply does not convert. Any
 report quoting overall accuracy for a land-change model is reporting the base
 rate, not skill. This is why Figure of Merit and κ are the reported metrics.
 
@@ -143,7 +143,7 @@ sits below the usual range.
    designations, land prices, ownership, and approved layouts. These
    determine where development is *permitted*, which physical geography
    cannot infer.
-3. **GHSL is itself modelled**, so the model is partly learning GHSL's
+3. **GHSL (Global Human Settlement Layer) is itself modelled**, so the model is partly learning GHSL's
    allocation behaviour rather than ground reality.
 4. **100 m cells with small change quantities** make exact placement hard;
    the model may identify the right *neighbourhood* while missing the exact
