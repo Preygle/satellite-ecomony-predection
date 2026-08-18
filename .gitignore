@@ -3,9 +3,12 @@
 # you want them versioned.
 *.pdf
 
-# Data and outputs (large; regenerate with scripts/prefetch.py)
-data/
-outputs/
+# Data and outputs (large; regenerate with scripts/prefetch.py).
+# Leading slashes are required: a bare `data/` matches any directory of that
+# name at any depth, which silently excluded the whole src/urbanintel/data
+# acquisition package from version control.
+/data/
+/outputs/
 *.tif
 *.zip
 *.part
@@ -25,3 +28,7 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local dashboard server logs
+*.log
+*.log.err
