@@ -149,6 +149,7 @@ neighbourhood. Limitations are stated in
 | [`DESIGN.md`](docs/DESIGN.md) | How the system is put together — layers, modules, key decisions |
 | [`METHODOLOGY.md`](docs/METHODOLOGY.md) | The full method, with thresholds and the ghost-growth screen |
 | [`DATASETS.md`](docs/DATASETS.md) | Every dataset, why it is used, and what is deliberately not used |
+| [`REVIEW2_DOCUMENTATION.md`](docs/REVIEW2_DOCUMENTATION.md) | **Review 2 submission** — abstract, literature, methodology, datasets, architecture, proposed solution |
 | [`LITERATURE_REVIEW.md`](docs/LITERATURE_REVIEW.md) | Chapter 2 — 20 papers by theme, comparison, research gap |
 | [`PAPER_SUMMARIES.md`](docs/PAPER_SUMMARIES.md) | Each paper: title, technology, results, use to this project |
 | [`CONVENTIONS.md`](docs/CONVENTIONS.md) | Abbreviations, official dataset identifiers, writing rules |

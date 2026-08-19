@@ -167,6 +167,33 @@ def _s2_cloud_mask(img):
     return img.updateMask(mask).divide(10000).copyProperties(img, ["system:time_start"])
 
 
+def truecolour_image(cfg: Config, aoi: AOI, year: int):
+    """Sentinel-2 true-colour composite — what the ground actually looks like.
+
+    Red, Green and Blue surface reflectance (bands B4, B3, B2), median over the
+    same October-March window used for the vegetation indices so the scene is
+    directly comparable with them.
+
+    Every other Earth Engine layer in this project is a derived index. This one
+    is the plain photograph, and it is what makes the rest legible to someone
+    seeing the study area for the first time.
+    """
+    ee = ee_init()
+    geom = aoi_geometry(aoi)
+    asset = cfg.get("sources.gee.assets.s2_sr")
+    max_cloud = cfg.get("sources.gee.max_cloud_pct")
+
+    col = (
+        ee.ImageCollection(asset)
+        .filterDate(f"{year}-10-01", f"{year + 1}-03-31")
+        .filterBounds(geom)
+        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", max_cloud))
+    )
+    require_composite_depth(cfg, col, f"true colour {year}")
+    comp = col.map(_s2_cloud_mask).median()
+    return comp.select(["B4", "B3", "B2"]).rename(["red", "green", "blue"]).clip(geom)
+
+
 def ndvi_image(cfg: Config, aoi: AOI, year: int):
     """Sentinel-2 NDVI, growing-season median.
 

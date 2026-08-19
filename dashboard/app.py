@@ -228,8 +228,8 @@ with st.sidebar:
 # --------------------------------------------------------------------------
 # Tabs
 # --------------------------------------------------------------------------
-tab_map, tab_growth, tab_ghost, tab_env, tab_data = st.tabs(
-    ["Map", "Growth", "Ghost growth", "Environment", "Data"]
+tab_map, tab_growth, tab_ghost, tab_env, tab_data, tab_src = st.tabs(
+    ["Map", "Growth", "Ghost growth", "Environment", "Data", "Sources"]
 )
 
 
@@ -549,3 +549,37 @@ with tab_data:
                            f"{cfg.city_slug}_grid.csv", "text/csv")
     st.subheader("Full summary")
     st.json(summary, expanded=False)
+
+
+with tab_src:
+    st.subheader("Datasets and when their imagery was acquired")
+    st.markdown(
+        "<div class='ui-caption'>Acquisition windows are read back from the image "
+        "collections themselves, not assumed from a filename. Regenerate with "
+        "<code>python scripts/collect_layer_dates.py</code>.</div>",
+        unsafe_allow_html=True)
+
+    dates_p = cfg.outputs_dir / "layer_dates.json"
+    if not dates_p.exists():
+        st.info("No acquisition record yet. Run `python scripts/collect_layer_dates.py`.")
+    else:
+        import json as _json
+        recs = _json.loads(dates_p.read_text(encoding="utf-8"))
+        rows = [{
+            "Layer": r.get("label", k),
+            "Dataset": r.get("dataset", "—"),
+            "Provider": r.get("provider", "—"),
+            "Imagery dates": r.get("window", "—"),
+            "Built from": r.get("composite", "—"),
+        } for k, r in recs.items()]
+        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True, height=430)
+
+        st.subheader("Why each season was chosen")
+        for k, r in recs.items():
+            with st.expander(f"{r.get('label', k)} — {r.get('window', '')}"):
+                st.markdown(
+                    f"**Dataset** `{r.get('dataset','—')}` · {r.get('provider','—')}\n\n"
+                    f"**Built from** {r.get('composite','—')}\n\n"
+                    f"**Season** {r.get('season','—')}\n\n"
+                    f"**Export** {r.get('export','—')}")
+

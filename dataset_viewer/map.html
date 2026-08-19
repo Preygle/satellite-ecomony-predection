@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset Map — Varanasi</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  :root { --bg:#0f1115; --panel:#161a20; --line:#262c36; --text:#e6edf3; --dim:#8b949e; --accent:#4f9cf9; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--text); display:flex; flex-direction:column;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+
+  header { padding:14px 20px; border-bottom:1px solid var(--line); flex:none; }
+  h1 { margin:0 0 3px; font-size:18px; font-weight:600; }
+  .sub { color:var(--dim); font-size:13px; }
+
+  nav { display:flex; flex-wrap:wrap; gap:7px; padding:12px 20px; border-bottom:1px solid var(--line); flex:none; }
+  nav button { background:var(--panel); color:var(--dim); border:1px solid var(--line);
+               border-radius:6px; padding:8px 13px; font-size:13px; cursor:pointer; font-family:inherit; }
+  nav button:hover { border-color:#3d4756; color:var(--text); }
+  nav button.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+
+  .body { flex:1; display:flex; min-height:0; }
+  #map { flex:1; background:#0b0d11; }
+  aside { width:330px; flex:none; border-left:1px solid var(--line); padding:18px;
+          overflow-y:auto; background:var(--panel); }
+  @media (max-width:860px){ .body{flex-direction:column;} aside{width:auto;border-left:0;border-top:1px solid var(--line);} #map{min-height:55vh;} }
+
+  h2 { margin:0 0 12px; font-size:16px; font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  td { padding:7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  td.k { color:var(--dim); width:96px; padding-right:10px; white-space:nowrap; }
+  code { background:#11151b; border:1px solid var(--line); border-radius:4px;
+         padding:1px 5px; font-size:11.5px; color:#9ecbff; word-break:break-all; }
+  p.note { color:var(--dim); font-size:13px; line-height:1.6; }
+
+  .ctl { margin:16px 0; font-size:13px; color:var(--dim); }
+  .ctl label { display:block; margin-bottom:6px; }
+  input[type=range]{ width:100%; accent-color:var(--accent); }
+  .row { display:flex; gap:8px; margin-top:8px; }
+  .row button { flex:1; background:#11151b; color:var(--dim); border:1px solid var(--line);
+                border-radius:6px; padding:7px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .row button.on { border-color:var(--accent); color:var(--text); }
+
+  .dates { margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
+  .dates h3 { margin:0 0 9px; font-size:13px; font-weight:600; color:var(--accent);
+              text-transform:uppercase; letter-spacing:.4px; }
+  .legend { margin-top:16px; }
+  .ramp { height:12px; border-radius:3px; border:1px solid var(--line); }
+  .ends { display:flex; justify-content:space-between; color:var(--dim); font-size:11.5px; margin-top:5px; }
+
+  .leaflet-container { background:#0b0d11; }
+  .crisp img.leaflet-image-layer { image-rendering:pixelated; }
+  .leaflet-control-attribution { background:rgba(15,17,21,.85)!important; color:#8b949e!important; font-size:10px!important; }
+  .leaflet-control-attribution a { color:#6fa8f5!important; }
+  .leaflet-bar a { background:#161a20!important; color:#e6edf3!important; border-color:#262c36!important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dataset Map — Varanasi</h1>
+  <div class="sub"><a href="index.html" style="color:#4f9cf9;text-decoration:none">→ Plain image view</a> &nbsp;·&nbsp; Every layer is real data downloaded and processed by the project pipeline · scroll to zoom, drag to pan</div>
+</header>
+
+<nav id="tabs"></nav>
+
+<div class="body">
+  <div id="map"></div>
+  <aside>
+    <h2 id="title">—</h2>
+    <table id="meta"></table>
+    <p class="note" id="note"></p>
+
+    <div class="dates">
+      <h3>When this imagery is from</h3>
+      <table id="dates"></table>
+    </div>
+
+    <div class="ctl">
+      <label>Layer opacity — <span id="opv">85</span>%</label>
+      <input type="range" id="op" min="0" max="100" value="85">
+      <div class="row">
+        <button id="bmOsm" class="on">Street map</button>
+        <button id="bmNone">No basemap</button>
+      </div>
+      <div class="row">
+        <button id="crisp" class="on">Sharp pixels</button>
+        <button id="smooth">Smoothed</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="ramp" id="ramp"></div>
+      <div class="ends"><span id="lo"></span><span id="hi"></span></div>
+      <div class="ends"><span id="unit"></span></div>
+    </div>
+  </aside>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="layers.js"></script>
+<script src="dates.js"></script>
+<script>
+// Descriptions keyed to the exported layers. Official dataset identifiers are
+// written exactly as they appear in the provider's catalogue.
+const INFO = {
+  truecolour:   {id:"COPERNICUS/S2_SR_HARMONIZED", provider:"ESA / Copernicus", res:"20 m export, 10 m native", shown:"Oct 2024 – Mar 2025 median", account:"Google Earth Engine",
+                 note:"A plain true-colour photograph from the Red, Green and Blue bands — what the ground actually looks like. Every other layer here is a derived index; this one gives them context. The Ganga, its sandbanks, the dense old city and the airport runway are all visible."},
+  builtup:      {id:"GHS-BUILT-S R2023A", provider:"European Commission Joint Research Centre", res:"100 m", shown:"2020", account:"None needed",
+                 note:"How many square metres of each 100 m cell are built on. This is the backbone of the project — subtracting one year from another shows where new building appeared."},
+  population:   {id:"GHS-POP R2023A", provider:"European Commission Joint Research Centre", res:"100 m", shown:"2020", account:"None needed",
+                 note:"Estimated people per cell. Used as the denominator when comparing land growth against population growth. A modelled estimate, not a census count."},
+  nightlights:  {id:"NOAA/VIIRS/DNB/ANNUAL_V22", provider:"NOAA", res:"463 m", shown:"2024", account:"Google Earth Engine",
+                 note:"Light emitted at night — an indirect indicator of human and economic activity, and a proxy rather than a measurement of economic output. Zoom out to see the highway corridors."},
+  ndvi:         {id:"COPERNICUS/S2_SR_HARMONIZED", provider:"ESA / Copernicus", res:"30 m export, 10 m native", shown:"Oct 2024 – Mar 2025 median", account:"Google Earth Engine",
+                 note:"NDVI (Normalized Difference Vegetation Index) from the Near Infrared and Red bands. Green is dense vegetation. Most of it here is farmland, not city trees."},
+  ndbi:         {id:"COPERNICUS/S2_SR_HARMONIZED", provider:"ESA / Copernicus", res:"30 m export, 10 m native", shown:"Oct 2024 – Mar 2025 median", account:"Google Earth Engine",
+                 note:"NDBI (Normalized Difference Built-up Index) from the Shortwave Infrared and Near Infrared bands. Highlights sealed surfaces such as concrete and rooftops."},
+  lst:          {id:"LANDSAT/LC08/C02/T1_L2", provider:"USGS", res:"30 m", shown:"Pre-monsoon 2024", account:"Google Earth Engine",
+                 note:"LST (Land Surface Temperature) in °C, from the ST_B10 thermal band. The built core reads clearly hotter than the countryside around it."},
+  dynamicworld: {id:"GOOGLE/DYNAMICWORLD/V1", provider:"Google", res:"60 m export, 10 m native", shown:"2024, built class", account:"Google Earth Engine",
+                 note:"Probability that a cell is built, from a deep-learning land-cover model. Used as an independent check, and its water class supplies the mask the heat calculation needs."},
+  buildings:    {id:"GOOGLE/Research/open-buildings-temporal/v1", provider:"Google", res:"30 m export, 4 m native", shown:"2023, height band", account:"Google Earth Engine",
+                 note:"Estimated building height. The vertical dimension every other layer misses — a cell growing taller rather than wider is getting denser, not spreading."},
+  poi:          {id:"OpenStreetMap, via the Overpass API", provider:"OpenStreetMap contributors", res:"Vector, gridded to 100 m", shown:"1,999 points of interest", account:"None needed",
+                 note:"Density of shops, clinics and offices. Tells us what kind of activity is present, which light alone cannot. Coverage is uneven — the core is well mapped, the edges are not."},
+  roads:        {id:"OpenStreetMap, via the Overpass API", provider:"OpenStreetMap contributors", res:"Vector, gridded to 100 m", shown:"38,455 road segments", account:"None needed",
+                 note:"Road density weighted by road class. Roads usually appear before buildings, which makes this one of the strongest predictors of where a city grows next."}
+};
+
+const CENTRE = [25.30, 82.98];
+const map = L.map("map", { center: CENTRE, zoom: 11, zoomControl: true });
+
+const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "© OpenStreetMap contributors"
+}).addTo(map);
+
+let overlay = null, current = 0;
+const tabs = document.getElementById("tabs");
+
+LAYER_DATA.forEach((d, i) => {
+  const b = document.createElement("button");
+  b.textContent = d.label;
+  b.onclick = () => select(i);
+  tabs.appendChild(b);
+});
+
+function select(i) {
+  current = i;
+  const d = LAYER_DATA[i], info = INFO[d.key] || {};
+  [...tabs.children].forEach((b, j) => b.classList.toggle("on", i === j));
+
+  if (overlay) map.removeLayer(overlay);
+  overlay = L.imageOverlay(`map/${d.key}.png`, d.bounds, {
+    opacity: document.getElementById("op").value / 100
+  }).addTo(map);
+
+  document.getElementById("title").textContent = d.label;
+  document.getElementById("meta").innerHTML = `
+    <tr><td class="k">Dataset</td><td><code>${info.id || "—"}</code></td></tr>
+    <tr><td class="k">Provider</td><td>${info.provider || "—"}</td></tr>
+    <tr><td class="k">Resolution</td><td>${info.res || "—"}</td></tr>
+    <tr><td class="k">Shown</td><td>${info.shown || "—"}</td></tr>
+    <tr><td class="k">Account</td><td>${info.account || "—"}</td></tr>
+    <tr><td class="k">Image size</td><td>${d.px[0]} × ${d.px[1]} pixels</td></tr>`;
+  document.getElementById("note").textContent = info.note || "";
+
+  const dt = (typeof LAYER_DATES !== "undefined" && LAYER_DATES[d.key]) || null;
+  document.getElementById("dates").innerHTML = dt ? `
+    <tr><td class="k">Dates</td><td><strong>${dt.window}</strong></td></tr>
+    <tr><td class="k">Built from</td><td>${dt.composite}</td></tr>
+    <tr><td class="k">Season</td><td>${dt.season}</td></tr>
+    <tr><td class="k">Exported</td><td>${dt.export}</td></tr>`
+    : `<tr><td colspan="2" style="color:var(--dim)">Not recorded</td></tr>`;
+
+  document.getElementById("ramp").style.background =
+    `linear-gradient(90deg, ${d.ramp.join(",")})`;
+  document.querySelector(".legend").style.display = d.cmap === "rgb" ? "none" : "";
+  document.getElementById("lo").textContent = d.vmin;
+  document.getElementById("hi").textContent = d.vmax;
+  document.getElementById("unit").textContent = d.unit;
+}
+
+document.getElementById("op").oninput = e => {
+  document.getElementById("opv").textContent = e.target.value;
+  if (overlay) overlay.setOpacity(e.target.value / 100);
+};
+
+function pick(onId, offId, fn) {
+  const on = document.getElementById(onId), off = document.getElementById(offId);
+  on.onclick = () => { on.classList.add("on"); off.classList.remove("on"); fn(true); };
+  off.onclick = () => { off.classList.add("on"); on.classList.remove("on"); fn(false); };
+}
+pick("bmOsm", "bmNone", show => show ? osm.addTo(map) : map.removeLayer(osm));
+pick("crisp", "smooth", on => document.getElementById("map").classList.toggle("crisp", on));
+
+document.getElementById("map").classList.add("crisp");
+
+// Arrow keys move between datasets.
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") select((current + 1) % LAYER_DATA.length);
+  if (e.key === "ArrowLeft")  select((current - 1 + LAYER_DATA.length) % LAYER_DATA.length);
+});
+
+select(0);
+map.fitBounds(LAYER_DATA[0].bounds);
+</script>
+</body>
+</html>

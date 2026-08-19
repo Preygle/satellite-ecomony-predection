@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets Acquired — Varanasi</title>
+<style>
+  :root { --bg:#0f1115; --panel:#161a20; --line:#262c36; --text:#e6edf3; --dim:#8b949e; --accent:#4f9cf9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding:22px 28px 16px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 4px; font-size:21px; font-weight:600; }
+  .sub { color:var(--dim); font-size:14px; }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 28px 40px; }
+  nav { display:flex; flex-wrap:wrap; gap:8px; padding:18px 0; }
+  button { background:var(--panel); color:var(--dim); border:1px solid var(--line);
+           border-radius:7px; padding:9px 15px; font-size:13.5px; cursor:pointer;
+           font-family:inherit; }
+  button:hover { border-color:#3d4756; color:var(--text); }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .panel { display:none; }
+  .panel.on { display:block; }
+  .grid { display:grid; grid-template-columns: 1.35fr 1fr; gap:26px; align-items:start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  img { width:100%; border:1px solid var(--line); border-radius:9px; display:block; background:#0f1115; }
+  h2 { margin:0 0 14px; font-size:18px; font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  td { padding:9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  td.k { color:var(--dim); width:120px; padding-right:14px; white-space:nowrap; }
+  code { background:#11151b; border:1px solid var(--line); border-radius:5px;
+         padding:2px 6px; font-size:12.5px; color:#9ecbff; word-break:break-all; }
+  p.note { color:var(--dim); font-size:14px; line-height:1.6; margin:16px 0 0; }
+  .dates { margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
+  .dates h3 { margin:0 0 9px; font-size:12.5px; font-weight:600; color:var(--accent);
+              text-transform:uppercase; letter-spacing:.4px; }
+  footer { color:var(--dim); font-size:13px; padding:22px 28px; border-top:1px solid var(--line);
+           max-width:1180px; margin:0 auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Datasets Acquired — Varanasi</h1>
+  <div class="sub"><a href="map.html" style="color:#4f9cf9;text-decoration:none">→ Open the zoomable map view</a><br>Satellite-Based Urban Growth and Economic Activity Intelligence System &nbsp;·&nbsp;
+  Area of interest 1,206 km² &nbsp;·&nbsp; 82.80–83.15 °E, 25.15–25.45 °N</div>
+</header>
+
+<div class="wrap">
+  <nav id="tabs"></nav>
+  <div id="panels"></div>
+</div>
+
+<footer>
+  Every image on this page was produced from data actually downloaded and processed by the
+  project pipeline. Nothing here is a sample or a stock image.
+</footer>
+
+<script src="dates.js"></script>
+<script>
+const DATASETS = [
+  {
+    key: "builtup", tab: "Built-up surface",
+    title: "GHSL Built-up Surface",
+    id: "GHS-BUILT-S R2023A",
+    provider: "European Commission Joint Research Centre",
+    res: "100 m", period: "1975–2020 observed, five-yearly", shown: "2020",
+    account: "None needed",
+    shows: "How many square metres of each 100 m cell are built on.",
+    note: "This is the backbone of the project. Subtracting one year from another shows exactly where new building appeared. The dark band through the middle is the Ganga."
+  },
+  {
+    key: "population", tab: "Population",
+    title: "GHSL Population",
+    id: "GHS-POP R2023A",
+    provider: "European Commission Joint Research Centre",
+    res: "100 m", period: "1975–2020, five-yearly", shown: "2020",
+    account: "None needed",
+    shows: "Estimated number of people living in each 100 m cell.",
+    note: "Used as the denominator when comparing land growth against population growth, and as one of the three signals in the activity index. It is a modelled estimate, not a census count."
+  },
+  {
+    key: "nightlights", tab: "Nighttime lights",
+    title: "VIIRS Annual Nighttime Lights",
+    id: "NOAA/VIIRS/DNB/ANNUAL_V21 and NOAA/VIIRS/DNB/ANNUAL_V22",
+    provider: "NOAA",
+    res: "463 m", period: "2013–2024, annual", shown: "2024",
+    account: "Google Earth Engine",
+    shows: "How much light the ground emits at night, in nW cm⁻² sr⁻¹.",
+    note: "An indirect indicator of human and economic activity — a proxy, not a measurement of economic output. The bright lines running outward are the highway corridors. Two datasets are listed because the series is split across two product versions."
+  },
+  {
+    key: "ndvi", tab: "Vegetation (NDVI)",
+    title: "Sentinel-2 Vegetation Index",
+    id: "COPERNICUS/S2_SR_HARMONIZED",
+    provider: "ESA / Copernicus",
+    res: "10 m", period: "2018 onward", shown: "October 2024 – March 2025 median",
+    account: "Google Earth Engine",
+    shows: "NDVI (Normalized Difference Vegetation Index), computed from the Near Infrared and Red bands.",
+    note: "Green means dense vegetation, red means very little. Comparing two years shows where green cover was lost. Most of the green here is farmland, not city trees, which is why we only count vegetation loss that coincides with new building."
+  },
+  {
+    key: "ndbi", tab: "Built-up index (NDBI)",
+    title: "Sentinel-2 Built-up Index",
+    id: "COPERNICUS/S2_SR_HARMONIZED",
+    provider: "ESA / Copernicus",
+    res: "10 m", period: "2018 onward", shown: "October 2024 – March 2025 median",
+    account: "Google Earth Engine",
+    shows: "NDBI (Normalized Difference Built-up Index), computed from the Shortwave Infrared and Near Infrared bands.",
+    note: "Highlights hard, sealed surfaces such as concrete and rooftops. Used as an independent cross-check on the built-up dataset, from a completely different sensor."
+  },
+  {
+    key: "lst", tab: "Surface temperature",
+    title: "Landsat Land Surface Temperature",
+    id: "LANDSAT/LC08/C02/T1_L2 and LANDSAT/LC09/C02/T1_L2",
+    provider: "USGS",
+    res: "30 m", period: "2013 onward", shown: "Pre-monsoon (March–May) 2024",
+    account: "Google Earth Engine",
+    shows: "LST (Land Surface Temperature) in °C, from the ST_B10 thermal band.",
+    note: "The built-up core reads clearly hotter than the surrounding countryside. Subtracting a rural reference from the same image — with water excluded — gives the urban heat island intensity."
+  },
+  {
+    key: "dynamicworld", tab: "Land cover",
+    title: "Dynamic World Land Cover",
+    id: "GOOGLE/DYNAMICWORLD/V1",
+    provider: "Google",
+    res: "10 m", period: "2015 onward, updated every 2–5 days", shown: "2024, built class",
+    account: "Google Earth Engine",
+    shows: "The probability that each cell is built, from a deep-learning land-cover model.",
+    note: "Gives a probability for each of nine land-cover classes rather than one fixed label. We use it as an independent check on land cover, and its water class supplies the mask the heat island calculation needs."
+  },
+  {
+    key: "buildings", tab: "Building height",
+    title: "Open Buildings Temporal",
+    id: "GOOGLE/Research/open-buildings-temporal/v1",
+    provider: "Google",
+    res: "4 m", period: "2016–2023, annual", shown: "2023, height band",
+    account: "Google Earth Engine",
+    shows: "Estimated building height in metres.",
+    note: "The vertical dimension every other layer misses. A cell whose built-up area stays flat while its height rises is getting denser rather than spreading outward — a distinction that matters for detecting underused development."
+  },
+  {
+    key: "poi", tab: "Points of interest",
+    title: "OpenStreetMap Points of Interest",
+    id: "OpenStreetMap, via the Overpass API",
+    provider: "OpenStreetMap contributors",
+    res: "Vector, gridded to 100 m", period: "Current", shown: "1,999 points of interest",
+    account: "None needed",
+    shows: "Density of shops, clinics, offices and other mapped places.",
+    note: "Tells us what kind of activity is present, which satellite light alone cannot. Coverage is uneven — the city core is well mapped and the edges are not, which is a limitation we state openly."
+  },
+  {
+    key: "roads", tab: "Road network",
+    title: "OpenStreetMap Roads",
+    id: "OpenStreetMap, via the Overpass API",
+    provider: "OpenStreetMap contributors",
+    res: "Vector, gridded to 100 m", period: "Current", shown: "38,455 road segments",
+    account: "None needed",
+    shows: "Road density per cell, weighted by road class.",
+    note: "Roads usually appear before buildings, which makes road density one of the strongest predictors of where a city will grow next. It is one of the seven drivers in the prediction model."
+  }
+];
+
+function dateRows(key) {
+  const d = (typeof LAYER_DATES !== "undefined" && LAYER_DATES[key]) || null;
+  if (!d) return `<tr><td class="k">Dates</td><td>Not recorded</td></tr>`;
+  return `<tr><td class="k">Dates</td><td><strong>${d.window}</strong></td></tr>
+          <tr><td class="k">Built from</td><td>${d.composite}</td></tr>
+          <tr><td class="k">Season</td><td>${d.season}</td></tr>`;
+}
+
+const tabs = document.getElementById("tabs");
+const panels = document.getElementById("panels");
+
+DATASETS.forEach((d, i) => {
+  const b = document.createElement("button");
+  b.textContent = d.tab;
+  b.onclick = () => show(i);
+  tabs.appendChild(b);
+
+  const p = document.createElement("div");
+  p.className = "panel";
+  p.innerHTML = `
+    <div class="grid">
+      <img src="img/${d.key}.png" alt="${d.title} for Varanasi">
+      <div>
+        <h2>${d.title}</h2>
+        <table>
+          <tr><td class="k">Dataset</td><td><code>${d.id}</code></td></tr>
+          <tr><td class="k">Provider</td><td>${d.provider}</td></tr>
+          <tr><td class="k">Resolution</td><td>${d.res}</td></tr>
+          <tr><td class="k">Coverage</td><td>${d.period}</td></tr>
+          <tr><td class="k">Shown here</td><td>${d.shown}</td></tr>
+          <tr><td class="k">Account</td><td>${d.account}</td></tr>
+          <tr><td class="k">Measures</td><td>${d.shows}</td></tr>
+        </table>
+        <p class="note">${d.note}</p>
+        <div class="dates">
+          <h3>When this imagery is from</h3>
+          <table>${dateRows(d.key)}</table>
+        </div>
+      </div>
+    </div>`;
+  panels.appendChild(p);
+});
+
+function show(i) {
+  [...tabs.children].forEach((b, j) => b.classList.toggle("on", i === j));
+  [...panels.children].forEach((p, j) => p.classList.toggle("on", i === j));
+}
+
+// Left and right arrow keys move between tabs.
+document.addEventListener("keydown", e => {
+  const cur = [...tabs.children].findIndex(b => b.classList.contains("on"));
+  if (e.key === "ArrowRight") show((cur + 1) % DATASETS.length);
+  if (e.key === "ArrowLeft") show((cur - 1 + DATASETS.length) % DATASETS.length);
+});
+
+show(0);
+</script>
+</body>
+</html>
