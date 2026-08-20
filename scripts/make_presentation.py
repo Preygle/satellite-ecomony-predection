@@ -19,12 +19,20 @@ ROOT = Path(__file__).resolve().parents[1]
 IMG = ROOT / "dataset_viewer" / "map"
 OUT = ROOT / "docs" / "Review_Presentation.pptx"
 
-BG      = RGBColor(0x0F, 0x11, 0x15)
-PANEL   = RGBColor(0x16, 0x1A, 0x20)
-TEXT    = RGBColor(0xE6, 0xED, 0xF3)
-DIM     = RGBColor(0x9A, 0xA4, 0xB0)
-ACCENT  = RGBColor(0x4F, 0x9C, 0xF9)
-WARN    = RGBColor(0xED, 0xA1, 0x00)
+# Light theme. Contrast against the white page is the constraint here: the
+# blue and amber both had to be darkened from their dark-theme values, which
+# were tuned for legibility against near-black and read as washed out on white.
+BG        = RGBColor(0xFF, 0xFF, 0xFF)   # page
+PANEL     = RGBColor(0xF1, 0xF5, 0xFA)   # card fill
+TEXT      = RGBColor(0x10, 0x18, 0x26)   # body text
+DIM       = RGBColor(0x5A, 0x64, 0x74)   # secondary text
+ACCENT    = RGBColor(0x1B, 0x5F, 0xAF)   # headings, emphasis
+WARN      = RGBColor(0xB2, 0x6A, 0x00)   # cautions, key results
+BORDER    = RGBColor(0xD5, 0xDD, 0xE8)   # card outline
+CHIP_BG   = RGBColor(0xFF, 0xFF, 0xFF)   # chip fill
+CHIP_LINE = RGBColor(0xC3, 0xCE, 0xDC)   # chip outline
+GREEN     = RGBColor(0x0E, 0x7A, 0x52)   # the no-account data path
+ARROW     = RGBColor(0xB8, 0xC4, 0xD4)   # flow arrows
 
 W, H = Inches(13.333), Inches(7.5)
 
@@ -70,7 +78,7 @@ def heading(slide, title, kicker=None):
 def card(slide, x, y, w, h):
     c = slide.shapes.add_shape(1, x, y, w, h)
     c.fill.solid(); c.fill.fore_color.rgb = PANEL
-    c.line.color.rgb = RGBColor(0x26, 0x2C, 0x36); c.line.width = Pt(0.75)
+    c.line.color.rgb = BORDER; c.line.width = Pt(0.75)
     c.shadow.inherit = False
     return c
 
@@ -100,7 +108,7 @@ def picture(slide, name, x, y, w):
 def paper_card(slide, x, y, w, h, title, meta, method, result):
     """One reviewed paper: its title, when it was published, and what it found."""
     c = card(slide, x, y, w, h)
-    c.line.color.rgb = RGBColor(0x2F, 0x3A, 0x48)
+    c.line.color.rgb = CHIP_LINE
 
     pad = Inches(0.2)
     inner = w - Inches(0.4)
@@ -296,7 +304,7 @@ def build():
     x = Inches(0.7)
     for i, (name, body) in enumerate(stages):
         c = card(s, x, Inches(2.1), Inches(1.55), Inches(1.9))
-        c.line.color.rgb = ACCENT if i in (2, 5) else RGBColor(0x26, 0x2C, 0x36)
+        c.line.color.rgb = ACCENT if i in (2, 5) else BORDER
         tf = tb(s, x + Inches(0.1), Inches(2.25), Inches(1.35), Inches(0.4), PP_ALIGN.CENTER)
         para(tf, f"{i+1}. {name}", 12.5, ACCENT, True, 6, first=True, align=PP_ALIGN.CENTER)
         para(tf, body, 11, DIM, False, 0, align=PP_ALIGN.CENTER)
@@ -333,8 +341,8 @@ def build():
 
     def chip(x, y, w, text, colour=DIM, h=Inches(0.36)):
         c = s.shapes.add_shape(5, x, y, w, h)
-        c.fill.solid(); c.fill.fore_color.rgb = RGBColor(0x11, 0x15, 0x1B)
-        c.line.color.rgb = RGBColor(0x30, 0x38, 0x44); c.line.width = Pt(0.75)
+        c.fill.solid(); c.fill.fore_color.rgb = CHIP_BG
+        c.line.color.rgb = CHIP_LINE; c.line.width = Pt(0.75)
         c.shadow.inherit = False
         tf = c.text_frame; tf.word_wrap = True
         p = tf.paragraphs[0]; p.text = text; p.alignment = PP_ALIGN.CENTER
@@ -344,7 +352,7 @@ def build():
 
     def up_arrow(y):
         a = s.shapes.add_shape(34, Inches(4.85), y, Inches(0.55), Inches(0.26))
-        a.fill.solid(); a.fill.fore_color.rgb = RGBColor(0x2F, 0x3A, 0x48)
+        a.fill.solid(); a.fill.fore_color.rgb = ARROW
         a.line.fill.background(); a.shadow.inherit = False
 
     # Presentation ----------------------------------------------------------
@@ -370,7 +378,7 @@ def build():
     # Acquisition — two paths ------------------------------------------------
     band(Inches(4.48), Inches(1.42), "ACQUISITION", TEXT)
     tf = tb(s, Inches(4.2), Inches(4.56), Inches(2.6), Inches(0.3))
-    para(tf, "OPEN PATH — no account", 9.5, RGBColor(0x1B, 0xAF, 0x7A), True, 0, first=True)
+    para(tf, "OPEN PATH — no account", 9.5, GREEN, True, 0, first=True)
     for i, t_ in enumerate(["GHS-BUILT-S", "GHS-POP", "OpenStreetMap"]):
         chip(Inches(4.2), Inches(4.86 + i * 0.32), Inches(2.3), t_, TEXT, Inches(0.28))
     tf = tb(s, Inches(6.85), Inches(4.56), Inches(2.6), Inches(0.3))
