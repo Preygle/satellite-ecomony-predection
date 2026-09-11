@@ -117,7 +117,7 @@ data/processed/rasters/
   *.tif                     every analytical layer at 100 m, UTM 44N
 ```
 
-### The five analytical layers
+### The analytical layers
 
 1. **Built-up expansion** — GHSL built-up surface differenced across the
    observed epochs 2010/2015/2020 (GHSL's 2025 epoch is a model projection and
@@ -134,6 +134,14 @@ data/processed/rasters/
    rural reference (water and recently built land excluded), with a
    population-weighted vulnerability surface.
 5. **Ghost growth** — the differentiating layer. See below.
+6. **Growth prediction** — logistic regression and a random forest trained on
+   2010–2015 conversions, scored on a held-out 2015–2020, then used to project
+   new urban land +5 and +10 years from 2020 (`scripts/run_growth_model.py`).
+
+Every layer is checked against independent data — other satellite products,
+the Census of India, the 2013 Economic Census and Uttar Pradesh district GDP —
+in `scripts/validate_*.py` and `scripts/cross_checks.py`; the results are in
+[`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) §5.
 
 ### Ghost growth: the method
 
@@ -171,7 +179,11 @@ neighbourhood. Limitations are stated in
 
 | Document | What it covers |
 |---|---|
-| [`METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) | **Start here.** Datasets, the six implementation steps, expected output |
+| [`REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) | **Current state.** Review 3: implementation status, results, validation, corrections log ([PDF](docs/REVIEW3_REPORT.pdf)) |
+| [`AGENT.md`](AGENT.md) | **For anyone continuing the work** — rules, repository map, how to run and verify, known traps |
+| [`DATA_TRANSFER.md`](docs/DATA_TRANSFER.md) | Moving the 1.4 GB of data between machines; `config/local.yaml` |
+| [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | Who owns which work package; AI acknowledgement |
+| [`METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) | The simple version: datasets, the six implementation steps, expected output |
 | [`WORKFLOW.md`](docs/WORKFLOW.md) | What runs, in what order — the seven pipeline stages and the prediction step |
 | [`DESIGN.md`](docs/DESIGN.md) | How the system is put together — layers, modules, key decisions |
 | [`METHODOLOGY.md`](docs/METHODOLOGY.md) | The full method, with thresholds and the ghost-growth screen |
@@ -196,28 +208,46 @@ only in figure captions and dashboard headings.
 ## Repository layout
 
 ```
-config/varanasi.yaml            AOI, epochs, thresholds, sources — all tunable
+config/varanasi.yaml            AOI, epochs, thresholds, sources — the one tracked config
+config/local.yaml               (gitignored) this machine's data paths
 src/urbanintel/
-  config.py  aoi.py             config loading; AOI, analysis frame, grid
+  config.py  aoi.py             config loading, epoch checks, paths; AOI, frames, grid
   data/                         acquisition
     ghsl.py                     GHS-BUILT-S / GHS-POP (open)
     osm.py                      Overpass POIs + roads (open)
-    gee.py                      Earth Engine layers
-    worldpop.py                 optional independent population cross-check
+    gee.py                      Earth Engine layers, cloud masks, composite-depth check
+    shrug.py                    SHRUG census, economic census and polygons (Indian data)
+    worldpop.py                 bulk WorldPop download (the checks use Earth Engine)
     download.py                 resumable HTTP, zip extraction
   analysis/
     builtup.py                  change detection, urban form, hotspots
-    nightlights.py              trends, Sum of Lights, activity normalisation
-    vegetation.py               green cover change and conversion
+    nightlights.py              trends, relative-to-city trend, Sum of Lights
+    vegetation.py               green cover change, Dynamic World built-up gain
     thermal.py                  SUHI, heat vulnerability, cooling potential
     ghost.py                    activity index, expected-activity residual, typology
+    growth_model.py             logistic regression, random forest, CA allocation, FoM, TOC
+    validation.py               kappa, Mann-Whitney, elasticity, paired comparison
     zonal.py                    100 m -> 500 m aggregation, export
   pipeline.py                   orchestration; `python -m urbanintel.pipeline`
 scripts/
   prefetch.py                   parallel download of all open data
   gee_export.py / .js           Earth Engine exports (Python and Code Editor)
-dashboard/app.py                Streamlit dashboard
-docs/                           SETUP, METHODOLOGY, DATASETS
+  export_review3_layers.py      the extra Earth Engine layers used by the checks
+  fetch_indian_data.py          SHRUG and Uttar Pradesh district GDP downloads
+  run_growth_model.py           fit, validate, compare and project the growth models
+  validate_typology.py          temporal hold-out test of the ghost / emerging split
+  cross_checks.py               six built-up datasets, Open Buildings, Landsat vs MODIS
+  validate_population.py        GHS-POP and WorldPop against the Census of India
+  validate_economy.py           night light against the Economic Census and district GDP
+  make_figures.py               14 figures + outputs/review3_results.json
+  make_zone_cards.py            one evidence card per ghost-growth zone
+  make_presentation_r3.py       the Review 3 deck
+  external_data.py              check / export / import / link the data bundle
+  md_to_pdf.py                  Markdown report -> PDF
+dashboard/app.py                Streamlit dashboard, 7 tabs
+tests/test_core.py              41 tests
+docs/                           reports, method documents, figures/, decks
+run_review3.bat                 the whole chain in one command
 ```
 
 ---
