@@ -63,6 +63,8 @@ blockquote { border-left: 3px solid #eda100; background: #fffaf0;
 blockquote p { margin: 0; }
 
 hr { border: 0; border-top: 1px solid #dde3ea; margin: 18px 0; }
+img { max-width: 100%; height: auto; display: block; margin: 10px auto 14px;
+      page-break-inside: avoid; }
 strong { color: #0b1befff; color: #0d2340; }
 a { color: #1b4b86; text-decoration: none; }
 
