@@ -85,7 +85,7 @@ The strongest three for this task:
 
 | Paper | Why |
 |---|---|
-| **Ermida et al. 2020** | The Landsat land-surface-temperature method our thermal layer follows, with RMSE 1.0–1.3 K against ground sensors |
+| **Ermida et al. 2020** | A reference Earth Engine method for Landsat land surface temperature, with RMSE 1.0–1.3 K against ground sensors — the error scale for our thermal layer |
 | **Brown et al. 2022** | Dynamic World, built entirely on Sentinel-2 at 10 m |
 | **Marconcini et al. 2020** | Fuses Landsat optical with Sentinel-1 radar; improves on GHSL by Kappa +0.23 for small settlements |
 

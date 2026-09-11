@@ -152,6 +152,11 @@ We use **Logistic Regression**, a machine-learning model that estimates the
 probability of an outcome from several input variables. Here the outcome is
 "did this cell become built-up?"
 
+We also train a **Random Forest** — a model that combines many decision trees —
+on exactly the same data, and keep whichever of the two places the growth of a
+held-out period better. For Varanasi that is the random forest
+(`REVIEW3_REPORT.md`, §5.9).
+
 The inputs, called drivers, are:
 
 | Driver | Reason |
@@ -203,7 +208,7 @@ is not useful. We report both numbers side by side rather than only our own.
 | Built-up area for each year | 72.48 km² in 2010, 89.73 km² in 2020 |
 | Growth rate | +23.8% over ten years |
 | Population growth for comparison | +10.3% over the same period |
-| Land consumed per person | Built-up area grew 2.3× faster than population |
+| Land consumed per person | Built-up area grew 1.3× to 2.3× faster than population, depending on the population dataset (WorldPop or GHS-POP) |
 | Green cover lost to construction | in km² |
 | Urban heat island intensity | in °C above nearby rural land |
 | **Predicted growth, +5 and +10 years** | in km² of new urban area |

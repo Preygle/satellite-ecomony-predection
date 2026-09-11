@@ -4,6 +4,13 @@
 Generated 2026-07-28 · all figures below are from an actual pipeline run, not
 projections.
 
+> **Correction notice (Review 3, 11 September 2026).** Many figures in this
+> report were computed against GHSL's 2025 epoch, which is a model projection,
+> not an observation. The heat-island mean and the ghost-growth split were
+> also affected. This report is kept as it was written; the corrected figures
+> and every change are in [`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md)
+> (corrections log, §6).
+
 ---
 
 > Abbreviations and official dataset identifiers used throughout this report

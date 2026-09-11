@@ -4,6 +4,13 @@
 BCSE497J Project I · School of Computer Science and Engineering · Fall 2026–27
 Study area: Varanasi, Uttar Pradesh, India
 
+> **Correction notice (Review 3, 11 September 2026).** This document is kept as
+> it was presented at Review 2. An audit for Review 3 found that several of its
+> figures were computed against GHSL's 2025 epoch (a model projection), and that
+> some method statements did not match the code — the LST emissivity step, the
+> water exclusion, and the slope driver. The corrected figures and every change
+> are in [`REVIEW3_REPORT.md`](REVIEW3_REPORT.md) (corrections log, §6).
+
 ---
 
 ## Contents

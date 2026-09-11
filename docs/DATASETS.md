@@ -52,6 +52,10 @@ One-time `earthengine authenticate` plus a registered Cloud project.
 | `LANDSAT/LC09/C02/T1_L2` | USGS | Landsat 9 Collection 2 Level-2 | 30 m | 2021 onward | Same, later years |
 | `GOOGLE/DYNAMICWORLD/V1` | Google | Dynamic World Land Cover | 10 m | 2015 onward | Land-cover cross-check |
 | `GOOGLE/Research/open-buildings-temporal/v1` | Google | Open Buildings Temporal | 4 m | 2016–2023 | Building height → vertical growth |
+| `ESA/WorldCover/v200` | ESA | WorldCover 10 m land cover | 10 m | 2021 | Independent built-up comparison |
+| `MODIS/061/MOD11A2` | NASA LP DAAC | MODIS 8-day land surface temperature | 1 km | 2024 | Independent check on the Landsat LST |
+| `USGS/SRTMGL1_003` | NASA / USGS | SRTM elevation | 30 m | single epoch | Terrain slope, a driver of the growth model |
+| `WorldPop/GP/100m/pop` | WorldPop, University of Southampton | WorldPop annual population | ~92 m | 2001–2020 | Independent population estimate |
 
 VIIRS is the Visible Infrared Imaging Radiometer Suite; DNB is its Day/Night
 Band, the band that measures light at night.
@@ -101,6 +105,29 @@ composite built from fewer than 20 distinct dates.
 | `COPERNICUS/S2_SR_HARMONIZED` | `B8`, `B4` | Near Infrared and Red, used to compute NDVI |
 | `COPERNICUS/S2_SR_HARMONIZED` | `B11`, `B8` | Shortwave Infrared and Near Infrared, used to compute NDBI |
 | `LANDSAT/LC08/C02/T1_L2` | `ST_B10` | Surface temperature band of Collection 2 Level-2 |
+
+---
+
+### Indian statistical datasets (no account)
+
+Added for Review 3, to check the satellite results against ground records.
+
+| Dataset | Publisher | What it gives us | Licence |
+|---|---|---|---|
+| SHRUG — 2011 and 2001 Population Census Abstract, by town/village and district | Development Data Lab, from the Census of India | Official population for 71 districts of Uttar Pradesh and 11,624 towns and villages | CC BY-NC-SA 4.0 |
+| SHRUG — 2013 Economic Census (6th Economic Census, MoSPI) | Development Data Lab | Non-farm employment and establishments by town/village and district | CC BY-NC-SA 4.0 |
+| SHRUG — town/village (shrid) and 2011 district boundaries | Development Data Lab | Polygons for summing satellite values place by place | CC BY-NC-SA 4.0 |
+| District Domestic Product of Uttar Pradesh, base year 2011-12 | Directorate of Economics & Statistics, Government of Uttar Pradesh | Gross District Domestic Product for all districts, 2020-21 and 2021-22 | Published government statistics |
+
+SHRUG is the Socioeconomic High-resolution Rural-Urban Geographic Platform for
+India. It matters here because it ties census tables to one set of town and
+village identifiers, which is what lets a satellite value be compared with a
+census count for the same place. Cite as Asher, Lunt, Matsuura and Novosad
+(2021), *The World Bank Economic Review* 35(4).
+
+Downloaded by `scripts/fetch_indian_data.py`; every file, its source, size and
+SHA-256 hash is recorded in `data/raw/india/MANIFEST.json`. What these datasets
+showed is in `REVIEW3_REPORT.md` §5.2 and §5.11.
 
 ---
 
@@ -167,14 +194,18 @@ USGS, including the surface temperature band `ST_B10` at 30 m.
 **Why we use it.** LST lets us measure the surface urban heat island, which is
 how much hotter the city surface is than the countryside around it.
 
-**How we use it.** We take pre-monsoon (March–May) imagery, compute LST, and
-subtract a rural reference taken from non-built land in the same scene with
-water excluded. Excluding water matters because the Ganga would otherwise pull
-the rural baseline down and inflate the apparent heat-island intensity across
-the whole city.
+**How we use it.** We take pre-monsoon (March–May) imagery from both
+satellites, mask cloud with QA_PIXEL bits 1–4 (dilated cloud, cirrus, cloud,
+cloud shadow), and compute LST. From it we subtract a rural reference: cells
+under 2% built surface, excluding water and land that `GOOGLE/DYNAMICWORLD/V1`
+already sees as built in 2024. Excluding water matters because the Ganga would
+otherwise pull the rural baseline down. The mean is taken over urban cells
+(at least 20% built).
 
 **Result.** A heat-island intensity map and a hotspot area, combined with
-population to give a heat-vulnerability surface.
+population to give a heat-vulnerability surface. In March–May 2024 urban cells
+are on average 1.66 °C *cooler* than the rural reference — a daytime surface
+cool island, confirmed by `MODIS/061/MOD11A2` (see `REVIEW3_REPORT.md`, §5.7).
 
 ### OpenStreetMap
 
@@ -288,7 +319,7 @@ that never materialised" are both directly derivable from it.
 | Dataset | Why not |
 |---|---|
 | `NOAA/DMSP-OLS/NIGHTTIME_LIGHTS` | DMSP-OLS covers 1992–2014, but this project's analysis window starts in 2010 and its built-up baseline is 2010. DMSP-OLS saturates in bright city cores and blurs light outward, and converting it to match VIIRS adds a large error term to buy pre-2012 history the project does not use. |
-| WorldPop | `GHS-POP R2023A` is multi-epoch and built from the same processing chain as `GHS-BUILT-S R2023A`, so population and built-up stay internally consistent. WorldPop is implemented in `src/urbanintel/data/worldpop.py` as an independent cross-check, but it is off the critical path — about 1 GB of country raster for a single 2020 estimate. |
+| WorldPop | **Now used** (Review 3). `GHS-POP R2023A` remains the primary layer because it is multi-epoch and built from the same chain as `GHS-BUILT-S R2023A`. `WorldPop/GP/100m/pop` is read from Earth Engine as an independent estimate: against the 2011 Census it is the more accurate of the two (median district error −0.4% against +3.4%), and the two disagree enough about 2010–2020 growth that the headline ratio is reported as a range. See `REVIEW3_REPORT.md` §5.2. |
 | `COPERNICUS/S1_GRD` | Sentinel-1 radar is valuable for detecting built-up area in any weather, but it needs a speckle-filtering and calibration chain the project does not require, given GHSL already provides validated built-up surface. Worth reconsidering for change *timing*. |
 | `NASA/HLS/HLSL30/v002`, `NASA/HLS/HLSS30/v002` | Harmonized Landsat and Sentinel is genuinely useful for dense time series, but `COPERNICUS/S2_SR_HARMONIZED` alone gives enough clear October–March scenes over Varanasi for annual composites. |
 | `GHS-SMOD R2023A` | A large global file that is itself derived from `GHS-BUILT-S` and `GHS-POP` by thresholding. The two masks the project needs are derived directly instead — same information, about 1 GB less transfer, and the masks stay at 100 m rather than being forced to a 1 km floor. |

@@ -369,8 +369,10 @@ for example that deciduous forest tends to grow beside main roads.
 patterned on: learn where growth is likely, then use a cellular automaton so new
 development appears in connected patches. **It also gives us the single most
 useful benchmark in the whole set.** Their Figure of Merit of 0.2642 is a
-published, well-tuned result on the same measure we report, so our 0.0679 can be
-placed honestly against it instead of being described only as "modest".
+published, well-tuned result on the same measure we report, so our held-out
+Figures of Merit (0.069 for logistic regression, 0.103 for random forest,
+Review 3) can be placed honestly against it instead of being described only as
+"modest".
 
 ---
 
@@ -529,7 +531,7 @@ layer as one indicator among several rather than a complete explanation.
 | Use only observed VIIRS, no reconstructed long series | 1, 2 |
 | Combine three activity signals rather than trusting nighttime light alone | 12, 13, 14 |
 | Use Figure of Merit, not overall accuracy | 15, 16 |
-| Benchmark our Figure of Merit of 0.0679 against a published 0.2642 | 15 |
+| Benchmark our Figures of Merit (0.069 logistic regression, 0.103 random forest) against a published 0.2642 | 15 |
 | Logistic Regression plus cellular automaton rather than a deep network | 10, 15, 17 |
 | Exclude water from the rural reference for heat | 11, 19 |
 | State that GHSL under-detects small and low-rise settlements | 8 |

@@ -8,6 +8,11 @@
 **Review 2 Submission — Chapters 1–3**
 Review date: 19 August 2026
 
+> **Correction notice (Review 3, 11 September 2026).** Kept as submitted at
+> Review 2. The updates to Chapters 1–3 and the initial Chapter 4 are in
+> [`REVIEW3_REPORT.md`](REVIEW3_REPORT.md), whose §6 lists every figure that
+> changed and why.
+
 ---
 
 > **Fill before submission:** Student name(s) and registration number(s), guide

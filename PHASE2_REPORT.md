@@ -6,6 +6,14 @@
 Aligned to **Review 3** (Panel, 16 September 2026, 20 marks). Every figure
 below comes from an executed run; nothing is projected forward from intent.
 
+> **Correction notice (Review 3, 11 September 2026).** The model scores below
+> are superseded. The AUC of 0.9901 was measured on the training data; the
+> allocation step dropped 6 of 1,214 cells; and only a +10-year projection
+> existed. The current results — held-out AUC, a random-forest comparison, TOC
+> curves and +5 / +10-year projections — are in
+> [`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) (§5.9 and the corrections
+> log, §6).
+
 ---
 
 ## 1. Summary

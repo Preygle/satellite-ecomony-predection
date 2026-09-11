@@ -3,6 +3,11 @@
 **BCSE497J Project I · Panel Review · 20 marks · 19 August 2026**
 Satellite-Based Urban Growth and Economic Activity Intelligence System — Varanasi
 
+> **Correction notice (Review 3, 11 September 2026).** Kept as presented at
+> Review 2. Several numbers below were computed against GHSL's 2025 epoch, a
+> model projection. Use [`REVIEW3_REPORT.md`](REVIEW3_REPORT.md) for current
+> figures; its §6 lists every correction.
+
 > This file is the **content** for the slides, not the slides themselves. Each
 > block below is one slide: what goes on it, and what you say. Build the deck
 > from this. Keep the on-slide text as terse as it appears here — the sentences

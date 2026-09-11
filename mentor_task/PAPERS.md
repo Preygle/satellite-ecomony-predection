@@ -12,7 +12,7 @@ sensor once or twice in passing, or not at all.
 
 | Paper | Year | Sentinel mentions | Landsat mentions | Role of the sensor |
 |---|---|---|---|---|
-| Ermida, S. L. et al. — Google Earth Engine Open-Source Code for Landsat Land Surface Temperature | 2020 | 1 | **237** | The paper *is* a Landsat method — the reference implementation behind our thermal layer |
+| Ermida, S. L. et al. — Google Earth Engine Open-Source Code for Landsat Land Surface Temperature | 2020 | 1 | **237** | The paper *is* a Landsat LST method — the reference for judging our thermal layer's error |
 | Goldblatt, R. et al. — Using Landsat and nighttime lights for supervised pixel-based image classification | 2018 | 1 | **65** | Landsat is the classified imagery; validated on India |
 | Brown, C. F. et al. — Dynamic World | 2022 | **62** | 2 | Built entirely on Sentinel-2; the 10 m land-cover product we cross-check against |
 | Marconcini, M. et al. — World Settlement Footprint 2015 | 2020 | 5 | **43** | Landsat optical combined with Sentinel-1 radar — the first product to fuse both |
@@ -38,11 +38,15 @@ They remain in the project's main `papers/` folder and in
 
 ## What these papers say that we use
 
-**On Landsat.** Ermida et al. is the method our thermal layer follows, and it
-tells us how much error to expect: **RMSE 1.0–1.3 K** against ground sensors.
-That matters, because our measured mean urban heat-island intensity is 1.10 °C —
-the same order as the measurement error, which is why we report the hotspot area
-rather than leaning on the mean. Goldblatt et al. showed that Landsat can be
+**On Landsat.** Ermida et al. describe an Earth Engine method for Landsat LST
+and tell us how much error to expect: **RMSE 1.0–1.3 K** against ground
+sensors. Our thermal layer reads the USGS Collection 2 surface-temperature band
+directly rather than using their method, but the error scale carries over. It
+matters for reading our own result: over urban cells, Varanasi's mean surface
+heat-island intensity in March–May 2024 is −1.66 °C — the city is slightly
+cooler than the bare farmland around it — and a difference of that size is
+close to the measurement error. (Review 2 quoted +1.10 °C; that was the mean
+over only the cells warmer than rural land, corrected in Review 3.) Goldblatt et al. showed that Landsat can be
 classified into built-up land using nighttime light as automatic training
 labels, reporting **80.8% balanced accuracy for India**.
 
