@@ -8,8 +8,11 @@ and geospatial data — then presents them as planning intelligence.
 Varanasi is set in `config/varanasi.yaml` and any other city is a new config
 file.
 
-**Status: Phase 1 (~50%) complete.** See [`PHASE1_REPORT.md`](PHASE1_REPORT.md)
-for exactly what is delivered and what Phases 2–3 will add.
+**Status (Review 3, September 2026):** analysis pipeline, growth models,
+validation against independent and Indian data, and the dashboard are
+complete; city search follows in Review 4. Start with
+[`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md). `run_review3.bat`
+reproduces every number and figure in it.
 
 ---
 
@@ -58,14 +61,36 @@ python -m urbanintel.pipeline --no-gee
 streamlit run dashboard/app.py
 ```
 
+### If a teammate hands you the data on a pendrive
+
+The repository does not carry the satellite downloads, the Indian statistical
+archives or the pipeline outputs — about 1.4 GB, excluded by `.gitignore`.
+Rather than re-downloading them:
+
+```bat
+python scripts\external_data.py import E:\urbanintel-data
+```
+
+or leave the files where they are and point the project at them:
+
+```bat
+python scripts\external_data.py link ..\urbanintel-data
+python scripts\external_data.py check
+```
+
+`link` writes `config/local.yaml`, which is never tracked by git, so each
+machine can keep its data somewhere different without any merge conflict.
+Full instructions, including how to make the bundle:
+[`docs/DATA_TRANSFER.md`](docs/DATA_TRANSFER.md).
+
 > Always invoke Streamlit as `python -m streamlit`, not bare `streamlit`. The
 > console script is installed into a `Scripts/` directory that is often not on
 > PATH on Windows; the module form always works. The `.bat` launchers do this
 > for you.
 
-Verified on a clean run (Python 3.13, pandas 3.0, streamlit 1.60): 20/20 tests
-pass, the pipeline produces 35 raster layers and a 4,765-cell reporting grid,
-and the dashboard renders with 0 exceptions.
+Verified 11 September 2026 (Python 3.13): 41/41 tests pass, the pipeline
+writes 61 raster layers and a 4,754-cell reporting grid, and the dashboard
+renders with 0 exceptions.
 
 To add the satellite layers:
 
@@ -94,19 +119,20 @@ data/processed/rasters/
 
 ### The five analytical layers
 
-1. **Built-up expansion** — GHSL built-up surface differenced across
-   2010/2015/2020/2025, classified into **infill / edge expansion / leapfrog**
+1. **Built-up expansion** — GHSL built-up surface differenced across the
+   observed epochs 2010/2015/2020 (GHSL's 2025 epoch is a model projection and
+   appears only as a labelled comparison), classified into **infill / edge expansion / leapfrog**
    using a landscape-expansion-index method (Liu et al. 2010). Leapfrog share
    is the leading indicator for ghost growth.
 2. **Economic activity** — VIIRS nightlight radiance and its per-pixel trend,
    plus OSM commercial POI (Point of Interest) density. Always normalised **per unit built-up
    area**, because raw radiance mostly measures how big a place is.
-3. **Green cover loss** — Sentinel-2 NDVI (Normalized Difference Vegetation Index) change, intersected with built-up
-   gain so the reported figure is *conversion to urban*, not the cropping
-   calendar.
+3. **Green cover loss** — Sentinel-2 NDVI (Normalized Difference Vegetation Index) change, intersected with
+   Dynamic World built-up gain over the same years, so the reported figure is
+   *conversion to urban*, not the cropping calendar.
 4. **Urban heat island** — Landsat land surface temperature minus an in-scene
-   rural reference (water excluded), with a population-weighted vulnerability
-   surface.
+   rural reference (water and recently built land excluded), with a
+   population-weighted vulnerability surface.
 5. **Ghost growth** — the differentiating layer. See below.
 
 ### Ghost growth: the method
@@ -119,8 +145,9 @@ Instead, this system learns **the activity level normal for a given built-up
 intensity in this specific city** (a binned median, so it adapts rather than
 imposing a threshold), and flags cells that fall far below their own city's
 norm **and** are recently developed. Where a nightlight time series is
-available, cells that are dim but *brightening* are separated out as
-`emerging` — a neighbourhood mid-occupation is not a failed one.
+available, cells that are dim but brightening *significantly faster than the
+established city* are separated out as `emerging` — a neighbourhood
+mid-occupation is not a failed one.
 
 Output is a six-class growth typology:
 

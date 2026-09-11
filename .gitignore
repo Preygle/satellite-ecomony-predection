@@ -1,7 +1,9 @@
 # Reference papers (~60 MB of binaries). Not source, and every one is
-# re-obtainable from the DOIs in RECOMMENDED_PAPERS.md. Delete this line if
-# you want them versioned.
-*.pdf
+# re-obtainable from the DOIs in RECOMMENDED_PAPERS.md. Delete these lines if
+# you want them versioned. Reports under docs/ ARE versioned - they are the
+# deliverable, not a library.
+/papers/*.pdf
+/mentor_task/papers/*.pdf
 
 # Data and outputs (large; regenerate with scripts/prefetch.py).
 # Leading slashes are required: a bare `data/` matches any directory of that
@@ -9,6 +11,11 @@
 # acquisition package from version control.
 /data/
 /outputs/
+# Machine-specific paths (scripts/external_data.py link). Never tracked, so
+# one person's data location cannot conflict with another's merge.
+/config/local.yaml
+# A separate git repository that happens to sit in this folder.
+/gauntlet-loop/
 *.tif
 *.zip
 *.part
