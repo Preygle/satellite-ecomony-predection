@@ -71,8 +71,10 @@ function ndbi(year) {
 // Indo-Gangetic plain, and the most policy-relevant window.
 function lst(year) {
   function prep(img) {
+    // QA_PIXEL bits 1-4: dilated cloud, cirrus, cloud, cloud shadow
+    // (same mask as src/urbanintel/data/gee.py LANDSAT_QA_MASK_BITS).
     var qa = img.select('QA_PIXEL');
-    var clear = qa.bitwiseAnd(1 << 3).eq(0).and(qa.bitwiseAnd(1 << 4).eq(0));
+    var clear = qa.bitwiseAnd((1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)).eq(0);
     var st = img.select('ST_B10').multiply(0.00341802).add(149.0).subtract(273.15);
     return st.updateMask(clear).rename('lst').copyProperties(img, ['system:time_start']);
   }

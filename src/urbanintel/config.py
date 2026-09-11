@@ -16,6 +16,10 @@ DEFAULT_CONFIG = REPO_ROOT / "config" / "varanasi.yaml"
 # Sentinel distinguishing "no default supplied" from an explicit default of None.
 _MISSING = object()
 
+# GHS-BUILT-S / GHS-POP R2023A: epochs 1975-2020 are derived from satellite
+# observation; 2025 and 2030 are the GHSL model's own projections.
+GHSL_LAST_OBSERVED_EPOCH = 2020
+
 
 class ConfigError(RuntimeError):
     """Raised when the configuration is missing or malformed."""
@@ -90,6 +94,36 @@ class Config:
         return self.get("epochs.current")
 
     @property
+    def observational_epochs(self) -> list[int]:
+        """GHSL epochs that are measurements — the only ones analysis may use."""
+        return sorted(int(y) for y in self.get("sources.ghsl.epochs"))
+
+    @property
+    def projected_epochs(self) -> list[int]:
+        """GHSL epochs that are model projections — comparison only."""
+        return sorted(int(y) for y in self.get("sources.ghsl.projected_epochs", []))
+
+    def check_epochs(self) -> None:
+        """Refuse a configuration that would treat a projection as a measurement.
+
+        Until Review 3 the "current" epoch was 2025, a GHSL projection, and
+        every change figure was silently computed against it. This check makes
+        that mistake impossible to repeat without an error.
+        """
+        obs = self.observational_epochs
+        late = [y for y in obs if y > GHSL_LAST_OBSERVED_EPOCH]
+        if late:
+            raise ConfigError(
+                f"sources.ghsl.epochs contains {late}, but GHSL R2023A epochs after "
+                f"{GHSL_LAST_OBSERVED_EPOCH} are model projections; list them under "
+                f"sources.ghsl.projected_epochs instead")
+        for key in ("baseline", "mid", "current"):
+            y = self.get(f"epochs.{key}", None)
+            if y is not None and y not in obs:
+                raise ConfigError(
+                    f"epochs.{key} = {y} is not one of the observational GHSL epochs {obs}")
+
+    @property
     def cell_size_m(self) -> int:
         return self.get("grid.cell_size_m")
 
@@ -100,9 +134,15 @@ class Config:
         `key` is one of: data_raw, data_interim, data_processed, outputs.
         Relative paths resolve against the repo root; absolute paths are used
         as-is (so `data/` can be a junction onto another drive).
+
+        An environment variable wins over the file: `URBANINTEL_DATA_RAW`,
+        `URBANINTEL_DATA_INTERIM`, `URBANINTEL_DATA_PROCESSED`,
+        `URBANINTEL_OUTPUTS`. Together with `config/local.yaml` this keeps
+        machine-specific locations out of tracked files — see
+        scripts/external_data.py.
         """
-        rel = self.get(f"paths.{key}")
-        p = Path(rel)
+        rel = os.environ.get(f"URBANINTEL_{key.upper()}") or self.get(f"paths.{key}")
+        p = Path(rel).expanduser()
         if not p.is_absolute():
             p = self.root / p
         p.mkdir(parents=True, exist_ok=True)
@@ -125,10 +165,31 @@ class Config:
         return self.path_for("outputs")
 
 
+# A machine-specific override file, deliberately NOT tracked by git. It is how
+# one teammate can keep the large data folders on a D: drive or a copied
+# pendrive folder while another keeps them inside the repo, without either of
+# them editing a tracked file and colliding on the next merge.
+LOCAL_CONFIG = REPO_ROOT / "config" / "local.yaml"
+
+
+def _deep_merge(base: dict, over: dict) -> dict:
+    """Return `base` with `over` merged into it, recursing into nested maps."""
+    out = dict(base)
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
 def load_config(path: str | os.PathLike[str] | None = None) -> Config:
     """Load the study-area config.
 
-    Resolution order: explicit `path` -> $URBANINTEL_CONFIG -> config/varanasi.yaml
+    Resolution order: explicit `path` -> $URBANINTEL_CONFIG -> config/varanasi.yaml.
+    If `config/local.yaml` exists, it is merged on top (see LOCAL_CONFIG), and
+    individual paths can still be overridden by environment variables — see
+    `Config.path_for`.
     """
     if path is None:
         path = os.environ.get("URBANINTEL_CONFIG", DEFAULT_CONFIG)
@@ -141,4 +202,11 @@ def load_config(path: str | os.PathLike[str] | None = None) -> Config:
         raw = yaml.safe_load(fh)
     if not isinstance(raw, dict):
         raise ConfigError(f"config did not parse to a mapping: {p}")
+
+    if LOCAL_CONFIG.exists():
+        with LOCAL_CONFIG.open("r", encoding="utf-8") as fh:
+            local = yaml.safe_load(fh) or {}
+        if not isinstance(local, dict):
+            raise ConfigError(f"local config did not parse to a mapping: {LOCAL_CONFIG}")
+        raw = _deep_merge(raw, local)
     return Config(raw=raw, path=p)

@@ -39,19 +39,32 @@ grid:
 
 # -----------------------------------------------------------------------------
 # Analysis epochs.
-# Chosen to align with GHSL 5-year epochs so built-up change is directly
+# Aligned with the GHSL 5-year epochs so built-up change is directly
 # comparable, and with the VIIRS era (2012+) for the economic-activity signal.
+#
+# "current" is 2020 because it is the LAST OBSERVED GHSL epoch. GHS-BUILT-S
+# R2023A also publishes 2025 and 2030, but those are the GHSL model's own
+# projections. Until Review 3 this key was 2025, so every "2010-2025" figure
+# was measured against a forecast. The projection is now kept only as a
+# labelled comparison (sources.ghsl.projected_epochs).
 # -----------------------------------------------------------------------------
 epochs:
   baseline: 2010
   mid: 2015
-  recent: 2020
-  current: 2025
+  current: 2020
 
 # Full annual series where the sensor supports it
 timeseries:
   nightlights_start: 2013     # VIIRS annual V2 stable coverage
   nightlights_end: 2024
+  # Activity LEVEL for the ghost-growth screen = mean of the last N years
+  # (2022-2024). Development is observed to 2020 and activity 2022-2024, so
+  # new building has had at least two years to be occupied. A 3-year mean is
+  # also steadier than any single annual composite.
+  nightlights_level_years: 3
+  # Last year of the version-clean V2.1 record. The hold-out test classifies
+  # with 2013-2020 only and checks the classes against 2021-2024.
+  nightlights_holdout_split: 2020
   # Sentinel-2 L2A coverage over Varanasi is too sparse before 2018 to build a
   # seasonal median: the Oct-Mar 2015 window holds 3 scenes from a single day
   # against ~148 scenes on ~35 days from 2019 on. Differencing a one-day
@@ -81,11 +94,22 @@ thresholds:
   vegetation:
     ndvi_green_threshold: 0.30      # NDVI above this = vegetated
     green_loss_min_delta: -0.10     # NDVI drop counting as green cover loss
+    # Built-up gain over the SAME years as the NDVI change, from Dynamic World.
+    # Its annual-mean built probability tops out near 0.5 even in the old city
+    # (median 0.47-0.49 in cells GHSL puts above 20% built), so "became built"
+    # = probability rose by >= 0.15 (top ~3% of rises) and ended >= 0.30.
+    dw_built_min_rise: 0.15
+    dw_built_min_end: 0.30
 
   thermal:
-    # Surface Urban Heat Island intensity: LST minus rural reference mean,
-    # in degrees C. Hotspot = this or hotter.
+    # Surface Urban Heat Island intensity: LST minus the median LST of the
+    # rural reference cells, in degrees C. Hotspot = this or hotter.
     suhi_hotspot_delta_c: 3.0
+    # Rural reference = under 2% GHSL built surface, AND Dynamic World 2024
+    # built probability below rural_max_dw_built (catches land built after
+    # 2020), AND not water (Dynamic World water probability >= water_probability).
+    rural_max_dw_built: 0.20
+    water_probability: 0.50
 
   ghost_growth:
     # A cell is a candidate "ghost growth" / underutilised zone when it has
@@ -101,6 +125,16 @@ thresholds:
     min_new_share: 0.50              # >=50% of current built-up is post-baseline
     min_new_builtup_fraction: 0.02   # ...and at least 2% of the cell, absolutely
     max_activity_percentile: 25      # activity in bottom quartile of built cells
+
+    # What counts as "activity rising" when separating emerging (filling up)
+    # from ghost growth. See analysis/ghost.py:rising_masks.
+    #   raw                   slope > 0 (Review 2 rule; nearly every cell passes,
+    #                         because the whole city brightened)
+    #   significant           slope > 0 and p <= trend_alpha
+    #   relative              brightening faster than the established city
+    #   relative_significant  faster than the city, and significantly so
+    trend_rule: relative_significant
+    trend_alpha: 0.10
 
     # Zones are defined by local DENSITY of flagged cells, not by contiguity —
     # flagged cells at 100 m are genuinely fragmented, so contiguity-based
@@ -126,7 +160,10 @@ sources:
       built_surface: GHS_BUILT_S
       population: GHS_POP
       settlement_model: GHS_SMOD
-    epochs: [2010, 2015, 2020, 2025]
+    # Only 1975-2020 are observed. 2025 and 2030 are the GHSL model's own
+    # projections: loaded for a labelled comparison, never as a measurement.
+    epochs: [2010, 2015, 2020]
+    projected_epochs: [2025]
 
   worldpop:
     auth: none
@@ -167,11 +204,26 @@ sources:
       open_buildings_temporal: "GOOGLE/Research/open-buildings-temporal/v1"
       esa_worldcover: "ESA/WorldCover/v200"
       srtm: "USGS/SRTMGL1_003"
+      worldpop_gp: "WorldPop/GP/100m/pop"
     export_scale_m: 30
     max_cloud_pct: 35
     # Minimum distinct acquisition dates required to accept a median composite.
     # Guards against comparing a single-date composite with a seasonal one.
     min_composite_dates: 20
+    # Landsat 8 + 9 together revisit every 8 days, so a March-May window holds
+    # ~11 distinct dates at best (2024) and 5 with Landsat 8 alone (2013).
+    min_composite_dates_landsat: 4
+
+# -----------------------------------------------------------------------------
+# Growth model (scripts/run_growth_model.py). Observational epochs only.
+# -----------------------------------------------------------------------------
+growth_model:
+  train: [2010, 2015]
+  test: [2015, 2020]
+  projection_years: [2025, 2030]     # +5 and +10 years from the last observed epoch
+  random_forest:
+    n_estimators: 300
+    min_samples_leaf: 20
 
 paths:
   data_raw: data/raw

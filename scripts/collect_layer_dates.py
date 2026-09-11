@@ -55,8 +55,10 @@ def main() -> int:
         "truecolour":   ("COPERNICUS/S2_SR_HARMONIZED", "ESA / Copernicus", "True-colour satellite image"),
         "ndvi":         ("COPERNICUS/S2_SR_HARMONIZED", "ESA / Copernicus", "Vegetation index (NDVI)"),
         "ndbi":         ("COPERNICUS/S2_SR_HARMONIZED", "ESA / Copernicus", "Built-up index (NDBI)"),
-        "nightlights":  ("NOAA/VIIRS/DNB/ANNUAL_V22", "NOAA", "Nighttime lights"),
-        "lst":          ("LANDSAT/LC08/C02/T1_L2", "USGS", "Land surface temperature"),
+        "nightlights":  ("NOAA/VIIRS/DNB/ANNUAL_V21 (2013-2021) + NOAA/VIIRS/DNB/ANNUAL_V22 (2022-)",
+                         "NOAA", "Nighttime lights"),
+        "lst":          ("LANDSAT/LC08/C02/T1_L2 + LANDSAT/LC09/C02/T1_L2", "USGS",
+                         "Land surface temperature"),
         "dynamicworld": ("GOOGLE/DYNAMICWORLD/V1", "Google", "Land cover"),
         "buildings":    ("GOOGLE/Research/open-buildings-temporal/v1", "Google", "Building height"),
         "builtup":      ("GHS-BUILT-S R2023A", "European Commission Joint Research Centre", "Built-up surface"),
@@ -92,14 +94,19 @@ def main() -> int:
     }
 
     # --- Landsat land surface temperature -----------------------------------
+    # Landsat 8 AND 9 — the composite uses both, so the record must count both.
     lst_year = cfg.get("timeseries.thermal_end") - 1
-    l8 = cfg.get("sources.gee.assets.landsat8")
-    lcol = (ee.ImageCollection(l8)
-            .filterDate(f"{lst_year}-03-01", f"{lst_year}-05-31")
-            .filterBounds(geom))
+    lcol = None
+    for key in ("landsat8", "landsat9"):
+        asset = cfg.get(f"sources.gee.assets.{key}", None)
+        if asset:
+            c = (ee.ImageCollection(asset)
+                 .filterDate(f"{lst_year}-03-01", f"{lst_year}-05-31")
+                 .filterBounds(geom))
+            lcol = c if lcol is None else lcol.merge(c)
     w = window(ee, lcol)
     out["lst"] = {
-        "composite": (f"Median of {w['scenes']} Landsat 8 scenes on {w['days']} separate days"
+        "composite": (f"Median of {w['scenes']} Landsat 8 and 9 scenes on {w['days']} separate days"
                       if w else f"Landsat 8 and 9, pre-monsoon {lst_year}"),
         "window": f"{w['first']} – {w['last']}" if w else f"Mar–May {lst_year}",
         "season": "Pre-monsoon (March–May), the hottest, clearest part of the year",
@@ -108,16 +115,19 @@ def main() -> int:
     log.info("Landsat window: %s", w)
 
     # --- Dynamic World -------------------------------------------------------
+    # The pipeline uses the Jan-Dec annual MEAN of the class probabilities
+    # (gee.dynamicworld_image), so that is the window recorded here.
     dw = cfg.get("sources.gee.assets.dynamic_world")
     dcol = (ee.ImageCollection(dw)
-            .filterDate(f"{veg_year}-10-01", f"{veg_year + 1}-03-31")
+            .filterDate(f"{veg_year}-01-01", f"{veg_year}-12-31")
             .filterBounds(geom))
     w = window(ee, dcol)
     out["dynamicworld"] = {
-        "composite": (f"Median of {w['scenes']} classifications on {w['days']} separate days"
-                      if w else f"Dynamic World {veg_year}"),
-        "window": f"{w['first']} – {w['last']}" if w else f"Oct {veg_year} – Mar {veg_year + 1}",
-        "season": "Same window as the Sentinel-2 layers, since it is derived from the same imagery",
+        "composite": (f"Mean class probability of {w['scenes']} classifications on {w['days']} "
+                      f"separate days" if w else f"Dynamic World {veg_year}"),
+        "window": f"{w['first']} – {w['last']}" if w else f"Jan – Dec {veg_year}",
+        "season": ("Full calendar year. Used for water (heat-island rural reference) and for "
+                   "built-up gain 2018-2024, matched to the NDVI years"),
         "export": "60 m",
     }
     log.info("Dynamic World window: %s", w)

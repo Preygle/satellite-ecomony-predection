@@ -239,6 +239,62 @@ def expected_activity(
     return np.where(np.isfinite(activity), out, np.nan).astype("float32")
 
 
+# --------------------------------------------------------------------------
+# "Is activity rising?" — the rule that separates emerging from ghost growth
+# --------------------------------------------------------------------------
+
+RISING_RULES = ("raw", "significant", "relative", "relative_significant")
+
+
+@dataclass
+class TrendEvidence:
+    """Night-light trend inputs for separating `emerging` from `ghost_growth`.
+
+    slope, p_value          raw radiance trend per cell (nW/cm2/sr per year)
+    rel_slope, rel_p_value  trend of log radiance relative to the established
+                            city (see nightlights.relative_trend)
+    """
+
+    slope: np.ndarray
+    p_value: np.ndarray | None = None
+    rel_slope: np.ndarray | None = None
+    rel_p_value: np.ndarray | None = None
+
+
+def rising_masks(
+    ev: TrendEvidence, rule: str = "relative_significant", alpha: float = 0.10,
+) -> tuple[np.ndarray, np.ndarray]:
+    """(rising, falling) masks under one of `RISING_RULES`.
+
+    raw                   rising: slope > 0          falling: slope <= 0
+    significant           rising: slope > 0, p<=a    falling: slope < 0, p<=a
+    relative              rising: rel. slope > 0     falling: rel. slope < 0
+    relative_significant  rising: rel. slope > 0, p<=a
+                          falling: rel. slope < 0, p<=a
+
+    `raw` is the Review 2 rule. Because almost the whole city brightened over
+    2013-2024, it calls nearly every low-activity new cell "emerging". Under
+    the stricter rules a cell can be neither rising nor falling — and such a
+    cell is not called declining.
+    """
+    if rule not in RISING_RULES:
+        raise ValueError(f"unknown rising rule {rule!r}; choose from {RISING_RULES}")
+    relative = rule.startswith("relative")
+    s = ev.rel_slope if relative else ev.slope
+    p = ev.rel_p_value if relative else ev.p_value
+    if s is None:
+        raise ValueError(f"rule {rule!r} needs a {'relative ' if relative else ''}slope")
+    s = np.nan_to_num(s, nan=0.0)
+    if rule == "raw":
+        return s > 0, s <= 0
+    if rule == "relative":
+        return s > 0, s < 0
+    if p is None:
+        raise ValueError(f"rule {rule!r} needs p-values")
+    sig = np.nan_to_num(p, nan=1.0) <= alpha
+    return (s > 0) & sig, (s < 0) & sig
+
+
 @dataclass
 class GhostAnalysis:
     """Ghost-growth screening result."""
@@ -250,6 +306,7 @@ class GhostAnalysis:
     typology: np.ndarray          # TYPE_* codes
     new_builtup_frac: np.ndarray  # absolute gain in built fraction
     new_share: np.ndarray         # share of current built-up that is post-baseline
+    rising_rule: str = "none"     # which RISING_RULES entry split emerging/ghost
 
     def counts(self) -> dict[str, int]:
         return {
@@ -271,7 +328,9 @@ def analyse(
     new_builtup_frac: np.ndarray,
     frame: AnalysisFrame,
     *,
-    activity_trend: np.ndarray | None = None,
+    activity_trend: np.ndarray | TrendEvidence | None = None,
+    rising_rule: str = "raw",
+    trend_alpha: float = 0.10,
     min_new_share: float = 0.50,
     min_new_builtup_frac: float = 0.02,
     residual_percentile: float = 25.0,
@@ -282,12 +341,14 @@ def analyse(
     Parameters
     ----------
     activity_trend
-        Optional per-cell slope of activity over time (e.g. the nightlight
-        trend). When supplied, low-activity new development that is
-        *brightening* is classified `emerging` rather than `ghost_growth` —
-        a neighbourhood mid-occupation is not a failed one. Without it, that
-        distinction cannot be made and everything low falls to
-        `ghost_growth`, which the report notes as a limitation.
+        Optional night-light trend evidence — a `TrendEvidence`, or a bare
+        slope array (treated as the `raw` rule). When supplied, low-activity
+        new development that is *rising* is classified `emerging` rather than
+        `ghost_growth` — a neighbourhood mid-occupation is not a failed one.
+        Without it, that distinction cannot be made and everything low falls
+        to `ghost_growth`, which the report notes as a limitation.
+    rising_rule, trend_alpha
+        Which definition of "rising" to use; see `rising_masks`.
     """
     act = activity.value
     exp = expected_activity(act, builtup_frac_now)
@@ -333,9 +394,11 @@ def analyse(
     typ[is_urban] = TYPE_ESTABLISHED
     typ[is_urban & is_new] = TYPE_HEALTHY_GROWTH
 
-    rising = None
+    rising = falling = None
     if activity_trend is not None:
-        rising = np.nan_to_num(activity_trend, nan=0.0) > 0
+        ev = (activity_trend if isinstance(activity_trend, TrendEvidence)
+              else TrendEvidence(slope=activity_trend))
+        rising, falling = rising_masks(ev, rising_rule, trend_alpha)
 
     ghost_candidates = is_urban & is_new & underperforming
     if rising is not None:
@@ -346,14 +409,15 @@ def analyse(
 
     # Established areas that are underperforming and *falling* are declining,
     # a distinct planning problem from ghost growth.
-    if rising is not None:
-        typ[is_urban & (~is_new) & underperforming & (~rising)] = TYPE_DECLINING
+    if falling is not None:
+        typ[is_urban & (~is_new) & underperforming & falling] = TYPE_DECLINING
 
     return GhostAnalysis(
         activity=activity, expected=exp, residual=resid,
         ghost_score=score, typology=typ,
         new_builtup_frac=gained.astype("float32"),
         new_share=new_share.astype("float32"),
+        rising_rule=rising_rule if activity_trend is not None else "none",
     )
 
 

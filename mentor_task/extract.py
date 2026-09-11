@@ -91,11 +91,11 @@ def landsat(start: str, end: str, max_cloud: int = 40):
         return {}, avail
 
     def prep(img):
-        # Cloud and cloud-shadow bits of QA_PIXEL, per the Collection 2 spec.
-        qa = img.select("QA_PIXEL")
-        clear = qa.bitwiseAnd(1 << 3).eq(0).And(qa.bitwiseAnd(1 << 4).eq(0))
+        # Same mask as the main pipeline: QA_PIXEL bits 1-4 (dilated cloud,
+        # cirrus, cloud, cloud shadow) — see gee.LANDSAT_QA_MASK_BITS.
+        clear = gee.landsat_clear_mask(img)
         optical = img.select("SR_B.").multiply(2.75e-05).add(-0.2)
-        thermal = img.select("ST_B10").multiply(0.00341802).add(149.0).subtract(273.15)
+        thermal = gee.landsat_lst_celsius(img)
         return optical.addBands(thermal).updateMask(clear)
 
     comp = col.map(prep).median()

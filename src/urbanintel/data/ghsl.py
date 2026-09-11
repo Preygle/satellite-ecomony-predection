@@ -278,6 +278,7 @@ def rural_reference_mask_from_builtup(
     *,
     upper_fraction: float = 0.02,
     water: np.ndarray | None = None,
+    exclude: np.ndarray | None = None,
 ) -> np.ndarray:
     """Rural land cells — the SUHI reference population.
 
@@ -285,10 +286,17 @@ def rural_reference_mask_from_builtup(
     excluded explicitly: the Ganga runs through the AOI and a water-
     contaminated rural baseline reads cold, inflating apparent heat-island
     intensity across the whole city. Pass `water` (e.g. the Dynamic World
-    water probability > 0.5) when available.
+    water probability >= 0.5) when available.
+
+    `exclude` removes any further cells. The pipeline passes land that
+    Dynamic World 2024 already sees as built: GHSL 2020 cannot know about
+    construction after 2020, and a newly built cell in the "rural" set would
+    warm the reference.
     """
     frac = np.nan_to_num(builtup_m2 / (frame.res * frame.res), nan=0.0)
     mask = frac < upper_fraction
     if water is not None:
         mask &= ~np.nan_to_num(water, nan=0.0).astype(bool)
+    if exclude is not None:
+        mask &= ~np.nan_to_num(exclude, nan=0.0).astype(bool)
     return mask

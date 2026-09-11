@@ -33,6 +33,8 @@ class SUHI:
     intensity: np.ndarray           # LST - rural reference, degrees C
     hotspots: np.ndarray            # bool mask
     threshold_c: float
+    urban_mask: np.ndarray | None = None   # cells counted as urban for the mean
+    n_rural_cells: int = 0
 
     @property
     def max_intensity_c(self) -> float:
@@ -40,7 +42,23 @@ class SUHI:
 
     @property
     def mean_urban_intensity_c(self) -> float:
-        return float(np.nanmean(self.intensity[self.intensity > 0]))
+        """Mean SUHI intensity over urban cells (built surface >= 20%).
+
+        Until Review 3 this was the mean over every cell *warmer than the
+        rural reference* — a different quantity, positive by construction.
+        That figure is still reported, under its honest name
+        `mean_positive_intensity_c`.
+        """
+        if self.urban_mask is None:
+            return float("nan")
+        sel = self.urban_mask & np.isfinite(self.intensity)
+        return float(self.intensity[sel].mean()) if sel.any() else float("nan")
+
+    @property
+    def mean_positive_intensity_c(self) -> float:
+        """Mean over cells warmer than the rural reference (the old headline)."""
+        pos = self.intensity[np.nan_to_num(self.intensity, nan=-1.0) > 0]
+        return float(pos.mean()) if pos.size else float("nan")
 
     def hotspot_area_km2(self, frame: AnalysisFrame) -> float:
         return float(self.hotspots.sum()) * (frame.res**2) / 1e6
@@ -55,8 +73,12 @@ def compute_suhi(
     smooth_m: float = 0.0,
     frame: AnalysisFrame | None = None,
     min_rural_cells: int = 100,
+    urban_mask: np.ndarray | None = None,
 ) -> SUHI:
-    """Compute SUHI intensity and hotspot mask from an LST surface."""
+    """Compute SUHI intensity and hotspot mask from an LST surface.
+
+    `urban_mask` marks the cells the mean urban intensity is taken over.
+    """
     t = lst.astype("float32").copy()
     if smooth_m > 0 and frame is not None:
         sigma = max(0.5, smooth_m / frame.res / 2.0)
@@ -77,6 +99,8 @@ def compute_suhi(
         year=year, lst=t, rural_reference_c=ref,
         intensity=intensity.astype("float32"),
         hotspots=hotspots, threshold_c=hotspot_delta_c,
+        urban_mask=None if urban_mask is None else np.asarray(urban_mask, dtype=bool),
+        n_rural_cells=int(rural_vals.size),
     )
 
 
@@ -130,12 +154,19 @@ def cooling_potential(suhi: SUHI, ndvi: np.ndarray, builtup_frac: np.ndarray) ->
     return np.clip(heat_n * bare * built, 0, 1).astype("float32")
 
 
-def summary(suhi: SUHI, frame: AnalysisFrame) -> dict[str, float]:
+def _rnd(x: float, n: int = 2) -> float | None:
+    """Round for the JSON summary; NaN becomes None (NaN is not valid JSON)."""
+    return None if not np.isfinite(x) else round(float(x), n)
+
+
+def summary(suhi: SUHI, frame: AnalysisFrame) -> dict[str, float | None]:
     return {
         "year": suhi.year,
-        "rural_reference_c": round(suhi.rural_reference_c, 2),
-        "max_intensity_c": round(suhi.max_intensity_c, 2),
-        "mean_urban_intensity_c": round(suhi.mean_urban_intensity_c, 2),
+        "rural_reference_c": _rnd(suhi.rural_reference_c),
+        "rural_reference_cells": suhi.n_rural_cells,
+        "max_intensity_c": _rnd(suhi.max_intensity_c),
+        "mean_urban_intensity_c": _rnd(suhi.mean_urban_intensity_c),
+        "mean_positive_intensity_c": _rnd(suhi.mean_positive_intensity_c),
         "hotspot_threshold_c": suhi.threshold_c,
-        "hotspot_area_km2": round(suhi.hotspot_area_km2(frame), 2),
+        "hotspot_area_km2": _rnd(suhi.hotspot_area_km2(frame)),
     }

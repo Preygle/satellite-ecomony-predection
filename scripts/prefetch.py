@@ -53,10 +53,14 @@ def main() -> int:
     failures: list[str] = []
 
     if not args.skip_ghsl:
+        # Observed epochs plus the GHSL projection, which the pipeline loads
+        # as a labelled comparison layer.
+        epochs = (list(cfg.get("sources.ghsl.epochs"))
+                  + list(cfg.get("sources.ghsl.projected_epochs", [])))
         jobs = [
-            (cfg.get("sources.ghsl.products.built_surface"), e) for e in cfg.get("sources.ghsl.epochs")
+            (cfg.get("sources.ghsl.products.built_surface"), e) for e in epochs
         ] + [
-            (cfg.get("sources.ghsl.products.population"), e) for e in cfg.get("sources.ghsl.epochs")
+            (cfg.get("sources.ghsl.products.population"), e) for e in epochs
         ]
         log.info("GHSL: %d products x epochs, %d workers", len(jobs), args.workers)
         with ThreadPoolExecutor(max_workers=args.workers) as pool:

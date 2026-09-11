@@ -354,6 +354,235 @@ def test_model_learns_a_planted_driver():
     assert m.auc > 0.7
 
 
+# ------------------------------------------------------- Review 3 fixes --
+
+def test_config_current_epoch_is_observed():
+    """Regression (D1): 'current' must be a measured GHSL epoch, never the 2025 projection."""
+    from urbanintel.config import GHSL_LAST_OBSERVED_EPOCH
+
+    CFG.check_epochs()
+    assert CFG.epoch_current <= GHSL_LAST_OBSERVED_EPOCH
+    assert CFG.epoch_current in CFG.observational_epochs
+    assert not set(CFG.observational_epochs) & set(CFG.projected_epochs)
+
+
+def test_check_epochs_rejects_a_projection():
+    import copy
+
+    from urbanintel.config import Config, ConfigError
+
+    bad_current = copy.deepcopy(CFG.raw)
+    bad_current["epochs"]["current"] = 2025
+    bad_list = copy.deepcopy(CFG.raw)
+    bad_list["sources"]["ghsl"]["epochs"] = [2010, 2015, 2020, 2025]
+    for raw in (bad_current, bad_list):
+        try:
+            Config(raw=raw, path=CFG.path).check_epochs()
+        except ConfigError:
+            continue
+        raise AssertionError("a projected epoch used as a measurement must be rejected")
+
+
+def test_allocate_places_non_divisible_demand_exactly():
+    """Regression (D5): demand % iterations cells used to be silently dropped."""
+    from urbanintel.analysis import growth_model as GM
+
+    fr = _frame(res=100, h=60, w=60)
+    built = np.zeros(fr.shape, dtype="float32")
+    suit = np.random.default_rng(1).random(fr.shape).astype("float32")
+    for demand in (1214, 7, 101):
+        new = GM.allocate(suit, built, demand, fr, iterations=8)
+        assert int(new.sum()) == demand, (demand, int(new.sum()))
+
+
+def test_relative_trend_separates_catching_up_from_citywide_brightening():
+    """Regression (D4): when the whole city brightens, a raw positive slope means nothing."""
+    shape = (10, 10)
+    ref = np.zeros(shape, dtype=bool)
+    ref[:5, :] = True                                     # the established city
+    stack = {}
+    for y in range(2013, 2025):
+        a = np.full(shape, 20.0 * 1.06 ** (y - 2013), dtype="float32")   # city +6%/yr
+        a[8, 8] = 2.0 * 1.25 ** (y - 2013)                               # catching up fast
+        a[9, 9] = 3.0                                                    # flat
+        stack[y] = a
+    raw = A_ntl.trend(stack)
+    rel = A_ntl.relative_trend(stack, ref)
+    assert raw.slope[5, 5] > 0 and rel.slope[5, 5] < 1e-3   # brightening only at city pace
+    assert rel.slope[8, 8] > 0.05 and rel.p_value[8, 8] < 0.01
+    assert raw.slope[9, 9] == 0 and rel.slope[9, 9] < 0     # flat = falling behind the city
+
+
+def test_relative_trend_cancels_a_scene_wide_step():
+    """A version change that lifts every bright cell alike must not look like growth."""
+    shape = (10, 10)
+    ref = np.zeros(shape, dtype=bool)
+    ref[:5, :] = True
+    base, stepped = {}, {}
+    for y in range(2013, 2025):
+        a = np.full(shape, 30.0, dtype="float32")
+        a[9, 9] = 20.0 * 1.04 ** (y - 2013)
+        base[y] = a
+        stepped[y] = a * (1.3 if y >= 2022 else 1.0)       # V2.1 -> V2.2 style step
+    r0 = A_ntl.relative_trend(base, ref).slope[9, 9]
+    r1 = A_ntl.relative_trend(stepped, ref).slope[9, 9]
+    assert abs(float(r1 - r0)) < 0.005
+
+
+def test_rising_rules_follow_their_definitions():
+    s = np.array([0.5, 0.5, -0.2, 0.0])
+    p = np.array([0.01, 0.50, 0.01, 0.90])
+    ev = A_ghost.TrendEvidence(slope=s, p_value=p, rel_slope=s, rel_p_value=p)
+    r, f = A_ghost.rising_masks(ev, "raw")
+    assert r.tolist() == [True, True, False, False] and f.tolist() == [False, False, True, True]
+    r, f = A_ghost.rising_masks(ev, "relative_significant", alpha=0.10)
+    assert r.tolist() == [True, False, False, False]
+    assert f.tolist() == [False, False, True, False]    # flat and uncertain is not "declining"
+
+
+def test_rural_reference_excludes_water_and_recent_building():
+    """Regression (D2): the Ganga must not sit in the heat-island rural baseline."""
+    fr = _frame(res=100, h=10, w=10)
+    built = np.zeros(fr.shape, dtype="float32")
+    built[0, :] = 0.5 * fr.res**2                       # urban row
+    water = np.zeros(fr.shape, dtype=bool)
+    water[5, :] = True
+    recent = np.zeros(fr.shape, dtype=bool)
+    recent[7, 0] = True
+    m = ghsl.rural_reference_mask_from_builtup(built, fr, water=water, exclude=recent)
+    assert not m[0].any() and not m[5].any() and not m[7, 0]
+    assert m[3].all()
+
+
+def test_suhi_mean_urban_uses_urban_cells_only():
+    """Regression (D3): the old 'mean urban intensity' averaged every warm cell."""
+    from urbanintel.analysis import thermal as A_th
+
+    fr = _frame(res=100, h=20, w=20)
+    lst = np.full(fr.shape, 40.0, dtype="float32")
+    rural = np.zeros(fr.shape, dtype=bool)
+    rural[10:, :] = True                                # 200 rural cells at 40 C
+    urban = np.zeros(fr.shape, dtype=bool)
+    urban[:5, :] = True
+    lst[:5, :] = 42.0                                   # urban cells: +2 C
+    lst[5:10, :] = 39.0
+    lst[5, 0] = 50.0                                    # one hot cell that is not urban
+    s = A_th.compute_suhi(lst, rural, year=2024, urban_mask=urban)
+    assert abs(s.mean_urban_intensity_c - 2.0) < 1e-6
+    assert s.mean_positive_intensity_c > 2.0
+
+
+def test_built_gain_needs_rise_and_end_level():
+    from urbanintel.analysis import vegetation as A_veg
+
+    before = np.array([0.10, 0.10, 0.30, 0.45])
+    after = np.array([0.35, 0.20, 0.50, 0.50])
+    gain = A_veg.built_gain(before, after, min_rise=0.15, min_end=0.30)
+    assert gain.tolist() == [True, False, True, False]
+
+
+def test_window_mean_uses_only_requested_years():
+    stack = {2013: np.full((2, 2), 100.0), 2022: np.full((2, 2), 1.0),
+             2023: np.full((2, 2), 2.0), 2024: np.full((2, 2), 6.0)}
+    assert np.allclose(A_ntl.window_mean(stack, [2022, 2023, 2024]), 3.0)
+
+
+def test_random_forest_learns_a_planted_driver():
+    """Smoke test: the forest ranks conversions well on a synthetic city."""
+    from urbanintel.analysis import growth_model as GM
+
+    fr = _frame(res=100, h=80, w=80)
+    rng = np.random.default_rng(3)
+    yy, xx = np.mgrid[0:80, 0:80]
+    dist = np.sqrt((xx - 40) ** 2 + (yy - 40) ** 2).astype("float32") * 0.1
+    t0 = np.zeros(fr.shape, dtype="float32")
+    t0[dist < 1.5] = 1.0
+    p = np.clip(1.0 - (dist - 1.5) / 2.0, 0, 1) * 0.6
+    t1 = t0.copy()
+    t1[(rng.random(fr.shape) < p) & (t0 < 0.2)] = 1.0
+
+    X, names = GM.build_drivers(t0, fr, distance_km=dist)
+    m = GM.fit_forest(t0, t1, X, names, fr, period=(2010, 2015), n_estimators=50)
+    assert m.auc > 0.7                                   # out-of-bag
+    s = m.suitability(X, fr.shape)
+    assert s.shape == fr.shape and 0.0 <= float(s.min()) and float(s.max()) <= 1.0
+
+
+def test_toc_curve_of_a_perfect_ranking():
+    from urbanintel.analysis import growth_model as GM
+
+    eligible = np.ones(1000, dtype=bool)
+    observed = np.zeros(1000, dtype=bool)
+    observed[:100] = True
+    t = GM.toc_curve(observed.astype(float), observed, eligible, n_points=50)
+    assert t["flagged"][-1] == 1000 and t["hits"][-1] == 100
+    assert all(h == min(x, 100) for x, h in zip(t["flagged"], t["hits"]))
+
+
+def test_agreement_kappa_identical_and_independent():
+    from urbanintel.analysis import validation as VAL
+
+    rng = np.random.default_rng(0)
+    a = rng.random(20000) < 0.3
+    b = rng.random(20000) < 0.3
+    assert abs(VAL.agreement(a, a)["kappa"] - 1.0) < 1e-9
+    assert abs(VAL.agreement(a, b)["kappa"]) < 0.05
+
+
+def test_mann_whitney_detects_a_shift_in_one_direction():
+    from urbanintel.analysis import validation as VAL
+
+    rng = np.random.default_rng(1)
+    x, y = rng.normal(1.0, 1.0, 300), rng.normal(0.0, 1.0, 300)
+    r = VAL.mann_whitney_greater(x, y)
+    assert r["p_value"] < 1e-3 and r["prob_superiority"] > 0.6
+    assert VAL.mann_whitney_greater(y, x)["p_value"] > 0.5
+
+
+def test_loglog_fit_recovers_elasticity():
+    from urbanintel.analysis import validation as VAL
+
+    rng = np.random.default_rng(2)
+    x = np.exp(rng.normal(0, 1, 500))
+    y = 3.0 * x**0.7 * np.exp(rng.normal(0, 0.05, 500))
+    assert abs(VAL.loglog_fit(x, y)["elasticity"] - 0.7) < 0.02
+
+
+def test_local_config_overrides_paths_and_never_touches_the_tracked_file():
+    """Each machine can keep its data somewhere else.
+
+    `config/local.yaml` is not tracked by git, so one member's data location
+    cannot collide with another member's merge; an environment variable wins
+    over both. See scripts/external_data.py.
+    """
+    import os
+    import tempfile
+
+    import yaml
+
+    from urbanintel import config as C
+
+    with tempfile.TemporaryDirectory() as tmp:
+        local = Path(tmp) / "local.yaml"
+        out = (Path(tmp) / "out").as_posix()
+
+        local.write_text(yaml.safe_dump({"paths": {"outputs": out}}), encoding="utf-8")
+        original = C.LOCAL_CONFIG
+        C.LOCAL_CONFIG = local
+        try:
+            cfg = C.load_config()
+            assert cfg.outputs_dir == Path(tmp) / "out"
+            assert cfg.city == "Varanasi"          # everything else still comes from the tracked file
+        finally:
+            C.LOCAL_CONFIG = original
+
+        os.environ["URBANINTEL_OUTPUTS"] = str(Path(tmp) / "from_env")
+        try:
+            assert load_config().outputs_dir == Path(tmp) / "from_env"
+        finally:
+            del os.environ["URBANINTEL_OUTPUTS"]
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

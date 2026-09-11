@@ -71,6 +71,29 @@ def change(
     )
 
 
+def built_gain(
+    built_prob_from: np.ndarray,
+    built_prob_to: np.ndarray,
+    *,
+    min_rise: float = 0.15,
+    min_end: float = 0.30,
+) -> np.ndarray:
+    """Cells Dynamic World sees becoming built between two years.
+
+    Dynamic World publishes a *probability* per class rather than one label,
+    and its annual mean for the built class rarely approaches 1 even in the
+    old city. So "became built" is read as: the built probability rose by at
+    least `min_rise` and ended at or above `min_end`.
+
+    This exists so green loss can be matched against built-up gain over the
+    *same* years. GHSL has no 2018 or 2024 epoch, so intersecting NDVI loss
+    2018-2024 with GHSL gain 2010-2020 would compare two different periods.
+    """
+    a = np.nan_to_num(built_prob_from, nan=0.0)
+    b = np.nan_to_num(built_prob_to, nan=0.0)
+    return ((b - a) >= min_rise) & (b >= min_end)
+
+
 def loss_to_builtup(green: GreenChange, new_builtup: np.ndarray) -> np.ndarray:
     """Green loss co-located with built-up gain — permanent conversion.
 

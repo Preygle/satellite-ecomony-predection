@@ -102,6 +102,65 @@ def trend(stack: dict[int, np.ndarray]) -> NightlightTrend:
     )
 
 
+def log_radiance(radiance: np.ndarray, offset: float = 1.0) -> np.ndarray:
+    """Natural log of (radiance + offset). The offset keeps unlit cells finite.
+
+    On a log scale equal *proportional* changes look equal: a dim new
+    neighbourhood going from 1 to 2 and a bright market going from 20 to 40
+    have both doubled. On the raw scale the market's change is twenty times
+    larger, so any comparison between dim and bright places favours the bright.
+    """
+    return np.log(np.clip(np.nan_to_num(radiance, nan=0.0), 0.0, None) + offset)
+
+
+def relative_series(
+    stack: dict[int, np.ndarray], reference: np.ndarray, *, offset: float = 1.0,
+) -> dict[int, np.ndarray]:
+    """Each cell's log radiance minus the median of the `reference` cells, per year."""
+    ref = np.asarray(reference, dtype=bool)
+    if int(ref.sum()) < 30:
+        raise ValueError(f"reference mask has {int(ref.sum())} cells; need at least 30")
+    out: dict[int, np.ndarray] = {}
+    for y in sorted(stack):
+        la = log_radiance(stack[y], offset)
+        out[y] = (la - float(np.median(la[ref]))).astype("float32")
+    return out
+
+
+def relative_trend(
+    stack: dict[int, np.ndarray], reference: np.ndarray, *, offset: float = 1.0,
+) -> NightlightTrend:
+    """Trend of log radiance *relative to the established city*.
+
+    Why relative: between 2013 and 2024 almost every urban cell in the study
+    area brightened, so a positive raw slope says nothing about a particular
+    place. The series also switches product version between 2021
+    (ANNUAL_V21) and 2022 (ANNUAL_V22), and a version change can shift the
+    whole scene at once. Subtracting, year by year, the median of the
+    established city (`reference`, e.g. cells already urban in 2010) cancels
+    both. A positive relative slope therefore means "brightening faster than
+    the established city", and its p-value tests exactly that.
+    """
+    return trend(relative_series(stack, reference, offset=offset))
+
+
+def relative_level(
+    stack: dict[int, np.ndarray], reference: np.ndarray, years, *, offset: float = 1.0,
+) -> np.ndarray:
+    """Mean relative log radiance over `years` (see `relative_series`)."""
+    rel = relative_series({y: stack[y] for y in years}, reference, offset=offset)
+    return np.mean(np.stack([rel[y] for y in sorted(rel)]), axis=0).astype("float32")
+
+
+def window_mean(stack: dict[int, np.ndarray], years) -> np.ndarray:
+    """Mean radiance over `years` — a steadier activity level than any one year."""
+    missing = [y for y in years if y not in stack]
+    if missing:
+        raise ValueError(f"years missing from the night-light stack: {missing}")
+    return np.mean(np.stack([np.nan_to_num(stack[y], nan=0.0) for y in years]),
+                   axis=0).astype("float32")
+
+
 def sum_of_lights(radiance: np.ndarray, mask: np.ndarray | None = None) -> float:
     """Sum of Lights over the AOI — the standard city-level activity aggregate."""
     v = np.nan_to_num(radiance, nan=0.0)

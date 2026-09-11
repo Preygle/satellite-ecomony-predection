@@ -1,28 +1,35 @@
-"""Fit, validate and project the urban expansion model.
+"""Fit, validate, compare and project the urban expansion models.
 
     python scripts/run_growth_model.py
 
-Reads the Phase 1 processed rasters, fits the transition model on observed
-conversions, validates it on a held-out later period, benchmarks it against
-a random-allocation baseline, and projects future expansion.
+Reads the pipeline's processed rasters and:
+
+1. fits two suitability models — logistic regression and random forest — on
+   the conversions observed 2010-2015, using identical data;
+2. validates both on 2015-2020, a period neither model saw, with the same
+   allocation step, so their Figures of Merit are directly comparable;
+3. benchmarks them against random allocation and records TOC curves;
+4. refits logistic regression without the road driver. OpenStreetMap roads
+   are a present-day snapshot, so using them to explain 2010-2015 growth lets
+   later information leak into the past; the no-roads model shows how much
+   the result depends on that;
+5. projects expansion +5 (2025) and +10 (2030) years from 2020 with the
+   better of the two models.
 
 Epoch discipline
 ----------------
 GHS-BUILT-S R2023A supplies epochs to 2030, but **only 1975-2020 are
-observational; 2025 and 2030 are the GHSL model's own projections.**
-Training or validating against them would be fitting one model to another
-model's output. This script therefore uses only 2010/2015/2020 for fitting
-and validation, and treats GHSL 2025 purely as an independent projection to
-compare against — never as ground truth.
+observational; 2025 and 2030 are the GHSL model's own projections.** Only
+2010/2015/2020 are used for fitting and validation. GHSL 2025 appears only as
+an independent projection to compare against — never as ground truth.
 """
 
 from __future__ import annotations
 
-import glob
 import json
 import logging
-import os
 import sys
+import time
 import warnings
 from pathlib import Path
 
@@ -36,11 +43,9 @@ import rasterio  # noqa: E402
 from urbanintel.analysis import growth_model as GM  # noqa: E402
 from urbanintel.aoi import AOI  # noqa: E402
 from urbanintel.config import load_config  # noqa: E402
+from urbanintel.data import gee  # noqa: E402
 
 log = logging.getLogger("growth_model")
-
-OBSERVATIONAL_EPOCHS = (2010, 2015, 2020)
-PROJECTED_EPOCHS = (2025, 2030)
 
 
 def random_baseline(observed_change: np.ndarray, eligible: np.ndarray,
@@ -71,121 +76,234 @@ def random_baseline(observed_change: np.ndarray, eligible: np.ndarray,
     }
 
 
+def read(rdir: Path, name: str) -> np.ndarray | None:
+    p = rdir / f"{name}.tif"
+    if not p.exists():
+        return None
+    with rasterio.open(p) as ds:
+        return ds.read(1)
+
+
+def write(rdir: Path, name: str, arr: np.ndarray, profile: dict) -> None:
+    with rasterio.open(rdir / f"{name}.tif", "w", **profile) as ds:
+        ds.write(arr.astype("float32"), 1)
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s",
                         datefmt="%H:%M:%S")
+    t_start = time.time()
     cfg = load_config()
+    cfg.check_epochs()
     aoi = AOI(cfg)
-    fine, coarse = aoi.frame_pair(cfg.get("sources.ghsl.resolution_m"), cfg.cell_size_m)
+    fine, _ = aoi.frame_pair(cfg.get("sources.ghsl.resolution_m"), cfg.cell_size_m)
     thr = cfg.get("thresholds.builtup.surface_fraction_urban")
+    obs = cfg.observational_epochs
+    train = tuple(int(y) for y in cfg.get("growth_model.train", [2010, 2015]))
+    test = tuple(int(y) for y in cfg.get("growth_model.test", [2015, 2020]))
+    proj_years = [int(y) for y in cfg.get("growth_model.projection_years", [2025, 2030])]
+    rf_cfg = cfg.get("growth_model.random_forest", {}) or {}
+    for y in (*train, *test):
+        if y not in obs:
+            log.error("growth_model epoch %d is not an observational epoch %s", y, obs)
+            return 2
 
     rdir = cfg.processed_dir / "rasters"
-    if not rdir.exists():
+    if read(rdir, f"builtup_m2_{obs[-1]}") is None:
         log.error("no processed rasters; run the pipeline first")
         return 2
-    L = {os.path.basename(p)[:-4]: rasterio.open(p).read(1) for p in glob.glob(str(rdir / "*.tif"))}
 
     cell = fine.res**2
-    built = {y: L[f"builtup_m2_{y}"] / cell for y in OBSERVATIONAL_EPOCHS}
-    pop = {y: L[f"population_{y}"] for y in OBSERVATIONAL_EPOCHS}
-    dist = L["distance_km"]
-    roads = L.get("road_density")
+    built = {y: read(rdir, f"builtup_m2_{y}") / cell for y in obs}
+    pop = {y: read(rdir, f"population_{y}") for y in obs}
+    dist = read(rdir, "distance_km")
+    roads = read(rdir, "road_density")
+    notes: list[str] = []
 
-    log.info("observational epochs: %s", OBSERVATIONAL_EPOCHS)
-    for y in OBSERVATIONAL_EPOCHS:
+    slope = None
+    slope_p = cfg.raw_dir / "gee" / "slope.tif"
+    if slope_p.exists():
+        slope = np.nan_to_num(gee.to_frame(slope_p, fine), nan=0.0)
+    else:
+        notes.append("Slope driver unavailable: run scripts/export_review3_layers.py first.")
+
+    def drivers(year: int, *, with_roads: bool = True):
+        return GM.build_drivers(built[year], fine, distance_km=dist,
+                                road_density=roads if with_roads else None,
+                                population=pop[year], slope=slope, urban_threshold=thr)
+
+    t0, t1 = train
+    v0, v1 = test
+    log.info("observational epochs %s | train %d-%d | test %d-%d", obs, t0, t1, v0, v1)
+    for y in obs:
         log.info("  %d urban cells: %d", y, int((built[y] >= thr).sum()))
 
-    # ---- fit and validate ------------------------------------------------
-    log.info("fitting 2010-2015, validating 2015-2020")
-    model = GM.fit_and_validate(
-        built, fine, distance_km=dist, road_density=roads, population=pop,
-        train=(2010, 2015), test=(2015, 2020), urban_threshold=thr,
+    X_tr, names = drivers(t0)
+    X_te, _ = drivers(v0)
+
+    # ---- logistic regression, all drivers ---------------------------------
+    lr = GM.fit(built[t0], built[t1], X_tr, names, fine, period=train, urban_threshold=thr)
+    suit_lr_test, _, observed, eligible = GM.validate(lr, built, X_te, fine, test=test,
+                                                      urban_threshold=thr)
+    log.info("logistic regression  AUC train %.4f  test %.4f  FoM %.4f",
+             lr.auc, lr.test_auc, lr.validation.figure_of_merit)
+
+    # ---- logistic regression without roads (leakage check) ----------------
+    X_tr_nr, names_nr = drivers(t0, with_roads=False)
+    X_te_nr, _ = drivers(v0, with_roads=False)
+    lr_nr = GM.fit(built[t0], built[t1], X_tr_nr, names_nr, fine, period=train,
+                   urban_threshold=thr)
+    GM.validate(lr_nr, built, X_te_nr, fine, test=test, urban_threshold=thr)
+    log.info("  ... without roads  AUC test %.4f  FoM %.4f",
+             lr_nr.test_auc, lr_nr.validation.figure_of_merit)
+
+    # ---- random forest ------------------------------------------------------
+    rf = GM.fit_forest(built[t0], built[t1], X_tr, names, fine, period=train,
+                       urban_threshold=thr,
+                       n_estimators=int(rf_cfg.get("n_estimators", 300)),
+                       min_samples_leaf=int(rf_cfg.get("min_samples_leaf", 20)))
+    suit_rf_test, _, _, _ = GM.validate(rf, built, X_te, fine, test=test, urban_threshold=thr)
+    rf.importance = GM.permutation_importance_auc(rf, X_te, observed, eligible)
+    log.info("random forest        AUC oob %.4f  test %.4f  FoM %.4f",
+             rf.auc, rf.test_auc, rf.validation.figure_of_merit)
+
+    baseline = random_baseline(observed, eligible)
+    base_fom = baseline["mean_figure_of_merit"]
+
+    toc = {
+        "logistic_regression": GM.toc_curve(suit_lr_test, observed, eligible),
+        "random_forest": GM.toc_curve(suit_rf_test, observed, eligible),
+    }
+    n_e = toc["random_forest"]["n_eligible"]
+    n_o = toc["random_forest"]["n_observed"]
+    toc["random"] = {"flagged": [0, n_e], "hits": [0, n_o], "n_eligible": n_e, "n_observed": n_o}
+
+    models = {"logistic_regression": lr, "logistic_regression_no_roads": lr_nr,
+              "random_forest": rf}
+    best_name = max(("logistic_regression", "random_forest"),
+                    key=lambda k: models[k].validation.figure_of_merit)
+    best = models[best_name]
+    log.info("better model on the held-out period: %s", best_name)
+
+    # ---- suitability now, both models (for the dashboard) ------------------
+    last = obs[-1]
+    X_now, _ = drivers(last)
+    suit_now = {"logistic_regression": lr.suitability(X_now, fine.shape),
+                "random_forest": rf.suitability(X_now, fine.shape)}
+
+    # ---- projection +5 and +10 years from the last observed epoch ---------
+    demands = {y: GM.extrapolate_demand(built, fine, target_year=y, urban_threshold=thr)
+               for y in proj_years}
+    steps = GM.project_steps(
+        best, built[last], fine, demands=demands, distance_km=dist,
+        road_density=roads if "road_density" in best.driver_names else None,
+        population=pop[last], slope=slope if "slope_deg" in best.driver_names else None,
+        urban_threshold=thr,
     )
+    for y in proj_years:
+        log.info("projection %d: demand %d cells (%.2f km2), placed %d",
+                 y, demands[y], demands[y] * cell / 1e6, int(steps[y][1].sum()))
 
-    urban_15 = built[2015] >= thr
-    urban_20 = built[2020] >= thr
-    observed = urban_20 & ~urban_15
-    baseline = random_baseline(observed, ~urban_15)
-
-    v = model.validation.as_dict()
-    skill = (v["figure_of_merit"] / baseline["mean_figure_of_merit"]
-             if baseline["mean_figure_of_merit"] > 0 else float("nan"))
-
-    log.info("  AUC (train)        %.4f", model.auc)
-    log.info("  Figure of Merit    %.4f", v["figure_of_merit"])
-    log.info("  random baseline    %.5f", baseline["mean_figure_of_merit"])
-    log.info("  skill vs random    %.1fx", skill)
-    log.info("  Kappa              %.4f", v["kappa"])
-
-    # ---- projection ------------------------------------------------------
-    demand_2030 = GM.extrapolate_demand(built, fine, target_year=2030, urban_threshold=thr)
-    log.info("projecting 2020 -> 2030, demand %d cells (%.2f km2)",
-             demand_2030, demand_2030 * cell / 1e6)
-
-    suit, new_2030 = GM.project(
-        model, built[2020], fine, distance_km=dist, road_density=roads,
-        population=pop[2020], demand_cells=demand_2030, urban_threshold=thr,
-    )
-
-    # ---- independent cross-check against the GHSL projection -------------
+    # ---- independent cross-check against the GHSL projection ---------------
     cross = None
-    ghsl_2025_path = rdir / "builtup_m2_2025.tif"
-    if ghsl_2025_path.exists():
-        ghsl25 = rasterio.open(ghsl_2025_path).read(1) / cell
-        ghsl_new = (ghsl25 >= thr) & ~urban_20
-        our_new_25 = GM.allocate(suit, built[2020], int(ghsl_new.sum()), fine,
+    urban_last = built[last] >= thr
+    g25 = read(rdir, "builtup_m2_2025_projected")
+    if g25 is not None and 2025 in steps:
+        ghsl_new = ((g25 / cell) >= thr) & ~urban_last
+        ours_equal = GM.allocate(suit_now[best_name], built[last], int(ghsl_new.sum()), fine,
                                  urban_threshold=thr)
-        agree = GM.change_metrics(our_new_25, ghsl_new, ~urban_20)
-        cross = agree.as_dict()
-        log.info("agreement with GHSL's own 2025 projection: FoM %.4f", cross["figure_of_merit"])
+        cross = {
+            "ghsl_new_urban_cells_2020_2025": int(ghsl_new.sum()),
+            "equal_demand": GM.change_metrics(ours_equal, ghsl_new, ~urban_last).as_dict(),
+            "our_2025_projection": GM.change_metrics(steps[2025][1], ghsl_new, ~urban_last).as_dict(),
+            "note": ("Agreement between two projections, not accuracy: neither 2025 map "
+                     "is an observation."),
+        }
+        log.info("agreement with GHSL's own 2025 projection (equal demand): FoM %.4f",
+                 cross["equal_demand"]["figure_of_merit"])
 
-    # ---- write outputs ---------------------------------------------------
-    out = cfg.outputs_dir
+    # ---- write rasters ------------------------------------------------------
     prof = fine.profile("float32")
-    for name, arr in [("growth_suitability", suit),
-                      ("predicted_new_urban_2030", new_2030.astype("float32"))]:
-        with rasterio.open(rdir / f"{name}.tif", "w", **prof) as ds:
-            ds.write(arr.astype("float32"), 1)
-    log.info("wrote suitability and 2030 projection rasters")
+    write(rdir, "growth_suitability", suit_now[best_name], prof)
+    write(rdir, "growth_suitability_lr", suit_now["logistic_regression"], prof)
+    write(rdir, "growth_suitability_rf", suit_now["random_forest"], prof)
+    for y, (_, new) in steps.items():
+        write(rdir, f"pred_new_urban_{y}", new.astype("float32"), prof)
+    log.info("wrote suitability surfaces and %s projection rasters", proj_years)
+
+    def km2(n: int) -> float:
+        return round(n * cell / 1e6, 2)
+
+    slope_info = None
+    if slope is not None:
+        slope_info = {
+            "dataset": cfg.get("sources.gee.assets.srtm"),
+            "median_deg": round(float(np.median(slope)), 2),
+            "share_cells_over_2_deg": round(float((slope > 2).mean()), 4),
+            "lr_coefficient": round(lr.coefficients.get("slope_deg", float("nan")), 4),
+            "rf_importance": rf.importance.get("slope_deg"),
+        }
 
     payload = {
         "epoch_discipline": {
-            "observational_epochs": list(OBSERVATIONAL_EPOCHS),
-            "projected_epochs_excluded_from_fitting": list(PROJECTED_EPOCHS),
-            "reason": (
-                "GHS-BUILT-S R2023A epochs 2025 and 2030 are the GHSL model's own "
-                "projections, not observations. Fitting or validating against them "
-                "would measure agreement between two models rather than accuracy "
-                "against reality."
-            ),
+            "observational_epochs": obs,
+            "projected_epochs_excluded_from_fitting": cfg.projected_epochs,
+            "reason": ("GHS-BUILT-S R2023A epochs after 2020 are the GHSL model's own "
+                       "projections, not observations. Fitting or validating against them "
+                       "would measure agreement between two models rather than accuracy "
+                       "against reality."),
         },
-        "model": model.as_dict(),
+        "train_period": f"{t0}-{t1}",
+        "test_period": f"{v0}-{v1}",
+        "models": {k: m.as_dict() for k, m in models.items()},
         "random_baseline": baseline,
-        "skill_vs_random": round(skill, 2) if np.isfinite(skill) else None,
-        "projection_2030": {
-            "demand_cells": demand_2030,
-            "demand_km2": round(demand_2030 * cell / 1e6, 2),
-            "method": "compound annual growth of urban extent, 2010-2020, extrapolated",
+        "skill_vs_random": {k: (round(m.validation.figure_of_merit / base_fom, 2)
+                                if base_fom > 0 else None) for k, m in models.items()},
+        "best_model": best_name,
+        "best_model_rule": f"higher Figure of Merit on the held-out {v0}-{v1} period",
+        "toc": toc,
+        "road_leakage_check": {
+            "fom_with_roads": round(lr.validation.figure_of_merit, 4),
+            "fom_without_roads": round(lr_nr.validation.figure_of_merit, 4),
+            "auc_test_with_roads": round(lr.test_auc, 4),
+            "auc_test_without_roads": round(lr_nr.test_auc, 4),
+            "note": ("OpenStreetMap roads are a present-day snapshot; the model without "
+                     "them shows how much the result depends on that later information."),
         },
+        "slope_driver": slope_info,
+        "projections": {
+            str(y): {"from_year": last, "horizon_years": y - last, "model": best_name,
+                     "demand_cells": demands[y], "demand_km2": km2(demands[y]),
+                     "placed_cells": int(steps[y][1].sum()),
+                     "label": "prediction, not observation"}
+            for y in proj_years
+        },
+        "projection_method": (
+            f"Demand: compound annual growth of urban extent {obs[0]}-{last}, extrapolated. "
+            "Allocation: constrained cellular automaton in five-year steps, each step's growth "
+            "feeding the next; roads and population held at their last observed values."),
         "cross_check_vs_ghsl_2025_projection": cross,
+        "notes": notes,
+        "runtime_s": round(time.time() - t_start, 1),
     }
-    (out / f"{aoi.slug}_growth_model.json").write_text(
-        json.dumps(payload, indent=2), encoding="utf-8")
-    log.info("summary -> %s", out / f"{aoi.slug}_growth_model.json")
+    out = cfg.outputs_dir / f"{aoi.slug}_growth_model.json"
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    log.info("summary -> %s", out)
 
-    print("\n" + "=" * 66)
-    print("GROWTH MODEL — fitted on observational epochs only")
-    print("=" * 66)
-    print(f"  Train 2010-2015 · validate 2015-2020 (held out)")
-    print(f"  AUC (train)         {model.auc:.4f}")
-    print(f"  Figure of Merit     {v['figure_of_merit']:.4f}")
-    print(f"  Random baseline     {baseline['mean_figure_of_merit']:.5f}")
-    print(f"  Skill vs random     {skill:.1f}x")
-    print(f"  Kappa               {v['kappa']:.4f}")
-    print(f"  Hits / observed     {v['hits']} / {v['hits'] + v['misses']}")
-    print(f"\n  2030 projection     +{demand_2030 * cell / 1e6:.2f} km2 urban extent")
+    print("\n" + "=" * 70)
+    print(f"GROWTH MODELS — train {t0}-{t1}, validate {v0}-{v1} (held out)")
+    print("=" * 70)
+    print(f"  {'model':32s} {'AUC train':>9s} {'AUC test':>9s} {'FoM':>7s} {'x random':>9s}")
+    for k, m in models.items():
+        print(f"  {k:32s} {m.auc:9.4f} {m.test_auc:9.4f} "
+              f"{m.validation.figure_of_merit:7.4f} {payload['skill_vs_random'][k]:9.1f}")
+    print(f"  {'random allocation':32s} {'':9s} {0.5:9.4f} {base_fom:7.4f} {1.0:9.1f}")
+    print(f"\n  Better model: {best_name}")
+    for y in proj_years:
+        print(f"  {y} projection   +{km2(demands[y]):.2f} km2 urban extent from {last}")
     if cross:
-        print(f"  Agreement w/ GHSL   FoM {cross['figure_of_merit']:.4f}")
+        print(f"  Agreement with GHSL 2025 projection (equal demand): "
+              f"FoM {cross['equal_demand']['figure_of_merit']:.4f}")
     return 0
 
 

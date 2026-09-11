@@ -13,10 +13,12 @@ lst           Landsat 8/9 land surface temperature-> urban heat island
 dynamicworld  Built / trees / grass probability   -> land cover cross-check
 builtheight   Open Buildings temporal height      -> vertical growth (2016-2023)
 
-LST derivation follows the statistical mono-window approach of Ermida et al.
-(2020, *Remote Sensing* 12:1471) in simplified form: Collection-2 Level-2
-surface temperature with an NDVI-threshold emissivity correction. The full
-Ermida GEE module is a drop-in upgrade and is referenced in the docs.
+LST is read directly from the Collection 2 Level-2 surface temperature band
+``ST_B10``. USGS already derives that band with an emissivity correction
+(ASTER GED emissivity, adjusted with NDVI), so this module applies only the
+published scale and offset and a cloud mask — no emissivity step of its own.
+Ermida et al. (2020, *Remote Sensing* 12:1471) describe an alternative Earth
+Engine LST method; it is cited in the docs as a reference, not used here.
 """
 
 from __future__ import annotations
@@ -123,7 +125,7 @@ def nightlights_image(cfg: Config, aoi: AOI, year: int):
     return img.unmask(0).clip(aoi_geometry(aoi))
 
 
-def require_composite_depth(cfg: Config, col, label: str) -> int:
+def require_composite_depth(cfg: Config, col, label: str, *, floor: int | None = None) -> int:
     """Reject a composite built from too few distinct acquisition dates.
 
     A median composite over 1-2 dates is not a seasonal median — it is a
@@ -138,9 +140,13 @@ def require_composite_depth(cfg: Config, col, label: str) -> int:
     compositing depth that would otherwise have been reported as a finding.
 
     Returns the number of distinct dates; raises if below the configured floor.
+    `floor` overrides the configured Sentinel-2 floor — Landsat revisits every
+    8 days with two satellites (16 with one), so a three-month Landsat window
+    can never reach the Sentinel-2 floor of 20 and needs its own.
     """
     ee = ee_init()
-    floor = int(cfg.get("sources.gee.min_composite_dates", 20))
+    if floor is None:
+        floor = int(cfg.get("sources.gee.min_composite_dates", 20))
     millis_per_day = 86_400_000
     days = col.aggregate_array("system:time_start").map(
         lambda t: ee.Number(t).divide(millis_per_day).floor()
@@ -250,28 +256,47 @@ def lst_image(cfg: Config, aoi: AOI, year: int, *, season: str = "premonsoon"):
         start, end = f"{year}-01-01", f"{year}-12-31"
 
     def prep(img):
-        # Collection-2 L2 QA_PIXEL: bit 3 cloud, bit 4 cloud shadow.
-        qa = img.select("QA_PIXEL")
-        clear = qa.bitwiseAnd(1 << 3).eq(0).And(qa.bitwiseAnd(1 << 4).eq(0))
-        # ST_B10 scale/offset -> Kelvin, then to Celsius.
-        st = img.select("ST_B10").multiply(0.00341802).add(149.0).subtract(273.15)
-        return st.updateMask(clear).rename("lst").copyProperties(img, ["system:time_start"])
+        return (landsat_lst_celsius(img).updateMask(landsat_clear_mask(img))
+                .rename("lst").copyProperties(img, ["system:time_start"]))
 
     cols = []
     for key in ("landsat8", "landsat9"):
         asset = cfg.get(f"sources.gee.assets.{key}", None)
         if not asset:
             continue
-        cols.append(
-            ee.ImageCollection(asset).filterDate(start, end).filterBounds(geom).map(prep)
-        )
+        cols.append(ee.ImageCollection(asset).filterDate(start, end).filterBounds(geom))
     if not cols:
         raise ValueError("no Landsat assets configured")
 
     merged = cols[0]
     for c in cols[1:]:
         merged = merged.merge(c)
-    return merged.median().rename("lst").clip(geom)
+    require_composite_depth(
+        cfg, merged, f"LST {year}",
+        floor=int(cfg.get("sources.gee.min_composite_dates_landsat", 4)),
+    )
+    return merged.map(prep).median().rename("lst").clip(geom)
+
+
+# Collection 2 Level-2 QA_PIXEL bits that mark a pixel as unusable:
+# 1 dilated cloud, 2 cirrus, 3 cloud, 4 cloud shadow. Masking only 3 and 4
+# lets cloud edges and thin cirrus through, and both read several degrees
+# cooler than the ground beneath them.
+LANDSAT_QA_MASK_BITS = (1, 2, 3, 4)
+
+
+def landsat_clear_mask(img):
+    """True where none of the cloud-related QA_PIXEL bits is set."""
+    qa = img.select("QA_PIXEL")
+    bad = 0
+    for bit in LANDSAT_QA_MASK_BITS:
+        bad |= 1 << bit
+    return qa.bitwiseAnd(bad).eq(0)
+
+
+def landsat_lst_celsius(img):
+    """ST_B10 to degrees Celsius, using the published Collection 2 scale/offset."""
+    return img.select("ST_B10").multiply(0.00341802).add(149.0).subtract(273.15)
 
 
 def dynamicworld_image(cfg: Config, aoi: AOI, year: int):
@@ -286,6 +311,25 @@ def dynamicworld_image(cfg: Config, aoi: AOI, year: int):
         .select(["built", "trees", "grass", "water", "crops"])
     )
     return col.mean().clip(geom)
+
+
+def dynamicworld_built_mode_image(cfg: Config, aoi: AOI, year: int):
+    """1 where Dynamic World's most frequent label over `year` is built (class 6).
+
+    Each Dynamic World image carries a ``label`` band — the most likely class
+    on that date. The most frequent label over the year gives one land-cover
+    map, comparable with ESA WorldCover's classes. The annual-mean
+    probabilities (`dynamicworld_image`) cannot do this: without the bare,
+    shrub and flooded-vegetation bands, "built is the largest of the five
+    exported probabilities" is true over much of the dry-season farmland.
+    """
+    ee = ee_init()
+    geom = aoi_geometry(aoi)
+    col = (ee.ImageCollection(cfg.get("sources.gee.assets.dynamic_world"))
+           .filterDate(f"{year}-01-01", f"{year}-12-31")
+           .filterBounds(geom)
+           .select("label"))
+    return col.mode().eq(6).unmask(0).toUint8().rename("dw_built_mode").clip(geom)
 
 
 def building_height_image(cfg: Config, aoi: AOI, year: int):
@@ -308,6 +352,61 @@ def building_height_image(cfg: Config, aoi: AOI, year: int):
         .select(["building_presence", "building_height", "building_fractional_count"])
     )
     return col.mosaic().clip(geom)
+
+
+def slope_image(cfg: Config, aoi: AOI):
+    """Terrain slope in degrees from the SRTM 1 arc-second DEM (USGS/SRTMGL1_003)."""
+    ee = ee_init()
+    dem = ee.Image(cfg.get("sources.gee.assets.srtm"))
+    return ee.Terrain.slope(dem).rename("slope_deg").clip(aoi_geometry(aoi))
+
+
+def worldcover_built_image(cfg: Config, aoi: AOI):
+    """1 where ESA WorldCover 2021 (v200) classes the 10 m pixel as built-up (class 50)."""
+    ee = ee_init()
+    wc = ee.ImageCollection(cfg.get("sources.gee.assets.esa_worldcover")).first()
+    # uint8 keeps a 10 m export of the AOI near 12 MB, well inside the direct
+    # download cap; a default integer type would be four times that.
+    return wc.select("Map").eq(50).toUint8().rename("wc_built").clip(aoi_geometry(aoi))
+
+
+def modis_lst_image(cfg: Config, aoi: AOI, year: int):
+    """MODIS/061/MOD11A2 daytime LST in degrees Celsius, mean over March-May.
+
+    An independent sensor for checking the Landsat LST. Only pixels whose
+    quality flag (QC_Day bits 0-1) reports the LST as produced are kept.
+    """
+    ee = ee_init()
+    geom = aoi_geometry(aoi)
+
+    def prep(img):
+        good = img.select("QC_Day").bitwiseAnd(3).lte(1)
+        lst = img.select("LST_Day_1km").multiply(0.02).subtract(273.15)
+        return lst.updateMask(good).copyProperties(img, ["system:time_start"])
+
+    col = (ee.ImageCollection(cfg.get("sources.gee.assets.modis_lst"))
+           .filterDate(f"{year}-03-01", f"{year}-05-31").filterBounds(geom))
+    return col.map(prep).mean().rename("modis_lst").clip(geom)
+
+
+def worldpop_density_image(cfg: Config, aoi: AOI, year: int):
+    """WorldPop/GP/100m/pop for India as persons per hectare.
+
+    WorldPop stores persons *per pixel* on a 3 arc-second grid (~84 x 92 m at
+    Varanasi). Downloading that on a 100 m grid samples pixel counts as if
+    each covered a full hectare and understates the total by roughly a fifth.
+    Dividing by the native pixel area first turns it into a density, which
+    survives the change of grid; persons per 100 m cell is then the density
+    itself (1 ha = one cell).
+    """
+    ee = ee_init()
+    col = (ee.ImageCollection(cfg.get("sources.gee.assets.worldpop_gp"))
+           .filter(ee.Filter.eq("country", "IND"))
+           .filter(ee.Filter.eq("year", year)))
+    img = col.first()
+    native_area = ee.Image.pixelArea().reproject(img.projection())
+    return (img.divide(native_area).multiply(1e4)
+            .rename("pop_per_ha").clip(aoi_geometry(aoi)))
 
 
 # --------------------------------------------------------------------------
@@ -366,16 +465,29 @@ def export_to_drive(img, aoi: AOI, description: str, *, scale: int = 30, folder:
     return task
 
 
-def to_frame(path: Path, frame: AnalysisFrame, *, categorical: bool = False) -> np.ndarray:
-    """Reproject a downloaded EE GeoTIFF onto the analysis frame."""
+def to_frame(path: Path, frame: AnalysisFrame, *, categorical: bool = False,
+             band: int = 1, nodata: float | str | None = "file") -> np.ndarray:
+    """Reproject one band of a downloaded EE GeoTIFF onto the analysis frame.
+
+    `band` is 1-based, as in rasterio. Multi-band exports keep the band order
+    of the Earth Engine image — e.g. Dynamic World is built, trees, grass,
+    water, crops (see `dynamicworld_image`).
+
+    `nodata` = "file" uses the no-data value recorded in the GeoTIFF; None
+    ignores it. Earth Engine records 0 as no-data on some integer exports.
+    For a 0/1 class mask that silently drops every "0 = not this class"
+    pixel, and the cell average becomes 1 wherever the class appears at all —
+    so class masks must be read with ``nodata=None``.
+    """
     import rasterio
     from rasterio.enums import Resampling
     from rasterio.warp import reproject
 
     with rasterio.open(path) as ds:
-        src = ds.read(1).astype("float64")
-        if ds.nodata is not None:
-            src = np.where(src == ds.nodata, np.nan, src)
+        src = ds.read(band).astype("float64")
+        nd = ds.nodata if nodata == "file" else nodata
+        if nd is not None:
+            src = np.where(src == nd, np.nan, src)
         dst = np.full(frame.shape, np.nan, dtype="float64")
         reproject(
             source=src, destination=dst,
