@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1173.6pt" height="583.2pt" viewBox="0 0 1173.6 583.2" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-09-12T21:09:36.269496</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.3, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 583.2 
+L 1173.6 583.2 
+L 1173.6 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 40.32 241.2 
+L 240.48 241.2 
+Q 248.4 241.2 248.4 233.28 
+L 248.4 133.92 
+Q 248.4 126 240.48 126 
+L 40.32 126 
+Q 32.4 126 32.4 133.92 
+L 32.4 233.28 
+Q 32.4 241.2 40.32 241.2 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #ffffff; stroke: #2a78d6; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 299.52 241.2 
+L 499.68 241.2 
+Q 507.6 241.2 507.6 233.28 
+L 507.6 133.92 
+Q 507.6 126 499.68 126 
+L 299.52 126 
+Q 291.6 126 291.6 133.92 
+L 291.6 233.28 
+Q 291.6 241.2 299.52 241.2 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #ffffff; stroke: #eb6834; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 558.72 241.2 
+L 730.08 241.2 
+Q 738 241.2 738 233.28 
+L 738 133.92 
+Q 738 126 730.08 126 
+L 558.72 126 
+Q 550.8 126 550.8 133.92 
+L 550.8 233.28 
+Q 550.8 241.2 558.72 241.2 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #ffffff; stroke: #1baf7a; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 299.52 486 
+L 600.48 486 
+Q 608.4 486 608.4 478.08 
+L 608.4 349.92 
+Q 608.4 342 600.48 342 
+L 299.52 342 
+Q 291.6 342 291.6 349.92 
+L 291.6 478.08 
+Q 291.6 486 299.52 486 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #ffffff; stroke: #eb6834; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 796.32 241.2 
+L 1133.28 241.2 
+Q 1141.2 241.2 1141.2 233.28 
+L 1141.2 133.92 
+Q 1141.2 126 1133.28 126 
+L 796.32 126 
+Q 788.4 126 788.4 133.92 
+L 788.4 233.28 
+Q 788.4 241.2 796.32 241.2 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #ffffff; stroke: #1baf7a; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 248.4 183.6 
+Q 270 183.6 290.258359 183.6 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 285.858359 181.4 
+L 290.258359 183.6 
+L 285.858359 185.8 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #52514e; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 507.6 183.6 
+Q 529.2 183.6 549.458359 183.6 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 545.058359 181.4 
+L 549.458359 183.6 
+L 545.058359 185.8 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #52514e; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 738 183.6 
+Q 763.2 183.6 787.058359 183.6 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 782.658359 181.4 
+L 787.058359 183.6 
+L 782.658359 185.8 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #52514e; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 860.4 298.8 
+Q 860.4 270 860.4 242.541641 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 858.2 246.941641 
+L 860.4 242.541641 
+L 862.6 246.941641 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #52514e; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 796.32 514.8 
+L 1133.28 514.8 
+Q 1141.2 514.8 1141.2 506.88 
+L 1141.2 364.32 
+Q 1141.2 356.4 1133.28 356.4 
+L 796.32 356.4 
+Q 788.4 356.4 788.4 364.32 
+L 788.4 506.88 
+Q 788.4 514.8 796.32 514.8 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #fceff4; stroke: #e87ba4; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 964.8 241.2 
+Q 964.8 298.8 964.8 355.058359 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 967 350.658359 
+L 964.8 355.058359 
+L 962.6 350.658359 
+z
+" clip-path="url(#pdf12ab64ee)" style="fill: #52514e; stroke: #52514e; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 608.4 414 
+L 759.6 414 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 759.6 414 
+L 759.6 298.8 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 759.6 298.8 
+L 860.4 298.8 
+" clip-path="url(#pdf12ab64ee)" style="fill: none; stroke: #52514e; stroke-width: 1.2"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 19px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="32.4" y="47.905938" transform="rotate(-0 32.4 47.905938)">Surface heat island: the method</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 11px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="72.340312" transform="rotate(-0 32.4 72.340312)">Land surface temperature minus a rural reference taken from the same scene.</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="140.4" y="169.539141" transform="rotate(-0 140.4 169.539141)">Landsat 8 + 9</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="140.4" y="181.345375" transform="rotate(-0 140.4 181.345375)">LANDSAT/LC08, LC09</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="140.4" y="192.505375" transform="rotate(-0 140.4 192.505375)">C02 T1_L2, band ST_B10</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="140.4" y="203.642" transform="rotate(-0 140.4 203.642)">March-May 2013, 2024</text>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="399.6" y="169.513711" transform="rotate(-0 399.6 169.513711)">Quality gates</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="399.6" y="181.345375" transform="rotate(-0 399.6 181.345375)">QA_PIXEL bits 1-4 masked</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="399.6" y="192.505375" transform="rotate(-0 399.6 192.505375)">(cloud, shadow, cirrus)</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="399.6" y="203.665375" transform="rotate(-0 399.6 203.665375)">&gt;= 4 acquisition dates</text>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="644.4" y="175.093711" transform="rotate(-0 644.4 175.093711)">LST, deg C</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="644.4" y="186.925375" transform="rotate(-0 644.4 186.925375)">median composite</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="644.4" y="198.062" transform="rotate(-0 644.4 198.062)">on the 100 m grid</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="450" y="394.359141" transform="rotate(-0 450 394.359141)">Rural reference cells</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="450" y="406.165375" transform="rotate(-0 450 406.165375)">GHSL 2020 built surface &lt; 2%</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="450" y="417.302" transform="rotate(-0 450 417.302)">AND not water (Dynamic World)</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="450" y="428.462" transform="rotate(-0 450 428.462)">AND not built by 2024 (DW &lt; 0.2)</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="450" y="439.622" transform="rotate(-0 450 439.622)">median = 41.42 deg C (2024)</text>
+   </g>
+   <g id="text_19">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="964.8" y="169.513711" transform="rotate(-0 964.8 169.513711)">Intensity = LST - rural median</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="181.322" transform="rotate(-0 964.8 181.322)">hotspot: intensity &gt;= +3 deg C</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="192.505375" transform="rotate(-0 964.8 192.505375)">mean taken over urban cells</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="203.665375" transform="rotate(-0 964.8 203.665375)">(&gt;= 20% built)</text>
+   </g>
+   <g id="text_23">
+    <g id="patch_13">
+     <path d="M 639.405008 406.421797 
+L 728.594992 406.421797 
+Q 730.669992 406.421797 730.669992 404.346797 
+L 730.669992 396.293203 
+Q 730.669992 394.218203 728.594992 394.218203 
+L 639.405008 394.218203 
+Q 637.330008 394.218203 637.330008 396.293203 
+L 637.330008 404.346797 
+Q 637.330008 406.421797 639.405008 406.421797 
+z
+" style="fill: #ffffff"/>
+    </g>
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="684" y="402.437797" transform="rotate(-0 684 402.437797)">rural median, subtracted</text>
+   </g>
+   <g id="text_24">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #0b0b0b" x="964.8" y="415.933711" transform="rotate(-0 964.8 415.933711)">Result, March-May 2024</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="427.742" transform="rotate(-0 964.8 427.742)">mean over urban cells: -1.66 deg C</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="438.925375" transform="rotate(-0 964.8 438.925375)">hotspots: 23.82 km2, 94% on rural land</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="450.062" transform="rotate(-0 964.8 450.062)">MODIS/061/MOD11A2 agrees: no daytime</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="964.8" y="461.222" transform="rotate(-0 964.8 461.222)">heat island (urban - rural +0.0 deg C, 1 km)</text>
+   </g>
+   <g id="text_29">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="32.4" y="385.2" transform="rotate(-0 32.4 385.2)">Why the reference matters</text>
+   </g>
+   <g id="text_30">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="406.8" transform="rotate(-0 32.4 406.8)">The Ganga and recently built land used</text>
+   </g>
+   <g id="text_31">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="422.64" transform="rotate(-0 32.4 422.64)">to sit in the rural set; removing them</text>
+   </g>
+   <g id="text_32">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="438.48" transform="rotate(-0 32.4 438.48)">moved the reference 41.18 -&gt; 41.42 deg C</text>
+   </g>
+   <g id="text_33">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="454.32" transform="rotate(-0 32.4 454.32)">and hotspots 28.2 -&gt; 23.8 km2.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pdf12ab64ee">
+   <rect x="10.8" y="10.8" width="1152" height="561.6"/>
+  </clipPath>
+ </defs>
+</svg>
