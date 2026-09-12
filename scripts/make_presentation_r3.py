@@ -3,7 +3,8 @@
     python scripts/make_presentation_r3.py
 
 Every figure comes from this project's own outputs: the numbers are read from
-``outputs/review3_results.json`` and the images from ``docs/figures``, so the
+``outputs/review3_results.json`` and the images from ``docs/figures`` and
+``docs/diagrams`` (run ``make_diagrams.py`` first), so the
 deck cannot drift away from what the code produced. Design tokens and layout
 helpers are shared with ``make_presentation.py`` (the Review 2 deck).
 """
@@ -28,6 +29,7 @@ from make_presentation import (  # noqa: E402
 )
 
 FIG = ROOT / "docs" / "figures"
+DIAG = ROOT / "docs" / "diagrams"
 OUT = ROOT / "docs" / "Review3_Presentation.pptx"
 RESULTS = ROOT / "outputs" / "review3_results.json"
 
@@ -44,6 +46,22 @@ def fig(slide, name, x, y, w, caption=None):
         tf = tb(slide, x, y + pic.height + Inches(0.05), w, Inches(0.3))
         para(tf, caption, 10, DIM, False, 0, first=True)
     return pic
+
+
+def diagram(prs, title, sub, name, note=None):
+    """A slide that is one diagram from docs/diagrams, centred, plus a footer note."""
+    s = blank(prs)
+    heading(s, title, sub)
+    p = DIAG / name
+    if p.exists():
+        pic = s.shapes.add_picture(str(p), 0, Inches(1.65), height=Inches(5.15))
+        if pic.width > W - Inches(1.2):   # very wide diagrams: fit the width instead
+            ratio = (W - Inches(1.2)) / pic.width
+            pic.width, pic.height = int(pic.width * ratio), int(pic.height * ratio)
+        pic.left = int((W - pic.width) / 2)
+    if note:
+        footer(s, note)
+    return s
 
 
 def chip(slide, x, y, w, h, value, label, colour=ACCENT):
@@ -172,6 +190,12 @@ def build():
     chip(s, Inches(8.8), y, Inches(3.8), Inches(1.1), "review3_results.json",
          "every number in this deck, machine-readable", WARN)
 
+    # 3a - architecture -----------------------------------------------------
+    diagram(prs, "System architecture", "Five layers, each a folder of the code",
+            "A1_system_architecture.png",
+            "Data flow stage by stage: docs/diagrams/A2_pipeline_dataflow.png. "
+            "All 15 diagrams are explained in docs/DIAGRAMS.md.")
+
     # 4 - datasets ----------------------------------------------------------
     s = blank(prs)
     heading(s, "Datasets", "Official identifiers; the Indian records are new this review")
@@ -250,6 +274,11 @@ def build():
          "faster than population, depending on the population dataset", GREEN)
     footer(s, "GHSL 2025 is drawn dashed and labelled: a model projection, not a measurement.")
 
+    # 6a - the typology algorithm --------------------------------------------
+    diagram(prs, "How a cell is classified", "The ghost-growth typology, per 100 m cell",
+            "A3_ghost_typology_algorithm.png",
+            "Why the light trend is relative to the city: docs/diagrams/A4_relative_light_trend.png.")
+
     # 7 - ghost growth --------------------------------------------------------
     s = blank(prs)
     heading(s, "Ghost growth: is the split real?",
@@ -296,6 +325,12 @@ def build():
              "+1.10 C was the mean over only the cells warmer than rural, which is positive "
              "by construction. Heat vulnerability, which weights heat by residents, remains "
              "the planning layer.", 12.5, DIM, False, 0)
+
+    # 9a - growth-model architecture -------------------------------------------
+    diagram(prs, "How the growth model works",
+            "Learn where the city grew, test on years it never saw, then project",
+            "A5_growth_model.png",
+            "Which years feed which step: docs/diagrams/A8_temporal_design.png.")
 
     # 10 - growth model --------------------------------------------------------
     s = blank(prs)
@@ -379,6 +414,12 @@ def build():
                   "of demand scenarios"),
         ("Publication", "a paper submission, built on the hold-out and proxy-scale findings"),
     ], 11.5, 8)
+
+    # 12a - roadmap --------------------------------------------------------------
+    diagram(prs, "Where we are", "Phases, reviews and what is left",
+            "P1_roadmap.png",
+            "Code size per module: docs/diagrams/P2_implementation_status.png; "
+            "the one-command run: P4_run_timeline.png.")
 
     # 13 - close -----------------------------------------------------------------
     s = blank(prs)
