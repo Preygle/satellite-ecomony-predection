@@ -32,11 +32,13 @@ call :run "6  Population vs Census"        "%HERE%scripts\validate_population.py
 call :run "7  Night lights vs economy"     "%HERE%scripts\validate_economy.py"       || goto :fail
 call :run "8  Figures and results pack"    "%HERE%scripts\make_figures.py"           || goto :fail
 call :run "9  Zone evidence cards"         "%HERE%scripts\make_zone_cards.py"        || goto :fail
+call :run "10 Architecture diagrams"      "%HERE%scripts\make_diagrams.py"          || goto :fail
 
 echo.
 echo [OK] Review 3 run complete.
 echo      Numbers : outputs\review3_results.json
 echo      Figures : docs\figures\
+echo      Diagrams: docs\diagrams\
 echo      Report  : docs\REVIEW3_REPORT.md
 echo      Dashboard: run_dashboard.bat
 endlocal

@@ -90,7 +90,7 @@ src/urbanintel/
 scripts/                      one job per script — see §6
 dashboard/app.py              Streamlit dashboard (7 tabs):  run_dashboard.bat
 tests/test_core.py            41 tests:  python tests/test_core.py
-docs/                         reports, method docs, figures/, decks, PDFs
+docs/                         reports, method docs, figures/, diagrams/ (see DIAGRAMS.md), decks, PDFs
 dataset_viewer/               static Leaflet viewer of the raw layers (Review 2 demo)
 mentor_task/                  Sentinel/Landsat date-window extraction app + papers list
 papers/                       reviewed PDFs (gitignored; held in a GitHub release)
@@ -165,7 +165,8 @@ downloads cap at ~50 MB; the export scripts step down the scale automatically.
 | Lights vs economy | `python scripts/validate_economy.py` | ~40 s (Earth Engine) |
 | Figures + results pack | `python scripts/make_figures.py` | ~8 s |
 | Zone evidence cards | `python scripts/make_zone_cards.py` | ~15 s |
-| **All of the above** | **`run_review3.bat`** | **3 min 21 s** |
+| Architecture diagrams + progress charts | `python scripts/make_diagrams.py` | ~17 s |
+| **All of the above** | **`run_review3.bat`** | **about 3 min 40 s** |
 | Report PDF | `python scripts/md_to_pdf.py docs/REVIEW3_REPORT.md` | ~20 s |
 | Review 3 deck | `python scripts/make_presentation_r3.py` | ~5 s |
 | Dashboard | `run_dashboard.bat` | — |
