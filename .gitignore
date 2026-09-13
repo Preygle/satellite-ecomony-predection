@@ -39,3 +39,6 @@ Thumbs.db
 # Local dashboard server logs
 *.log
 *.log.err
+
+# Office lock files, present while a document is open
+~$*
