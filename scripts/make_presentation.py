@@ -84,10 +84,13 @@ def card(slide, x, y, w, h):
 
 
 def bullets(tf, items, size=15, gap=9):
+    # Write into the first paragraph only when the frame is still empty; after a
+    # heading, start new paragraphs so the heading is not overwritten.
+    fresh = not tf.paragraphs[0].text
     for i, it in enumerate(items):
         if isinstance(it, tuple):
             label, body = it
-            p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            p = tf.paragraphs[0] if (fresh and i == 0) else tf.add_paragraph()
             p.space_after = Pt(gap)
             r1 = p.add_run(); r1.text = label + "  "
             r1.font.size = Pt(size); r1.font.bold = True
@@ -95,7 +98,7 @@ def bullets(tf, items, size=15, gap=9):
             r2 = p.add_run(); r2.text = body
             r2.font.size = Pt(size); r2.font.color.rgb = DIM; r2.font.name = "Segoe UI"
         else:
-            para(tf, it, size, DIM, False, gap, first=(i == 0))
+            para(tf, it, size, DIM, False, gap, first=(fresh and i == 0))
 
 
 def picture(slide, name, x, y, w):
