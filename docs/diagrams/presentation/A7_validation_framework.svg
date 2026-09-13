@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1173.6pt" height="640.8pt" viewBox="0 0 1173.6 640.8" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-09-13T15:29:39.731427</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 640.8 
+L 1173.6 640.8 
+L 1173.6 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 32.4 205.56 
+L 1141.2 205.56 
+L 1141.2 140.04 
+L 32.4 140.04 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #f4f8fd"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 1028.88 177.84 
+C 1030.216624 177.84 1031.498683 177.308954 1032.443818 176.363818 
+C 1033.388954 175.418683 1033.92 174.136624 1033.92 172.8 
+C 1033.92 171.463376 1033.388954 170.181317 1032.443818 169.236182 
+C 1031.498683 168.291046 1030.216624 167.76 1028.88 167.76 
+C 1027.543376 167.76 1026.261317 168.291046 1025.316182 169.236182 
+C 1024.371046 170.181317 1023.84 171.463376 1023.84 172.8 
+C 1023.84 174.136624 1024.371046 175.418683 1025.316182 176.363818 
+C 1026.261317 177.308954 1027.543376 177.84 1028.88 177.84 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #0ca30c; stroke: #0ca30c; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 32.4 279.72 
+L 1141.2 279.72 
+L 1141.2 214.2 
+L 32.4 214.2 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 1028.88 243.36 
+C 1030.216624 243.36 1031.498683 242.828954 1032.443818 241.883818 
+C 1033.388954 240.938683 1033.92 239.656624 1033.92 238.32 
+C 1033.92 236.983376 1033.388954 235.701317 1032.443818 234.756182 
+C 1031.498683 233.811046 1030.216624 233.28 1028.88 233.28 
+C 1027.543376 233.28 1026.261317 233.811046 1025.316182 234.756182 
+C 1024.371046 235.701317 1023.84 236.983376 1023.84 238.32 
+C 1023.84 239.656624 1024.371046 240.938683 1025.316182 241.883818 
+C 1026.261317 242.828954 1027.543376 243.36 1028.88 243.36 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #0ca30c; stroke: #0ca30c; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 32.4 353.88 
+L 1141.2 353.88 
+L 1141.2 288.36 
+L 32.4 288.36 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #f4f8fd"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 1028.88 326.16 
+C 1030.216624 326.16 1031.498683 325.628954 1032.443818 324.683818 
+C 1033.388954 323.738683 1033.92 322.456624 1033.92 321.12 
+C 1033.92 319.783376 1033.388954 318.501317 1032.443818 317.556182 
+C 1031.498683 316.611046 1030.216624 316.08 1028.88 316.08 
+C 1027.543376 316.08 1026.261317 316.611046 1025.316182 317.556182 
+C 1024.371046 318.501317 1023.84 319.783376 1023.84 321.12 
+C 1023.84 322.456624 1024.371046 323.738683 1025.316182 324.683818 
+C 1026.261317 325.628954 1027.543376 326.16 1028.88 326.16 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #fab219; stroke: #fab219; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 32.4 428.04 
+L 1141.2 428.04 
+L 1141.2 362.52 
+L 32.4 362.52 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 1028.88 400.32 
+C 1030.216624 400.32 1031.498683 399.788954 1032.443818 398.843818 
+C 1033.388954 397.898683 1033.92 396.616624 1033.92 395.28 
+C 1033.92 393.943376 1033.388954 392.661317 1032.443818 391.716182 
+C 1031.498683 390.771046 1030.216624 390.24 1028.88 390.24 
+C 1027.543376 390.24 1026.261317 390.771046 1025.316182 391.716182 
+C 1024.371046 392.661317 1023.84 393.943376 1023.84 395.28 
+C 1023.84 396.616624 1024.371046 397.898683 1025.316182 398.843818 
+C 1026.261317 399.788954 1027.543376 400.32 1028.88 400.32 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #0ca30c; stroke: #0ca30c; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 32.4 502.2 
+L 1141.2 502.2 
+L 1141.2 436.68 
+L 32.4 436.68 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #f4f8fd"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 1028.88 465.84 
+C 1030.216624 465.84 1031.498683 465.308954 1032.443818 464.363818 
+C 1033.388954 463.418683 1033.92 462.136624 1033.92 460.8 
+C 1033.92 459.463376 1033.388954 458.181317 1032.443818 457.236182 
+C 1031.498683 456.291046 1030.216624 455.76 1028.88 455.76 
+C 1027.543376 455.76 1026.261317 456.291046 1025.316182 457.236182 
+C 1024.371046 458.181317 1023.84 459.463376 1023.84 460.8 
+C 1023.84 462.136624 1024.371046 463.418683 1025.316182 464.363818 
+C 1026.261317 465.308954 1027.543376 465.84 1028.88 465.84 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #fab219; stroke: #fab219; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 32.4 576.36 
+L 1141.2 576.36 
+L 1141.2 510.84 
+L 32.4 510.84 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 1028.88 548.64 
+C 1030.216624 548.64 1031.498683 548.108954 1032.443818 547.163818 
+C 1033.388954 546.218683 1033.92 544.936624 1033.92 543.6 
+C 1033.92 542.263376 1033.388954 540.981317 1032.443818 540.036182 
+C 1031.498683 539.091046 1030.216624 538.56 1028.88 538.56 
+C 1027.543376 538.56 1026.261317 539.091046 1025.316182 540.036182 
+C 1024.371046 540.981317 1023.84 542.263376 1023.84 543.6 
+C 1023.84 544.936624 1024.371046 546.218683 1025.316182 547.163818 
+C 1026.261317 548.108954 1027.543376 548.64 1028.88 548.64 
+z
+" clip-path="url(#pe8a5e7a034)" style="fill: #fab219; stroke: #fab219; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 32.4 134.64 
+L 1141.2 134.64 
+" clip-path="url(#pe8a5e7a034)" style="fill: none; stroke: #c3c2b7; stroke-linecap: square"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="121.449316" transform="rotate(-0 36 121.449316)">What we claim</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="309.6" y="121.351563" transform="rotate(-0 309.6 121.351563)">Independent evidence</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="583.2" y="121.387891" transform="rotate(-0 583.2 121.387891)">Test</text>
+   </g>
+   <g id="text_4">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="121.449316" transform="rotate(-0 784.8 121.449316)">Result</text>
+   </g>
+   <g id="text_5">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1029.6" y="121.449316" transform="rotate(-0 1029.6 121.449316)">Verdict</text>
+   </g>
+   <g id="text_6">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="175.22625" transform="rotate(-0 36 175.22625)">Emerging vs ghost split is real</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="167.102" transform="rotate(-0 309.6 167.102)">Night light 2021-24, unseen when</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="185.14875" transform="rotate(-0 309.6 185.14875)">classifying on 2013-20</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="175.022" transform="rotate(-0 583.2 175.022)">one-sided Mann-Whitney</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="175.045375" transform="rotate(-0 784.8 175.045375)">p = 0.010 cells, 0.031 blocks</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="174.961891" transform="rotate(-0 1037.52 174.961891)">supports, modest effect</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="249.38625" transform="rotate(-0 36 249.38625)">GHSL built-up is right</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="241.262" transform="rotate(-0 309.6 241.262)">WorldCover, Open Buildings,</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="259.262" transform="rotate(-0 309.6 259.262)">Dynamic World, NDBI</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="249.205375" transform="rotate(-0 583.2 249.205375)">Cohen's kappa per cell</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="249.205375" transform="rotate(-0 784.8 249.205375)">kappa 0.76 OB, 0.63 WC, 0.22 DW</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="240.386813" transform="rotate(-0 1037.52 240.386813)">supports</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 7.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1037.52" y="259.106467" transform="rotate(-0 1037.52 259.106467)">DW unreliable here</text>
+   </g>
+   <g id="text_19">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="323.54625" transform="rotate(-0 36 323.54625)">Flagged cells are built</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="323.342" transform="rotate(-0 309.6 323.342)">Open Buildings 2023</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="323.342" transform="rotate(-0 583.2 323.342)">share with buildings</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="323.38875" transform="rotate(-0 784.8 323.38875)">82% built; 26 of 144 empty</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="323.281891" transform="rotate(-0 1037.52 323.281891)">qualified</text>
+   </g>
+   <g id="text_24">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="397.764375" transform="rotate(-0 36 397.764375)">Heat measurements</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="397.611398" transform="rotate(-0 309.6 397.611398)">MODIS/061/MOD11A2, 1 km</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="397.611398" transform="rotate(-0 583.2 397.611398)">R2, urban - rural contrast</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="397.611398" transform="rotate(-0 784.8 397.611398)">R2 0.33; no heat island in either</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="397.397797" transform="rotate(-0 1037.52 397.397797)">supports the direction</text>
+   </g>
+   <g id="text_29">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="471.8895" transform="rotate(-0 36 471.8895)">Population inputs</text>
+   </g>
+   <g id="text_30">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="463.898148" transform="rotate(-0 309.6 463.898148)">Census of India 2011 (71 districts)</text>
+   </g>
+   <g id="text_31">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="481.742" transform="rotate(-0 309.6 481.742)">and 2001-11 growth</text>
+   </g>
+   <g id="text_32">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="471.717344" transform="rotate(-0 583.2 471.717344)">error vs census</text>
+   </g>
+   <g id="text_33">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="471.662" transform="rotate(-0 784.8 471.662)">WorldPop -0.4%, GHS-POP +3.4% (+63% in city)</text>
+   </g>
+   <g id="text_34">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="462.961891" transform="rotate(-0 1037.52 462.961891)">qualified</text>
+   </g>
+   <g id="text_35">
+    <text style="font-size: 7.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1037.52" y="481.441588" transform="rotate(-0 1037.52 481.441588)">report a range</text>
+   </g>
+   <g id="text_36">
+    <text style="font-weight: 700; font-size: 9.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="36" y="546.02625" transform="rotate(-0 36 546.02625)">Night light = activity</text>
+   </g>
+   <g id="text_37">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="538.011398" transform="rotate(-0 309.6 538.011398)">2013 Economic Census; UP district</text>
+   </g>
+   <g id="text_38">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="309.6" y="555.957344" transform="rotate(-0 309.6 555.957344)">GDP (DES)</text>
+   </g>
+   <g id="text_39">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="583.2" y="545.822" transform="rotate(-0 583.2 545.822)">Spearman rho, elasticity</text>
+   </g>
+   <g id="text_40">
+    <text style="font-size: 8.8px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="784.8" y="545.822" transform="rotate(-0 784.8 545.822)">rho 0.41 villages, 0.85 districts</text>
+   </g>
+   <g id="text_41">
+    <text style="font-size: 8.3px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1037.52" y="545.798933" transform="rotate(-0 1037.52 545.798933)">holds at district scale</text>
+   </g>
+   <g id="text_42">
+    <text style="font-size: 8.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="32.4" y="608.4" transform="rotate(-0 32.4 608.4)">Green = the evidence supports the claim; amber = supports it with a stated qualification. Colours always come with the verdict written out.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pe8a5e7a034">
+   <rect x="10.8" y="10.8" width="1152" height="619.2"/>
+  </clipPath>
+ </defs>
+</svg>
