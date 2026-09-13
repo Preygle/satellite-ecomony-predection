@@ -142,7 +142,8 @@ def f02_urban_form(S):
     ax.set_yticks(y, ["Infill", "Edge expansion", "Leapfrog"])
     ax.set_xlabel("New urban land, km2")
     ax.set_title("Form of new urban land")
-    ax.legend(loc="lower right", fontsize=8)
+    ax.set_xlim(0, max(new + old) * 1.22)       # room for the value labels
+    ax.legend(loc="upper right", fontsize=8)    # infill bars are short: that corner is empty
     ax.invert_yaxis()
     save(fig, "F02_urban_form.png")
 
@@ -334,6 +335,11 @@ def f10_population(cfg, P):
                     xytext=(6, -10), textcoords="offset points")
     ax.set_xscale("log")
     ax.set_yscale("log")
+    from matplotlib.ticker import FixedLocator, FuncFormatter, NullFormatter
+    for axis in (ax.xaxis, ax.yaxis):           # plain "1 2 3 4 6", not "2 x 10^0"
+        axis.set_major_locator(FixedLocator([1, 2, 3, 4, 6]))
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        axis.set_minor_formatter(NullFormatter())
     ax.set_xlabel("Census 2011 population (million)")
     ax.set_ylabel("Gridded estimate, 2011 (million)")
     ax.set_title("71 districts of Uttar Pradesh")

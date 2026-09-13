@@ -2,6 +2,8 @@
 
     python scripts/make_diagrams.py            # everything
     python scripts/make_diagrams.py A3 P1      # just some
+    python scripts/make_diagrams.py --clean    # talk version, no code names,
+                                               # into docs/diagrams/presentation/
 
 Writes PNG (for slides and the report) and SVG (editable text) into
 ``docs/diagrams/``. Numbers are read from ``outputs/review3_results.json``
@@ -48,6 +50,14 @@ from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon, Rectang
 from urbanintel.analysis.ghost import TYPE_COLOURS, TYPE_LABELS  # noqa: E402
 
 OUT = ROOT / "docs" / "diagrams"
+# --clean renders the talk version into docs/diagrams/presentation/: module,
+# file and function names are replaced by what the component does.
+CLEAN = False
+
+
+def c(dev: str, talk: str):
+    """Developer label normally; plain-language label in --clean mode."""
+    return talk if CLEAN else dev
 
 # ------------------------------------------------------------------ tokens ---
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
@@ -111,6 +121,8 @@ def canvas(w: float = 16, h: float = 9):
 
 
 def title(ax, text: str, sub: str | None = None, h: float = 90):
+    if CLEAN:   # the slide carries the title; the image keeps only the drawing
+        return
     ax.text(3, h - 3.2, text, size=19, weight="bold", color=INK, va="top")
     if sub:
         ax.text(3, h - 7.4, sub, size=11, color=INK2, va="top")
@@ -182,12 +194,22 @@ def chip(ax, x, y, text, colour, size=8.5, w=None):
 
 
 def save(fig, name: str):
-    OUT.mkdir(parents=True, exist_ok=True)
+    out = OUT / "presentation" if CLEAN else OUT
+    out.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "svg"):
-        fig.savefig(OUT / f"{name}.{ext}", dpi=200, facecolor="white", bbox_inches="tight",
+        fig.savefig(out / f"{name}.{ext}", dpi=200, facecolor="white", bbox_inches="tight",
                     pad_inches=0.15)
     plt.close(fig)
-    print(f"  wrote docs/diagrams/{name}.png / .svg")
+    if CLEAN:   # trim the blank band the dropped title leaves, so the slide can use the space
+        from PIL import Image, ImageChops
+        p = out / f"{name}.png"
+        im = Image.open(p).convert("RGB")
+        box_ = ImageChops.difference(im, Image.new("RGB", im.size, "white")).getbbox()
+        if box_:
+            m = 30
+            im.crop((max(box_[0] - m, 0), max(box_[1] - m, 0),
+                     min(box_[2] + m, im.width), min(box_[3] + m, im.height))).save(p)
+    print(f"  wrote {out.relative_to(ROOT).as_posix()}/{name}.png / .svg")
 
 
 def fmt(x, nd=2, default="-"):
@@ -199,12 +221,13 @@ def fmt(x, nd=2, default="-"):
 def a1_system():
     fig, ax = canvas(16, 9.2)
     title(ax, "System architecture",
-          "Five layers, each a folder of the code. Data moves top to bottom; every arrow is a real hand-off.", 92)
+          c("Five layers, each a folder of the code. Data moves top to bottom; every arrow is a real hand-off.",
+            "Five layers. Data moves top to bottom; every arrow is a real hand-off."), 92)
     lanes = [("Data sources", "open, Earth Engine, Indian records"),
-             ("Acquisition and common grid", "src/urbanintel/data, aoi.py"),
-             ("Analysis", "src/urbanintel/pipeline.py"),
-             ("Prediction and validation", "analysis/growth_model.py, scripts/"),
-             ("Outputs and presentation", "outputs/, dashboard/, docs/")]
+             ("Acquisition and common grid", c("src/urbanintel/data, aoi.py", "download, clean, align")),
+             ("Analysis", c("src/urbanintel/pipeline.py", "per 100 m cell")),
+             ("Prediction and validation", c("analysis/growth_model.py, scripts/", "what next; is it right?")),
+             ("Outputs and presentation", c("outputs/, dashboard/, docs/", "maps, dashboard, report"))]
     top, lh, gap = 80, 13.2, 2.9
     ys = [top - (i + 1) * lh - i * gap for i in range(5)]
     for (name, sub), y, hue in zip(lanes, ys, LAYER):
@@ -228,33 +251,37 @@ def a1_system():
                                      "UP district GDP (DES, Govt of UP)"]),
     ], BLUE)
     L2 = row(ys[1], [
-        (27, 23, "ghsl.py", ["density-preserving", "reprojection"]),
-        (52, 17, "osm.py", ["POIs, roads"]),
-        (71, 33, "gee.py", ["cloud masks, composite-depth check,", "50 MB download ladder"]),
-        (106, 18, "shrug.py", ["town / village", "joins"]),
-        (126, 31, "aoi.py — one grid", ["100 m analysis, UTM 44N", "500 m reporting, exact nesting"]),
+        (27, 23, c("ghsl.py", "GHSL reader"), ["density-preserving", "reprojection"]),
+        (52, 17, c("osm.py", "OSM reader"), ["POIs, roads"]),
+        (71, 33, c("gee.py", "Earth Engine layers"),
+         c(["cloud masks, composite-depth check,", "50 MB download ladder"],
+           ["cloud and shadow masks,", "minimum-dates check"])),
+        (106, 18, c("shrug.py", "Census joins"), ["town / village", "joins"]),
+        (126, 31, c("aoi.py — one grid", "One common grid"), ["100 m analysis, UTM 44N", "500 m reporting, exact nesting"]),
     ], ORANGE)
     L3 = row(ys[2], [
-        (27, 22, "builtup.py", ["change, urban form"]),
-        (51, 24, "nightlights.py", ["trend relative", "to the city"]),
-        (77, 23, "vegetation.py", ["NDVI loss within", "built-up gain"]),
-        (102, 22, "thermal.py", ["heat island,", "rural reference"]),
-        (126, 31, "ghost.py", ["activity index, 6-class", "typology, 23 zones"]),
+        (27, 22, c("builtup.py", "Built-up change"), ["change, urban form"]),
+        (51, 24, c("nightlights.py", "Night-light trend"), ["trend relative", "to the city"]),
+        (77, 23, c("vegetation.py", "Green cover"), ["NDVI loss within", "built-up gain"]),
+        (102, 22, c("thermal.py", "Heat island"), ["heat island,", "rural reference"]),
+        (126, 31, c("ghost.py", "Ghost typology"), ["activity index, 6-class", "typology, 23 zones"]),
     ], AQUA)
     L4 = row(ys[3], [
-        (27, 40, "growth_model.py", ["logistic regression vs random forest",
-                                     "cellular automaton, +5 / +10 years"]),
-        (69, 22, "validate_typology", ["hold-out test"]),
-        (93, 21, "cross_checks", ["6 built-up maps,", "MODIS"]),
-        (116, 19, "validate_population", ["Census 2001/2011"]),
-        (137, 20, "validate_economy", ["EC 2013, GDP"]),
+        (27, 40, c("growth_model.py", "Growth model"), ["logistic regression vs random forest",
+                                                        "cellular automaton, +5 / +10 years"]),
+        (69, 22, c("validate_typology", "Typology check"), ["hold-out test"]),
+        (93, 21, c("cross_checks", "Cross-checks"), ["6 built-up maps,", "MODIS"]),
+        (116, 19, c("validate_population", "Population"), ["Census 2001/2011"]),
+        (137, 20, c("validate_economy", "Economy"), ["EC 2013, GDP"]),
     ], YELLOW)
     L5 = row(ys[4], [
-        (27, 40, "outputs/", ["500 m grid GeoJSON · 61 rasters",
-                              "summary and validation JSON"]),
-        (69, 27, "Dashboard", ["Streamlit, 7 tabs"]),
+        (27, 40, c("outputs/", "Result layers"), c(["500 m grid GeoJSON · 61 rasters",
+                                                    "summary and validation JSON"],
+                                                   ["500 m grid · 61 map layers",
+                                                    "summary and validation tables"])),
+        (69, 27, "Dashboard", [c("Streamlit, 7 tabs", "interactive, 7 tabs")]),
         (98, 27, "Figures and zone cards", ["14 figures, 23 cards"]),
-        (127, 30, "Report and deck", ["REVIEW3_REPORT, PDF, slides"]),
+        (127, 30, "Report and deck", [c("REVIEW3_REPORT, PDF, slides", "report, PDF, slides")]),
     ], MAGENTA)
 
     arrow(ax, L1[0]["b"], L2[0]["t"], "HTTP, cached", loff=(6.5, 0))
@@ -269,7 +296,7 @@ def a1_system():
     arrow(ax, L4[0]["b"], L5[0]["t"], "suitability, 2025/2030 maps", loff=(12, 0))
     yb, yt = L4[3]["b"][1], L5[2]["t"][1]
     route(ax, [L4[3]["b"], (L4[3]["b"][0], (yb + yt) / 2), (L5[2]["t"][0], (yb + yt) / 2),
-               L5[2]["t"]], "validation JSON")
+               L5[2]["t"]], c("validation JSON", "validation results"))
     arrow(ax, L5[0]["r"], L5[1]["l"])
     arrow(ax, L5[1]["r"], L5[2]["l"])
     arrow(ax, L5[2]["r"], L5[3]["l"])
@@ -279,7 +306,8 @@ def a1_system():
 def a2_pipeline():
     fig, ax = canvas(16, 8.4)
     title(ax, "Pipeline data flow",
-          "python -m urbanintel.pipeline runs seven stages; arrows name what each stage hands to the next.", 84)
+          c("python -m urbanintel.pipeline runs seven stages; arrows name what each stage hands to the next.",
+            "Seven stages; each arrow names what one stage hands to the next."), 84)
     bw, bh = 25, 13
     st = {}
     # Left column: the three sources. Middle: vegetation over heat. Right: typology, export.
@@ -312,12 +340,17 @@ def a2_pipeline():
     ax.text(143.5, 30, "from stages 1-6", size=8.2, color=INK2, ha="center")
 
     ax.text(131, 10, "After the pipeline:", size=9.5, weight="bold", color=INK)
-    for i, t in enumerate(["run_growth_model.py", "validate_typology.py · cross_checks.py",
-                           "validate_population.py · validate_economy.py",
-                           "make_figures.py · make_zone_cards.py"]):
+    after = c(["run_growth_model.py", "validate_typology.py · cross_checks.py",
+               "validate_population.py · validate_economy.py",
+               "make_figures.py · make_zone_cards.py"],
+              ["growth model, 2025 and 2030", "hold-out test · satellite cross-checks",
+               "census and economy checks", "figures and zone evidence cards"])
+    for i, t in enumerate(after):
         ax.text(131, 7.5 - i * 2.1, t, size=8.4, color=INK2)
-    ax.text(4, 9.3, "Epoch discipline: Config.check_epochs() runs first and refuses any GHSL epoch "
-                    "after 2020 as a measurement.", size=8.8, color=INK2)
+    ax.text(4, 9.3, c("Epoch discipline: Config.check_epochs() runs first and refuses any GHSL epoch "
+                      "after 2020 as a measurement.",
+                      "Epoch discipline: a check runs first and refuses any GHSL epoch after 2020 "
+                      "as a measurement."), size=8.8, color=INK2)
     save(fig, "A2_pipeline_dataflow")
 
 
@@ -351,7 +384,8 @@ def a3_ghost():
     arrow(ax, (19, y1), d1["t"], "for every cell", loff=(7, 0))
     route(ax, [b_rs["b"], (b_rs["b"][0], 63), (93, 63), d3["t"]], "residual", seg=1)
     ax.text(134, 58.4, "input: night-light trend relative", size=8.3, color=INK2, ha="center")
-    ax.text(134, 56.4, "to the city, 2013-2024 (see A4)", size=8.3, color=INK2, ha="center")
+    ax.text(134, 56.4, c("to the city, 2013-2024 (see A4)", "to the city, 2013-2024"), size=8.3,
+            color=INK2, ha="center")
     arrow(ax, d1["r"], d2["l"], "yes", loff=(0, 1.6))
     arrow(ax, d2["r"], d3["l"], "yes", loff=(0, 1.6))
     arrow(ax, d3["r"], d4["l"], "yes", loff=(0, 1.6))
@@ -435,8 +469,9 @@ def a4_relative_trend():
     fig.text(0.01, -0.03, "Rule: a new, under-used cell is 'emerging' when the trend in panel 2 is "
                           "positive with p <= 0.10; a citywide rise or a product-version step "
                           "cancels out. Medians over 100 m cells.", size=9, color=INK2)
-    fig.suptitle("Why the night-light trend is measured relative to the city", x=0.01, ha="left",
-                  fontsize=15, weight="bold", color=INK, y=1.03)
+    if not CLEAN:
+        fig.suptitle("Why the night-light trend is measured relative to the city", x=0.01, ha="left",
+                     fontsize=15, weight="bold", color=INK, y=1.03)
     fig.tight_layout()
     save(fig, "A4_relative_light_trend")
 
@@ -652,8 +687,9 @@ def a8_timeline():
                       ("analysis", "analysis windows")):
         ax.plot([], [], color=colour[grp], lw=8, label=name)
     ax.legend(loc="lower left", fontsize=9, frameon=False, ncol=3)
-    ax.set_title("Temporal design: which years feed which step", loc="left", fontsize=15,
-                 weight="bold", color=INK, pad=14)
+    if not CLEAN:
+        ax.set_title("Temporal design: which years feed which step", loc="left", fontsize=15,
+                     weight="bold", color=INK, pad=14)
     fig.tight_layout()
     save(fig, "A8_temporal_design")
 
@@ -665,17 +701,17 @@ def a9_grid():
           "which VIIRS can actually support.", 74)
     x0, y0, s = 6, 12, 8.4
     for r in range(5):
-        for c in range(5):
+        for col in range(5):
             code = 0
-            if (r, c) in ((1, 1), (1, 2), (2, 1)):
+            if (r, col) in ((1, 1), (1, 2), (2, 1)):
                 code = 1
-            if (r, c) == (3, 3):
+            if (r, col) == (3, 3):
                 code = 4
-            if (r, c) == (2, 3):
+            if (r, col) == (2, 3):
                 code = 3
             fc = TYPE_COLOURS[code]
-            ax.add_patch(Rectangle((x0 + c * s, y0 + (4 - r) * s), s, s, fc=tint(fc, 0.9) if code else "white",
-                                   ec=BASE, lw=0.8))
+            ax.add_patch(Rectangle((x0 + col * s, y0 + (4 - r) * s), s, s,
+                                   fc=tint(fc, 0.9) if code else "white", ec=BASE, lw=0.8))
     ax.add_patch(Rectangle((x0, y0), 5 * s, 5 * s, fc="none", ec=INK, lw=2))
     ax.text(x0, y0 - 3, "one 500 m reporting cell = 25 cells of 100 m", size=9, color=INK2)
     ax.text(x0 + 3 * s + s / 2, y0 + 1 * s + s / 2, "ghost", size=7.5, color="white", ha="center",
@@ -691,7 +727,8 @@ def a9_grid():
             ("priority", "class maps", "typology, urban form",
              "most important class present - one ghost cell among 24 stays visible")]
     xt = 60
-    ax.text(xt, 57, "How each layer is aggregated (zonal.block_reduce)", size=11, weight="bold", color=INK)
+    ax.text(xt, 57, c("How each layer is aggregated (zonal.block_reduce)", "How each layer is aggregated"),
+            size=11, weight="bold", color=INK)
     for i, (how, kind, ex, rule) in enumerate(rows):
         y = 49 - i * 9.5
         box(ax, xt, y - 3.4, 16, 6.8, how, (), hue=ORANGE, fill=tint(ORANGE, 0.12), hsize=10)
@@ -752,7 +789,9 @@ def p1_roadmap():
     ax.grid(axis="y", visible=False)
     legend_patches(ax, [(GOOD, GOOD, None, "done"), (WARNING, edges["now"], None, "in progress"),
                         ("white", INK2, "///", "planned")], loc="lower left")
-    ax.set_title("Project roadmap and reviews", loc="left", fontsize=15, weight="bold", color=INK, pad=28)
+    if not CLEAN:
+        ax.set_title("Project roadmap and reviews", loc="left", fontsize=15, weight="bold", color=INK,
+                     pad=28)
     fig.tight_layout()
     save(fig, "P1_roadmap")
 
@@ -840,8 +879,9 @@ def p3_corrections():
         if note:
             a.text(0.0, -0.18, note, transform=a.transAxes, fontsize=8.2, color=INK2)
         a.tick_params(axis="x", labelsize=8)
-    fig.suptitle("What the audit changed: Review 2 (hollow) vs Review 3 (filled)", x=0.01, ha="left",
-                 fontsize=15, weight="bold", color=INK)
+    if not CLEAN:
+        fig.suptitle("What the audit changed: Review 2 (hollow) vs Review 3 (filled)", x=0.01,
+                     ha="left", fontsize=15, weight="bold", color=INK)
     fig.tight_layout()
     save(fig, "P3_corrections_before_after")
 
@@ -929,8 +969,14 @@ ALL = {"A1": a1_system, "A2": a2_pipeline, "A3": a3_ghost, "A4": a4_relative_tre
        "P6": p6_quality}
 
 
+TALK = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "P1", "P3"]
+
+
 def main() -> int:
-    wanted = [a.upper() for a in sys.argv[1:]] or list(ALL)
+    global CLEAN
+    args = [a for a in sys.argv[1:] if a != "--clean"]
+    CLEAN = len(args) != len(sys.argv[1:])
+    wanted = [a.upper() for a in args] or (TALK if CLEAN else list(ALL))
     if not R:
         print("note: outputs/review3_results.json not found; labels fall back to defaults")
     print("Diagrams ->", OUT)
