@@ -181,6 +181,7 @@ neighbourhood. Limitations are stated in
 |---|---|
 | [`REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) | **Current state.** Review 3: implementation status, results, validation, corrections log ([PDF](docs/REVIEW3_REPORT.pdf)) |
 | [`DIAGRAMS.md`](docs/DIAGRAMS.md) | **Architecture diagrams and progress charts** — 15 images, what each shows, what to say over it |
+| [`Review3_Panel_Presentation.pptx`](docs/Review3_Panel_Presentation.pptx) | **Review 3 panel deck** — 24 slides on architecture, algorithms, flow and results; no code on any slide; talking points in the speaker notes |
 | [`AGENT.md`](AGENT.md) | **For anyone continuing the work** — rules, repository map, how to run and verify, known traps |
 | [`DATA_TRANSFER.md`](docs/DATA_TRANSFER.md) | Moving the 1.4 GB of data between machines; `config/local.yaml` |
 | [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | Who owns which work package; AI acknowledgement |

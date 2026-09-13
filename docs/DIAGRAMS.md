@@ -6,7 +6,15 @@ generated, not drawn by hand:
 ```
 python scripts/make_diagrams.py            # all fifteen, ~17 s
 python scripts/make_diagrams.py A3 P1      # just some
+python scripts/make_diagrams.py --clean    # talk version for the panel deck
 ```
+
+`--clean` writes a second set into `docs/diagrams/presentation/` for
+[`Review3_Panel_Presentation.pptx`](Review3_Panel_Presentation.pptx): module,
+file and function names are replaced by what each component does, and the
+image titles are dropped because the slide carries them. The progress charts
+that are about code itself (P2 code size, P4 script run, P5 bundle, P6 tests)
+are left out of that set.
 
 Each image is written to `docs/diagrams/` twice: **PNG** (for slides and the
 report) and **SVG** (text stays editable in Inkscape, PowerPoint or Figma).

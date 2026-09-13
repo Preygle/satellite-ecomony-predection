@@ -166,6 +166,7 @@ downloads cap at ~50 MB; the export scripts step down the scale automatically.
 | Figures + results pack | `python scripts/make_figures.py` | ~8 s |
 | Zone evidence cards | `python scripts/make_zone_cards.py` | ~15 s |
 | Architecture diagrams + progress charts | `python scripts/make_diagrams.py` | ~17 s |
+| Panel deck, no code on slides | `python scripts/make_diagrams.py --clean` then `python scripts/make_presentation_panel.py` | ~20 s |
 | **All of the above** | **`run_review3.bat`** | **about 3 min 40 s** |
 | Report PDF | `python scripts/md_to_pdf.py docs/REVIEW3_REPORT.md` | ~20 s |
 | Review 3 deck | `python scripts/make_presentation_r3.py` | ~5 s |
