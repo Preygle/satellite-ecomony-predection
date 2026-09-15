@@ -46,7 +46,7 @@ is explicit.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from scipy import ndimage
@@ -449,6 +449,8 @@ def fit_forest(
     min_samples_leaf: int = 20,
     max_samples: int = 200_000,
     seed: int = 0,
+    progress: Callable[[int, int], None] | None = None,
+    batch: int = 25,
 ) -> ForestModel:
     """Fit a random-forest suitability model on exactly the sample `fit` uses.
 
@@ -458,6 +460,10 @@ def fit_forest(
     handles the rarity of conversions the same way the logistic model's
     balanced weights do. Its training-period score is the *out-of-bag* AUC:
     each cell is scored only by the trees that never saw it.
+
+    If `progress` is given, it is called as ``progress(trees_done, total)``
+    while the forest grows `batch` trees at a time (used by the demo's
+    command-line trainer). The forest is the same either way.
     """
     from sklearn.ensemble import RandomForestClassifier
 
@@ -467,8 +473,22 @@ def fit_forest(
 
     params = {"n_estimators": n_estimators, "min_samples_leaf": min_samples_leaf,
               "class_weight": "balanced_subsample", "random_state": seed}
-    clf = RandomForestClassifier(oob_score=True, n_jobs=-1, **params)
-    clf.fit(Xf, yf)
+    if progress is None:
+        clf = RandomForestClassifier(oob_score=True, n_jobs=-1, **params)
+        clf.fit(Xf, yf)
+    else:
+        # Grow the same forest in batches. With warm_start, scikit-learn
+        # advances the random state exactly as a single fit would, so every
+        # tree matches the one-shot forest; out-of-bag scoring runs once, on
+        # the last batch, over all the trees.
+        clf = RandomForestClassifier(warm_start=True, n_jobs=-1, **params)
+        done = 0
+        while done < n_estimators:
+            done = min(done + max(1, batch), n_estimators)
+            clf.set_params(n_estimators=done, oob_score=done == n_estimators)
+            clf.fit(Xf, yf)
+            progress(done, n_estimators)
+        clf.set_params(warm_start=False)
     oob = np.nan_to_num(clf.oob_decision_function_[:, 1], nan=0.5)
 
     return ForestModel(
