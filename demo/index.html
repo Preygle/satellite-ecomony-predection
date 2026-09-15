@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Varanasi Urban Growth - Live Demo</title>
+<style>
+  :root { --ink: #16191c; --muted: #5b6166; --line: #d9dcd5; --accent: #1f5f8b; --bg: #f6f7f4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 8px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 22px; margin: 36px 0 6px; }
+  h3 { font-size: 17px; margin: 18px 0 8px; }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+            padding: 6px 20px 20px; margin-top: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; }
+  .stat { border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+  button, select, input[type=number] { font: inherit; padding: 6px 10px; border: 1px solid #b9beb6;
+                                        border-radius: 4px; background: #fff; }
+  button { cursor: pointer; }
+  button.go { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  button.go:disabled { opacity: .6; cursor: wait; }
+  .tabs button[aria-pressed=true] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  figure { margin: 10px 0; }
+  figure img { width: 100%; max-width: 100%; border: 1px solid var(--line); background: #fff;
+               image-rendering: pixelated; display: block; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 1px solid #999;
+              vertical-align: -2px; margin-right: 5px; }
+  .legend .bar { display: inline-block; width: 160px; height: 12px; border: 1px solid #999; vertical-align: -1px; margin: 0 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .big { max-width: 760px; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #f0f2ee; }
+  td.num { text-align: right; }
+  .note { font-size: 13px; color: var(--muted); }
+  .status { font-weight: 600; min-height: 1.5em; }
+  .status.err { color: #b3261e; }
+  .bars div { display: grid; grid-template-columns: 190px 1fr 60px; gap: 8px; align-items: center; font-size: 14px; margin: 3px 0; }
+  .bars .track { background: #eef0ec; height: 14px; position: relative; }
+  .bars .fill { position: absolute; top: 0; bottom: 0; background: var(--accent); }
+  .bars .fill.neg { background: #eb6834; }
+  ol.log { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; padding-left: 22px; }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Varanasi Urban Growth Intelligence - live demo</h1>
+  <p class="muted">Satellite-Based Urban Growth and Economic Activity Intelligence System &middot; BCSE497J Review 3</p>
+  <p id="status" class="status">Loading the data ...</p>
+</header>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section>
+  <h2>1. What the satellite data shows</h2>
+  <p class="muted">Every number and map here is computed from the downloaded rasters when this page loads.</p>
+  <div class="stats" id="stats"></div>
+  <div class="row tabs" id="maptabs">
+    <button type="button" data-map="growth" aria-pressed="true">Growth 2010-2020</button>
+    <button type="button" data-map="built" aria-pressed="false">Built-up 2020</button>
+    <button type="button" data-map="lights" aria-pressed="false">Night-time light</button>
+    <button type="button" data-map="heat" aria-pressed="false">Surface heat</button>
+    <button type="button" data-map="typology" aria-pressed="false">Growth typology</button>
+  </div>
+  <figure class="big">
+    <img id="map1" alt="Map of the study area">
+    <figcaption id="cap1"></figcaption>
+    <div class="legend" id="leg1"></div>
+  </figure>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section>
+  <h2>2. Train, test and run the growth model (live)</h2>
+  <p>The model learns where Varanasi grew between <b>2010 and 2015</b>, is tested on <b>2015-2020</b>
+     (years it never saw), then predicts new urban land for <b>2025 and 2030</b>.</p>
+  <div class="row">
+    <label for="model">Model</label>
+    <select id="model">
+      <option value="random_forest">Random forest</option>
+      <option value="logistic_regression">Logistic regression</option>
+    </select>
+    <label for="trees" id="treesLabel">Trees</label>
+    <input type="number" id="trees" value="300" min="10" max="1000" step="10" style="width:90px">
+    <label><input type="checkbox" id="roads" checked> Use road density</label>
+    <button type="button" class="go" id="runModel">Train, test and predict</button>
+  </div>
+  <p id="runStatus" class="status"></p>
+
+  <div id="runOut" hidden>
+    <div class="grid2">
+      <div>
+        <h3>Result on the test period</h3>
+        <table id="metrics"></table>
+      </div>
+      <div>
+        <h3 id="impTitle">Driver importance</h3>
+        <div class="bars" id="imp"></div>
+        <details><summary>What happened, step by step</summary><ol class="log" id="log"></ol></details>
+      </div>
+    </div>
+    <div class="grid3">
+      <figure><img id="mapSuit" alt="Suitability map">
+        <figcaption>Chance of becoming urban, from 2020</figcaption>
+        <div class="legend"><span>low<span class="bar" style="background:linear-gradient(90deg,#ffffcc,#fd8d3c,#800026)"></span>high</span>
+          <span><i style="background:#c3c2b7"></i>already urban</span></div></figure>
+      <figure><img id="mapTest" alt="Test map">
+        <figcaption>Test: where it placed 2015-2020 growth</figcaption>
+        <div class="legend"><span><i style="background:#0ca30c"></i>right place</span>
+          <span><i style="background:#2a78d6"></i>real growth it missed</span>
+          <span><i style="background:#eb6834"></i>predicted, did not happen</span>
+          <span><i style="background:#c3c2b7"></i>urban in 2015</span></div></figure>
+      <figure><img id="mapPred" alt="Prediction map">
+        <figcaption>Prediction (not an observation)</figcaption>
+        <div class="legend"><span><i style="background:#eda100"></i>new by 2025</span>
+          <span><i style="background:#d03b3b"></i>new 2025-2030</span>
+          <span><i style="background:#c3c2b7"></i>urban in 2020</span></div></figure>
+    </div>
+  </div>
+
+  <h3>Runs so far</h3>
+  <div class="tablewrap">
+  <table id="history">
+    <thead><tr><th>#</th><th>Model</th><th>Roads</th><th class="num">AUC (test)</th><th class="num">Figure of Merit</th>
+      <th class="num">Right cells</th><th class="num">vs random</th><th class="num">2025, km&sup2;</th><th class="num">2030, km&sup2;</th><th class="num">Time</th></tr></thead>
+    <tbody><tr><td colspan="10" class="muted">No runs yet - press the button above.</td></tr></tbody>
+  </table>
+  </div>
+  <p class="note">Figure of Merit = right cells / (right + missed + wrongly predicted). Overall accuracy is shown
+    too, but a model that predicts "no change" everywhere already scores about 99%, so it says little.</p>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section>
+  <h2>3. Ghost-growth screen (live)</h2>
+  <p>New development whose activity (night-time light, points of interest, population) is low for how
+     built-up it is becomes a <b>candidate</b>. The rule below decides which candidates are
+     <b>emerging</b> (filling up) and which are <b>ghost growth</b> (not filling up).</p>
+  <div class="row">
+    <label for="rule">Rule for "activity rising"</label>
+    <select id="rule"></select>
+    <button type="button" class="go" id="runRule">Classify</button>
+  </div>
+  <p id="ruleStatus" class="status"></p>
+  <div class="grid2" id="ruleOut" hidden>
+    <div>
+      <table id="areas"></table>
+      <p class="note">Review 3 rule: a cell is emerging only if its night-time light rose significantly
+        faster than the established city (p &le; 0.10). The whole city brightened after 2013, so the
+        Review 2 rule called almost everything emerging.</p>
+    </div>
+    <figure><img id="mapRule" alt="Typology map"><div class="legend" id="legRule"></div></figure>
+  </div>
+
+  <h3>Zone evidence cards</h3>
+  <div class="row">
+    <label for="zone">Zone</label>
+    <select id="zone"></select>
+  </div>
+  <p id="zoneInfo" class="muted"></p>
+  <figure><img id="zoneImg" alt="Zone evidence card" style="image-rendering:auto"></figure>
+</section>
+
+<p class="note">Runs offline on this laptop from data already downloaded: GHS-BUILT-S / GHS-POP R2023A,
+  NOAA/VIIRS/DNB/ANNUAL_V21 + ANNUAL_V22, LANDSAT/LC08/C02/T1_L2 + LANDSAT/LC09/C02/T1_L2,
+  COPERNICUS/S2_SR_HARMONIZED, GOOGLE/Research/open-buildings-temporal/v1, USGS/SRTMGL1_003 and
+  OpenStreetMap. Night-time light is used as a proxy for activity. Predictions are predictions, not observations.</p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const TYPES = [
+  ["undeveloped", "Undeveloped", "#ffffff"], ["established_active", "Established", "#c3c2b7"],
+  ["healthy_growth", "Healthy growth", "#2a78d6"], ["emerging", "Emerging (filling up)", "#eda100"],
+  ["ghost_growth", "Ghost growth (not filling up)", "#d03b3b"], ["declining", "Declining", "#1baf7a"],
+];
+const swatch = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`;
+const gradient = (css, lo, hi) => `<span>${lo}<span class="bar" style="background:${css}"></span>${hi}</span>`;
+const MAPS = {
+  growth: ["Where the city grew, 2010-2020, by form of growth (GHS-BUILT-S R2023A, 100 m cells).",
+           swatch("#c3c2b7", "urban in 2010") + swatch("#2a78d6", "infill") + swatch("#1baf7a", "edge expansion") + swatch("#eb6834", "leapfrog")],
+  built: ["Share of each 100 m cell covered by buildings, 2020 (GHS-BUILT-S R2023A).",
+          gradient("linear-gradient(90deg,#f7f7f7,#000)", "0%", "100%")],
+  lights: ["Night-time light, mean of 2022-2024 (VIIRS annual composites) - a proxy for activity.",
+           gradient("linear-gradient(90deg,#000004,#781c6d,#ed6925,#fcffa4)", "dark", "bright")],
+  heat: ["Land surface temperature minus the rural reference, March-May 2024 (Landsat 8 and 9).",
+         gradient("linear-gradient(90deg,#2166ac,#f7f7f7,#b2182b)", "-6 &deg;C cooler", "+6 &deg;C warmer")],
+  typology: ["Growth typology from the last full pipeline run (Review 3 rule).",
+             TYPES.map(([, t, c]) => swatch(c, t)).join("")],
+};
+const fmt = (x, d = 2) => (x === null || x === undefined) ? "-" : Number(x).toLocaleString("en-US", {maximumFractionDigits: d, minimumFractionDigits: d});
+const int = (x) => Number(x).toLocaleString("en-US");
+const bust = () => "?t=" + Date.now();
+let runs = 0;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+function showMap(name) {
+  document.querySelectorAll("#maptabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.map === name));
+  $("map1").src = "/map/" + name + ".png" + bust();
+  $("cap1").textContent = MAPS[name][0];
+  $("leg1").innerHTML = MAPS[name][1];
+}
+
+function timer(el, text) {
+  const t0 = Date.now();
+  el.classList.remove("err");
+  el.textContent = text;
+  const id = setInterval(() => { el.textContent = `${text} ${((Date.now() - t0) / 1000).toFixed(0)} s`; }, 250);
+  return () => clearInterval(id);
+}
+
+async function load() {
+  try {
+    const d = await api("/api/info");
+    const o = d.overview, y = d.years;
+    $("status").textContent = `Data loaded in ${d.load_s} s: ${int(d.grid.rows)} x ${int(d.grid.cols)} cells of ${d.grid.cell_m} m (${int(d.grid.area_km2)} km²).`;
+    $("stats").innerHTML = [
+      [`${fmt(o.built_km2[y[0]], 1)} → ${fmt(o.built_km2[y[2]], 1)} km²`, `built-up surface, ${y[0]} to ${y[2]}`],
+      [`${fmt(o.urban_growth_pct_per_year)} % a year`, `urban extent growth (${fmt(o.urban_km2[y[0]], 0)} → ${fmt(o.urban_km2[y[2]], 0)} km²)`],
+      [`${fmt(o.form_pct.leapfrog, 1)} % leapfrog`, `of ${fmt(o.new_urban_km2, 2)} km² of new urban land`],
+      [`${fmt(o.ghost_km2)} km²`, `ghost growth; ${fmt(o.emerging_km2)} km² emerging`],
+    ].map(([v, t]) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`).join("");
+    for (const [k, v] of Object.entries(d.rules)) $("rule").add(new Option(v, k, false, k === d.default_rule));
+    for (const z of d.zones) $("zone").add(new Option(`Zone ${z.zone_id} - ${fmt(z.flagged_km2)} km² flagged of ${fmt(z.zone_area_km2)} km²`, z.zone_id));
+    window.ZONES = d.zones;
+    if (d.zones.length) showZone(d.zones[0].zone_id);
+    showMap("growth");
+    if (location.hash === "#autorun") { await runModel(); await runRule(); }
+  } catch (e) {
+    $("status").textContent = "Could not load the data: " + e.message;
+    $("status").classList.add("err");
+  }
+}
+
+async function runModel() {
+  const body = {model: $("model").value, trees: Number($("trees").value), roads: $("roads").checked};
+  const btn = $("runModel");
+  btn.disabled = true;
+  const stop = timer($("runStatus"), `Training ${body.model === "random_forest" ? "the random forest" : "logistic regression"} ...`);
+  try {
+    const r = await api("/api/model", body);
+    stop();
+    $("runStatus").textContent = `Done in ${r.seconds} s.`;
+    renderRun(r);
+  } catch (e) {
+    stop();
+    $("runStatus").textContent = "Run failed: " + e.message;
+    $("runStatus").classList.add("err");
+  } finally { btn.disabled = false; }
+}
+
+function renderRun(r) {
+  $("runOut").hidden = false;
+  const rows = [
+    ["Model", `${r.model}${r.trees ? `, ${r.trees} trees` : ""}${r.roads ? "" : ", no roads"}`],
+    ["Drivers", r.drivers.join(", ")],
+    ["Training", `${r.train_period}: ${int(r.train_cells)} non-urban cells, ${int(r.train_positive)} became urban`],
+    [`AUC, training (${r.auc_train_kind})`, fmt(r.auc_train, 3)],
+    ["<b>AUC, test</b>", `<b>${fmt(r.auc_test, 3)}</b> (0.5 = random, 1 = perfect ranking)`],
+    ["Cells to place (real 2015-2020 growth)", int(r.demand)],
+    ["<b>Placed in the right cell</b>", `<b>${int(r.hits)}</b> &nbsp; (random placement: ${r.random_hits})`],
+    ["Missed / wrongly predicted", `${int(r.misses)} / ${int(r.false_alarms)}`],
+    ["<b>Figure of Merit</b>", `<b>${fmt(r.figure_of_merit, 4)}</b> = ${r.skill}× random (${fmt(r.random_fom, 4)})`],
+    ["Producer's accuracy", `${fmt(r.producers_accuracy, 1)} %`],
+    ["Cohen's kappa", fmt(r.kappa, 3)],
+    ["Overall accuracy", `${fmt(r.overall_accuracy, 1)} % (“no change” model: ${fmt(r.null_accuracy, 1)} %)`],
+    ["Predicted new urban land", `+${fmt(r.pred_2025_km2)} km² by 2025, +${fmt(r.pred_2030_km2)} km² by 2030`],
+  ];
+  $("metrics").innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+  $("impTitle").textContent = r.importance_title;
+  const max = Math.max(...r.importance.map(([, x]) => Math.abs(x))) || 1;
+  $("imp").innerHTML = r.importance.map(([n, x]) => {
+    const w = Math.abs(x) / max * 100;
+    return `<div><span>${n}</span><span class="track"><span class="fill ${x < 0 ? "neg" : ""}" style="left:0;width:${w}%"></span></span><span>${fmt(x, 3)}</span></div>`;
+  }).join("") + (r.model === "Logistic regression"
+    ? `<p class="note">Orange = the driver lowers the chance of becoming urban.</p>`
+    : `<p class="note">Measured while the trees were built. On the test years the picture differs:
+       shuffling population there actually improves the forest, so population is a candidate to drop (Review 4).</p>`);
+  $("log").innerHTML = r.log.map(l => `<li>${l}</li>`).join("");
+  for (const [id, m] of [["mapSuit", "suit"], ["mapTest", "test"], ["mapPred", "pred"]]) $(id).src = `/map/${m}.png` + bust();
+  runs += 1;
+  const tb = $("history").tBodies[0];
+  if (runs === 1) tb.innerHTML = "";
+  tb.insertAdjacentHTML("beforeend", `<tr><td>${runs}</td><td>${r.model}${r.trees ? ` (${r.trees})` : ""}</td><td>${r.roads ? "yes" : "no"}</td>
+    <td class="num">${fmt(r.auc_test, 3)}</td><td class="num">${fmt(r.figure_of_merit, 4)}</td><td class="num">${int(r.hits)} / ${int(r.demand)}</td>
+    <td class="num">${r.skill}×</td><td class="num">${fmt(r.pred_2025_km2)}</td><td class="num">${fmt(r.pred_2030_km2)}</td><td class="num">${r.seconds} s</td></tr>`);
+}
+
+async function runRule() {
+  const btn = $("runRule");
+  btn.disabled = true;
+  const stop = timer($("ruleStatus"), "Classifying ...");
+  try {
+    const r = await api("/api/typology", {rule: $("rule").value});
+    stop();
+    $("ruleStatus").textContent = `Done in ${r.seconds} s: ${r.n_zones} ghost-growth zones.`;
+    $("ruleOut").hidden = false;
+    $("areas").innerHTML = `<tr><th>Class</th><th class="num">Area, km²</th></tr>` +
+      TYPES.map(([k, t, c]) => `<tr><td>${swatch(c, t)}</td><td class="num">${fmt(r.areas[k])}</td></tr>`).join("") +
+      `<tr><th>Candidates (emerging + ghost)</th><th class="num">${fmt(r.candidates_km2)}</th></tr>` +
+      `<tr><th>Share of candidates filling up</th><th class="num">${fmt(r.filling_up_pct, 1)} %</th></tr>` +
+      `<tr><th>Ghost-growth zones</th><th class="num">${r.n_zones}</th></tr>`;
+    $("mapRule").src = "/map/rule.png" + bust();
+    $("legRule").innerHTML = TYPES.map(([, t, c]) => swatch(c, t)).join("");
+  } catch (e) {
+    stop();
+    $("ruleStatus").textContent = "Classification failed: " + e.message;
+    $("ruleStatus").classList.add("err");
+  } finally { btn.disabled = false; }
+}
+
+function showZone(id) {
+  const z = (window.ZONES || []).find(z => String(z.zone_id) === String(id));
+  $("zoneImg").src = `/zone/${id}.png`;
+  if (z) $("zoneInfo").textContent = `${z.lat.toFixed(4)}° N, ${z.lon.toFixed(4)}° E · ${z.flagged_cells} flagged cells · `
+    + `${Math.round(z.mean_new_share * 100)}% of built-up is new since 2010 · points of interest: ${z.points_of_interest} · `
+    + `flagged cells with buildings in 2023: ${Math.round(z.flagged_cells_with_buildings_2023 * 100)}%`;
+}
+
+document.querySelectorAll("#maptabs button").forEach(b => b.addEventListener("click", () => showMap(b.dataset.map)));
+$("runModel").addEventListener("click", runModel);
+$("runRule").addEventListener("click", runRule);
+$("zone").addEventListener("change", (e) => showZone(e.target.value));
+$("model").addEventListener("change", () => {
+  const rf = $("model").value === "random_forest";
+  $("trees").hidden = !rf; $("treesLabel").hidden = !rf;
+});
+load();
+</script>
+</body>
+</html>
