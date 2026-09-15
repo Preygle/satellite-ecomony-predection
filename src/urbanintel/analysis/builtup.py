@@ -1,23 +1,3 @@
-"""Built-up expansion: change detection and urban-form typology.
-
-The headline numbers (how much new built-up, where) come from differencing
-GHS-BUILT-S epochs. The more useful planning output is *what kind* of growth
-it is, which is what `expansion_form` classifies.
-
-Urban form classification follows the landscape-expansion-index family of
-methods (Liu et al. 2010, *Landscape and Urban Planning*): new built-up is
-labelled by how much already-built land surrounds it.
-
-    infill          growth inside the existing fabric — cheap to service
-    edge_expansion  growth attached to the existing edge — normal accretion
-    leapfrog        growth detached from the fabric — expensive to service,
-                    and the form most associated with under-occupied
-                    development
-
-Leapfrog share is a leading indicator for the ghost-growth analysis:
-detached development is where built-up-without-activity concentrates.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

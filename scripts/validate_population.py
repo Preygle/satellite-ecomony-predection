@@ -1,32 +1,3 @@
-"""Population inputs against the Census of India (2011 and 2001).
-
-    python scripts/validate_population.py
-
-The project uses gridded population in the activity index and in the
-"built-up grew faster than population" headline. This checks the two
-gridded datasets available to it against the Census:
-
-* ``JRC/GHSL/P2023A/GHS_POP`` — GHS-POP R2023A, the project's primary layer
-* ``WorldPop/GP/100m/pop`` — WorldPop, an independent alternative
-
-1. **District totals**, all 71 districts of Uttar Pradesh (2011 Census
-   boundaries): how far each dataset is from the Census, and in which
-   direction.
-2. **Varanasi and Chandauli** — the study area lies across both districts.
-3. **Varanasi Municipal Corporation** — the city itself, from its 2011 town
-   polygon.
-4. **Growth over the study area** — the Census gives 2001 and 2011 for the
-   same towns and villages, so each dataset's 2001-2011 growth can be checked
-   against the Census over exactly the study area. The dataset that gets that
-   decade right is the more credible one for 2010-2020, which no census
-   covers (the 2021 Census has not been held).
-
-Census figures are SHRUG's town/village and district aggregations of the
-Primary Census Abstract (see src/urbanintel/data/shrug.py). GHS-POP has
-five-yearly epochs, so it is interpolated linearly to 2001 and 2011;
-WorldPop has annual layers.
-"""
-
 from __future__ import annotations
 
 import json

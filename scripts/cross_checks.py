@@ -1,24 +1,3 @@
-"""Independent satellite cross-checks of the pipeline's layers.
-
-    python scripts/cross_checks.py
-
-1. **Built-up definitions** — how much of the study area is "built" according
-   to six datasets, and how well they agree cell by cell (Cohen's kappa).
-   They measure different things (roof area, land cover, a spectral index),
-   so they are not expected to match; the point is to know by how much they
-   differ and where.
-2. **Open Buildings on the typology classes** — do cells the typology calls
-   ghost growth or emerging contain buildings in 2023, and did building
-   presence and modelled height change 2016-2023? A ghost cell with no
-   buildings at all is more likely a GHSL error than an empty development.
-3. **Green lost to built-up, matched periods** — NDVI loss 2018-2024 against
-   Dynamic World built gain over the same years, next to the Review 2 figure,
-   which paired it with GHSL gain over a different period.
-4. **Land surface temperature** — Landsat against MODIS on a 1 km grid
-   (agreement, bias, and whether both sensors show the same urban-rural
-   contrast), and the heat-island change 2013-2024 by typology class.
-"""
-
 from __future__ import annotations
 
 import json

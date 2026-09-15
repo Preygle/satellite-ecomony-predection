@@ -1,11 +1,3 @@
-"""Validation helpers: agreement between maps, and simple statistical tests.
-
-Used by the Review 3 validation scripts (``scripts/cross_checks.py``,
-``scripts/validate_*.py``). They live here, with unit tests, rather than
-inline in the scripts, because the numbers they produce go straight into the
-report and the presentation.
-"""
-
 from __future__ import annotations
 
 import numpy as np

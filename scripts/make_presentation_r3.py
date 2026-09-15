@@ -1,14 +1,3 @@
-"""Build the Review 3 presentation.
-
-    python scripts/make_presentation_r3.py
-
-Every figure comes from this project's own outputs: the numbers are read from
-``outputs/review3_results.json`` and the images from ``docs/figures`` and
-``docs/diagrams`` (run ``make_diagrams.py`` first), so the
-deck cannot drift away from what the code produced. Design tokens and layout
-helpers are shared with ``make_presentation.py`` (the Review 2 deck).
-"""
-
 from __future__ import annotations
 
 import json

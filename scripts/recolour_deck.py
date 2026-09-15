@@ -1,14 +1,3 @@
-"""Recolour an existing presentation from the dark theme to the light one.
-
-    python scripts/recolour_deck.py docs/Review_Presentation_v2.pptx
-
-This edits the file in place rather than rebuilding it from the generator, so
-any manual edits — filled-in names, deleted text boxes, moved shapes — survive
-untouched. Only colours are changed.
-
-A timestamped backup is written beside the file before anything is modified.
-"""
-
 from __future__ import annotations
 
 import shutil
@@ -107,7 +96,7 @@ def recolour(path: Path) -> dict:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print(__doc__)
+        print("usage: python scripts/recolour_deck.py <deck.pptx>   (edits in place, backup first)")
         return 2
     p = Path(sys.argv[1])
     if not p.is_absolute():

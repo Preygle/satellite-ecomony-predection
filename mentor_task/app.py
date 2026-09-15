@@ -1,12 +1,3 @@
-"""Sentinel-2 and Landsat extraction dashboard.
-
-    python -m streamlit run mentor_task/app.py
-
-Choose a date window; the dashboard reports what imagery exists in it before
-extracting anything, then pulls both sensors for the same window so the two are
-directly comparable.
-"""
-
 from __future__ import annotations
 
 import sys

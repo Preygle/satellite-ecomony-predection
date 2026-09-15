@@ -1,14 +1,3 @@
-"""Record when each layer's imagery was actually acquired.
-
-    python scripts/collect_layer_dates.py
-
-Writes ``dataset_viewer/dates.js``. For the Earth Engine layers the dates are
-queried from the image collections themselves — the first and last acquisition
-that went into each composite, and how many distinct days contributed — rather
-than assumed from the year in the filename. For the open-path datasets the
-epoch is fixed by the product, and the download date is taken from the file.
-"""
-
 from __future__ import annotations
 
 import json

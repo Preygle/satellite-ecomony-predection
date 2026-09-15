@@ -1,15 +1,3 @@
-"""Build the Review 3 panel presentation: architecture, algorithms, flow, results.
-
-    python scripts/make_diagrams.py --clean      # first: diagrams without code names
-    python scripts/make_presentation_panel.py
-
-Unlike Review3_Presentation.pptx, this deck shows no code at all - no file,
-module, function or command names. Diagrams come from
-docs/diagrams/presentation/ (rendered with --clean), result figures from
-docs/figures/, numbers from outputs/review3_results.json. The talking points
-for each slide are in its speaker notes.
-"""
-
 from __future__ import annotations
 
 import json

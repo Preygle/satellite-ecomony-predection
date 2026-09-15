@@ -1,12 +1,3 @@
-"""Urban Growth & Economic Activity Intelligence — dashboard.
-
-    streamlit run dashboard/app.py
-
-Reads the pipeline's outputs (grid GeoJSON + summary JSON); it does not
-recompute anything, so it starts instantly and stays honest about what the
-pipeline actually produced — including what it had to skip.
-"""
-
 from __future__ import annotations
 
 import json

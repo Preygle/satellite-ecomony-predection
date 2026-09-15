@@ -1,12 +1,3 @@
-"""Tests for the load-bearing geometry and analysis maths.
-
-Run with:  python -m pytest tests/ -v      (or: python tests/test_core.py)
-
-These target the places where a silent error would corrupt every downstream
-number: frame alignment, area conservation under aggregation, and the
-expected-activity model that the ghost-growth screen depends on.
-"""
-
 from __future__ import annotations
 
 import sys

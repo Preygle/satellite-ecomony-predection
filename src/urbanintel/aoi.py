@@ -1,10 +1,3 @@
-"""Area-of-interest geometry, the analysis grid, and the common raster frame.
-
-Everything downstream snaps to the frame defined here, so that built-up,
-nightlight, vegetation and thermal layers are pixel-aligned and can be
-combined arithmetically without resampling surprises.
-"""
-
 from __future__ import annotations
 
 import math

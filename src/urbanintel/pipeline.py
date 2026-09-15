@@ -1,23 +1,3 @@
-"""End-to-end analysis pipeline.
-
-Runs on the open data path alone (GHSL + OSM). Earth Engine layers —
-nightlights, NDVI, Dynamic World, land surface temperature — are folded in
-automatically when available and skipped with a recorded reason when not, so
-the pipeline always produces a complete, self-describing result rather than
-failing half way.
-
-    python -m urbanintel.pipeline
-    python -m urbanintel.pipeline --no-gee
-    python -m urbanintel.pipeline --config config/varanasi.yaml
-
-Epoch discipline
-----------------
-Every measured statistic uses the observational GHSL epochs (2010, 2015,
-2020). GHS-BUILT-S R2023A also publishes 2025, but that is the GHSL model's
-own projection: it is loaded under layer names ending in ``_projected`` and
-reported only as a labelled comparison. Nothing downstream reads it.
-"""
-
 from __future__ import annotations
 
 import argparse

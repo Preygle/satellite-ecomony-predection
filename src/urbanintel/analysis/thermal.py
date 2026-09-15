@@ -1,18 +1,3 @@
-"""Surface urban heat island: intensity, hotspots, and the greening lever.
-
-SUHI intensity here is LST minus the mean LST of *rural land cells inside the
-same scene* — the standard urban-minus-rural formulation reviewed by Zhou et
-al. (2019, *Remote Sensing* 11:48). Two choices matter:
-
-* **Water is excluded from the rural reference.** The Ganga bisects the AOI
-  and is several degrees cooler than rural land; leaving it in would drag the
-  baseline down and inflate reported heat-island intensity city-wide.
-
-* **The reference is taken from the same image**, not a fixed climatology, so
-  the metric is insensitive to which day the scene was captured. Absolute
-  LST is not comparable across dates; the urban-rural *difference* largely is.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

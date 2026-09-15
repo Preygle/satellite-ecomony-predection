@@ -1,29 +1,3 @@
-"""Fit, validate, compare and project the urban expansion models.
-
-    python scripts/run_growth_model.py
-
-Reads the pipeline's processed rasters and:
-
-1. fits two suitability models — logistic regression and random forest — on
-   the conversions observed 2010-2015, using identical data;
-2. validates both on 2015-2020, a period neither model saw, with the same
-   allocation step, so their Figures of Merit are directly comparable;
-3. benchmarks them against random allocation and records TOC curves;
-4. refits logistic regression without the road driver. OpenStreetMap roads
-   are a present-day snapshot, so using them to explain 2010-2015 growth lets
-   later information leak into the past; the no-roads model shows how much
-   the result depends on that;
-5. projects expansion +5 (2025) and +10 (2030) years from 2020 with the
-   better of the two models.
-
-Epoch discipline
-----------------
-GHS-BUILT-S R2023A supplies epochs to 2030, but **only 1975-2020 are
-observational; 2025 and 2030 are the GHSL model's own projections.** Only
-2010/2015/2020 are used for fitting and validation. GHSL 2025 appears only as
-an independent projection to compare against — never as ground truth.
-"""
-
 from __future__ import annotations
 
 import json

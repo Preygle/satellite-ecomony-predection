@@ -1,15 +1,3 @@
-"""Export the Sentinel-2 layers at the finest scale Earth Engine will allow.
-
-    python scripts/export_sentinel_hires.py
-
-The routine export runs at 30 m, which is fine for analysis but soft on a
-zoomable map — Sentinel-2 is natively 10 m. Earth Engine caps a direct download
-at roughly 50 MB, and 10 m over this area exceeds that for a three-band image,
-so each layer steps down through a ladder of scales until one fits.
-
-Adds a true-colour composite, which the routine export does not produce at all.
-"""
-
 from __future__ import annotations
 
 import logging

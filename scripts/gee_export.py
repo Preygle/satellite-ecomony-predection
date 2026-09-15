@@ -1,19 +1,3 @@
-"""Export every Earth Engine layer for the configured city.
-
-Run once, after authenticating:
-
-    pip install earthengine-api
-    earthengine authenticate
-    python scripts/gee_export.py --project YOUR_GCP_PROJECT
-
-Downloads land in ``data/raw/gee/`` and are picked up automatically by the
-main pipeline on its next run. For an AOI larger than ~50x50 km use
-``--drive`` instead, which submits batch tasks to Google Drive.
-
-    python scripts/gee_export.py --project X --only nightlights
-    python scripts/gee_export.py --project X --drive
-"""
-
 from __future__ import annotations
 
 import argparse

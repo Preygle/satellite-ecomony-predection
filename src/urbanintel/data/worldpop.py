@@ -1,15 +1,3 @@
-"""WorldPop population — optional cross-check, not on the Phase 1 critical path.
-
-GHS-POP is the primary population layer for this system because it is
-multi-epoch (2010/2015/2020/2025) and built from the same modelling chain as
-GHS-BUILT-S, so population and built-up area are internally consistent.
-
-WorldPop is offered here as an *independent* 2020 estimate for validation:
-where the two disagree strongly, the population-derived parts of the
-ghost-growth index should be treated with caution. It is a single ~1 GB
-country raster, so it is not fetched by default.
-"""
-
 from __future__ import annotations
 
 import logging

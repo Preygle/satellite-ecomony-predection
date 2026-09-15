@@ -1,16 +1,3 @@
-/**
- * Varanasi — Urban Growth & Economic Activity Intelligence
- * Earth Engine Code Editor version of scripts/gee_export.py
- *
- * Paste into https://code.earthengine.google.com, press Run, then start the
- * export tasks from the Tasks tab. Outputs land in a Drive folder named
- * `urbanintel`; copy them into data/raw/gee/ and rerun the Python pipeline.
- *
- * Everything below mirrors the Python module exactly — same assets, same
- * seasonal windows, same masking — so results are identical whichever route
- * you use.
- */
-
 // ---------------------------------------------------------------- config --
 var AOI = ee.Geometry.Rectangle([82.80, 25.15, 83.15, 25.45], 'EPSG:4326', false);
 var CRS = 'EPSG:32644';           // UTM 44N — Varanasi

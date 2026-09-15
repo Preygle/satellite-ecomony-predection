@@ -1,15 +1,3 @@
-"""Aggregate the 100 m analytical rasters onto the 500 m reporting grid.
-
-Why two grids: analysis runs at the native GHSL 100 m resolution to keep
-change detection sharp, but a 100 m web map of 121,000 polygons is unusable
-in a browser and over-claims precision that VIIRS (~460 m) cannot support.
-The 500 m reporting grid is the honest unit for the dashboard.
-
-Aggregation respects each variable's type: extensive quantities (m^2 built,
-persons, POI counts) are summed, intensive ones (NDVI, LST, indices) are
-averaged, and class rasters take the majority class.
-"""
-
 from __future__ import annotations
 
 import warnings

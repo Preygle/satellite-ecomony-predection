@@ -1,18 +1,3 @@
-"""Results pack for Review 3: every figure, and every number the deck quotes.
-
-    python scripts/make_figures.py
-
-Reads the JSON outputs of the pipeline, the growth model and the validation
-scripts (plus a few rasters for the maps) and writes
-
-    docs/figures/F01_growth_index.png ... docs/figures/F14_open_buildings.png
-    outputs/review3_results.json     every headline number, in one place
-
-Run it after the pipeline, run_growth_model, validate_typology, cross_checks,
-validate_population and validate_economy. A figure whose input is missing is
-skipped with a message rather than stopping the others.
-"""
-
 from __future__ import annotations
 
 import json

@@ -1,23 +1,3 @@
-"""Export the extra Earth Engine layers the Review 3 checks need.
-
-    python scripts/export_review3_layers.py              # skip files already present
-    python scripts/export_review3_layers.py --force-lst  # re-export LST with the stricter cloud mask
-
-Everything lands in ``data/raw/gee`` beside the pipeline's own exports, so the
-pipeline and the validation scripts read one shared cache.
-
-| File                        | Official dataset                             | Used by                     |
-|-----------------------------|----------------------------------------------|-----------------------------|
-| lst_2013.tif, lst_2024.tif  | LANDSAT/LC08/C02/T1_L2 + LANDSAT/LC09/C02/T1_L2 | heat-island change (WP2, WP5) |
-| dw_2018.tif                 | GOOGLE/DYNAMICWORLD/V1                        | green lost to built-up, matched 2018-2024 (WP5) |
-| truecolour_2018.tif         | COPERNICUS/S2_SR_HARMONIZED                   | zone evidence cards (WP7)   |
-| slope.tif                   | USGS/SRTMGL1_003                              | slope driver (WP4)          |
-| worldcover_built_2021.tif   | ESA/WorldCover/v200                           | built-up definitions (WP5)  |
-| dw_built_mode_2024.tif      | GOOGLE/DYNAMICWORLD/V1 (label band, mode)     | built-up definitions (WP5)  |
-| modis_lst_2024.tif          | MODIS/061/MOD11A2                             | Landsat LST check (WP5)     |
-| worldpop_2010/2020.tif      | WorldPop/GP/100m/pop                          | population sensitivity (WP6) |
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -57,7 +37,8 @@ def fetch(make_image, dest: Path, scales: tuple[int, ...], aoi: AOI, force: bool
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(
+        description="Export the extra Earth Engine layers the Review 3 checks need.")
     ap.add_argument("--force-lst", action="store_true",
                     help="re-export both LST composites (needed once after the cloud-mask fix)")
     args = ap.parse_args()

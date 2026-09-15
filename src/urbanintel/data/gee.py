@@ -1,26 +1,3 @@
-"""Google Earth Engine acquisition — the sensor-level layers.
-
-Requires a one-time ``earthengine authenticate`` and a Cloud project. See
-``docs/SETUP.md``. Everything here is computed *server-side* and downloaded
-already clipped to the AOI, so the transfer is a few MB rather than the tens
-of GB the raw scenes would be.
-
-Layers produced
----------------
-nightlights   VIIRS annual mean radiance          -> economic activity
-ndvi          Sentinel-2 growing-season NDVI      -> green cover
-lst           Landsat 8/9 land surface temperature-> urban heat island
-dynamicworld  Built / trees / grass probability   -> land cover cross-check
-builtheight   Open Buildings temporal height      -> vertical growth (2016-2023)
-
-LST is read directly from the Collection 2 Level-2 surface temperature band
-``ST_B10``. USGS already derives that band with an emissivity correction
-(ASTER GED emissivity, adjusted with NDVI), so this module applies only the
-published scale and offset and a cloud mask — no emissivity step of its own.
-Ermida et al. (2020, *Remote Sensing* 12:1471) describe an alternative Earth
-Engine LST method; it is cited in the docs as a reference, not used here.
-"""
-
 from __future__ import annotations
 
 import logging

@@ -1,24 +1,3 @@
-"""Evidence cards for every ghost-growth zone.
-
-    python scripts/make_zone_cards.py
-
-One image per zone, putting side by side what the satellites show there:
-
-* Sentinel-2 true colour (COPERNICUS/S2_SR_HARMONIZED), Oct 2018-Mar 2019
-  and Oct 2024-Mar 2025, with the flagged 100 m cells outlined
-* Open Buildings building presence (GOOGLE/Research/open-buildings-temporal/v1),
-  2016 and 2023
-* the zone's night-time light record 2013-2024 relative to the established
-  city (NOAA/VIIRS/DNB/ANNUAL_V21 and ANNUAL_V22)
-* the zone's numbers: area, share of new development, activity, points of
-  interest, and whether the flagged cells contain buildings
-
-Cards are evidence for a human reader, not a validation. Without ground or
-image labels, how often a flagged zone is truly vacant remains unmeasured;
-the hold-out test (validate_typology.py) and the Open Buildings check
-(cross_checks.py) are the quantitative checks.
-"""
-
 from __future__ import annotations
 
 import json

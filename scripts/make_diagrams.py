@@ -1,33 +1,3 @@
-"""Architecture diagrams and progress charts for the reviews.
-
-    python scripts/make_diagrams.py            # everything
-    python scripts/make_diagrams.py A3 P1      # just some
-    python scripts/make_diagrams.py --clean    # talk version, no code names,
-                                               # into docs/diagrams/presentation/
-
-Writes PNG (for slides and the report) and SVG (editable text) into
-``docs/diagrams/``. Numbers are read from ``outputs/review3_results.json``
-and the other pipeline outputs, so a re-run after new results keeps every
-label true. What each image shows, and what to say over it, is in
-``docs/DIAGRAMS.md``.
-
-Architecture                              Progress
-  A1  system architecture                   P1  roadmap and reviews
-  A2  pipeline data flow                    P2  implementation status and code size
-  A3  ghost-growth typology algorithm       P3  corrections: Review 2 vs Review 3
-  A4  relative night-light trend            P4  one-command run, step by step
-  A5  growth-model architecture             P5  data inventory
-  A6  heat-island method                    P6  tests and defects
-  A7  validation framework
-  A8  temporal design of the study
-  A9  analysis grid and aggregation
-
-Colour follows the dataviz reference palette (validated for colour-blind
-separation): each architecture layer takes one categorical hue in a fixed
-order, and state (done / planned / supports / qualified) uses the reserved
-status colours, always with a text label beside them.
-"""
-
 from __future__ import annotations
 
 import json

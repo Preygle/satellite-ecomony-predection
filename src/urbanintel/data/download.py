@@ -1,5 +1,3 @@
-"""Shared HTTP download helpers: resumable, cached, progress-reporting."""
-
 from __future__ import annotations
 
 import logging

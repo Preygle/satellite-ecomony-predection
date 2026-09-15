@@ -1,27 +1,3 @@
-"""Download the Indian government and research datasets used for validation.
-
-    python scripts/fetch_indian_data.py
-
-Files land in ``data/raw/india/`` and every download is recorded — source,
-size, SHA-256 and date — in ``data/raw/india/MANIFEST.json``.
-
-| Dataset                                             | Publisher                                                   | Licence          |
-|-----------------------------------------------------|-------------------------------------------------------------|------------------|
-| SHRUG v2 — 2013 Economic Census, shrid level        | Development Data Lab, from the 6th Economic Census (MoSPI)  | CC BY-NC-SA 4.0  |
-| SHRUG v2 — 2011 Population Census Abstract, shrid   | Development Data Lab, from Census of India 2011             | CC BY-NC-SA 4.0  |
-| SHRUG v2 — shrid location names and keys            | Development Data Lab                                        | CC BY-NC-SA 4.0  |
-| SHRUG v2 — shrid polygons, 2011 district polygons   | Development Data Lab                                        | CC BY-NC-SA 4.0  |
-| District Domestic Product (base year 2011-12)       | Directorate of Economics & Statistics, Govt. of Uttar Pradesh | Government data |
-
-SHRUG must be cited as: Asher, S., Lunt, T., Matsuura, R. and Novosad, P.
-(2021). Development research at high geographic resolution: an analysis of
-night-lights, firms, and poverty in India using the SHRUG open data platform.
-*The World Bank Economic Review* 35(4).
-
-SHRUG's download links are signed and expire after a short time, so they are
-read fresh from the SHRUG download page's data feed on every run.
-"""
-
 from __future__ import annotations
 
 import hashlib

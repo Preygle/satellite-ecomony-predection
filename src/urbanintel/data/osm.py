@@ -1,29 +1,3 @@
-"""OpenStreetMap acquisition via Overpass — open, no credentials.
-
-Role in this system
--------------------
-OSM supplies the *ground-level activity* signal that satellite radiance
-cannot: what is actually there. Two derived layers matter most.
-
-``poi_density``
-    Commercial / retail / office / civic points per cell. This is the
-    economic-function evidence behind "commercial growth zones", and — more
-    importantly — the second axis of the ghost-growth test. Built-up area
-    with no POIs and no lights is the signature of a developed-but-inactive
-    zone (Jin et al. 2017; Lu et al. 2018).
-
-``road_density``
-    Metres of road centreline per cell, split by class. New arterial road in
-    a previously unbuilt cell is the leading indicator of an investment
-    corridor, which Phase 2 projects forward.
-
-Caveat worth stating plainly: OSM completeness in Indian cities is uneven.
-Varanasi's core is well mapped; the peri-urban fringe is not. A low POI
-count on the fringe is therefore weak evidence on its own, which is exactly
-why the ghost-growth index requires *agreement* between the OSM and
-nightlight axes rather than trusting either alone.
-"""
-
 from __future__ import annotations
 
 import json

@@ -1,18 +1,3 @@
-"""Train, test and run the Varanasi urban growth model from the command line.
-
-    python demo/train.py                     random forest, 300 trees, all 8 drivers
-    python demo/train.py --model lr          logistic regression
-    python demo/train.py --trees 100 --no-roads
-    python demo/train.py --permutation       also measure driver importance on the test years
-    python demo/train.py --out runs/r1       also write runs/r1.json (metrics) and runs/r1.npz (maps)
-
-Runs offline on the processed rasters. Every step prints what it did, how long
-it took and the numbers behind it, so a training run can be followed live.
-The demo website runs this same script and streams its output.
-
-Output is plain ASCII so it prints on any Windows console.
-"""
-
 from __future__ import annotations
 
 import argparse

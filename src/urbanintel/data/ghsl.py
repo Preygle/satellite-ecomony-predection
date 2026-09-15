@@ -1,24 +1,3 @@
-"""GHSL (Global Human Settlement Layer) acquisition — open, no credentials.
-
-Products used
--------------
-GHS-BUILT-S  built-up *surface* in m^2 per cell (100 m)  -> urban expansion
-GHS-POP      residential population per cell (100 m)     -> activity denominator
-GHS-SMOD     settlement class (1 km, categorical)        -> urban/rural reference
-
-Why GHSL is the backbone: it is the only multi-epoch, globally consistent
-built-up product that is bulk-downloadable without an account, and its
-5-yearly epochs (1975..2030) line up exactly with the analysis years.
-
-Reprojection note
------------------
-GHSL ships in Mollweide (ESRI:54009), an equal-area projection; the analysis
-frame is UTM 44N. BUILT_S and POP are *extensive* quantities (m^2 and persons
-per cell), so resampling their raw values would not conserve totals. Both are
-therefore converted to an intensive density, reprojected bilinearly, and
-multiplied back by the target cell area. SMOD is categorical and uses nearest.
-"""
-
 from __future__ import annotations
 
 import logging

@@ -1,36 +1,3 @@
-"""Move the large data folders between machines, and point the project at them.
-
-    python scripts/external_data.py check
-    python scripts/external_data.py export E:/urbanintel-data
-    python scripts/external_data.py export E:/urbanintel-data --full
-    python scripts/external_data.py import E:/urbanintel-data
-    python scripts/external_data.py link ../urbanintel-data
-    python scripts/external_data.py unlink
-
-Why this exists
----------------
-The satellite downloads, the Indian statistical archives and the pipeline
-outputs come to about 1.5 GB. They are excluded by `.gitignore`, so a clone of
-this repository does not carry them. A teammate can either re-download
-everything — GHSL alone takes 30-45 minutes, and the Earth Engine layers need
-a registered account — or copy this bundle from a pendrive.
-
-The bundle keeps the repository's own layout::
-
-    <bundle>/data/raw/{ghsl,gee,osm,india}
-    <bundle>/data/processed/rasters
-    <bundle>/outputs
-
-so it can be used in two ways:
-
-* `import` copies it into the folders the project already expects, or
-* `link` leaves it where it is and writes `config/local.yaml` pointing at it.
-
-`config/local.yaml` is **not tracked by git**. That is the point: your data can
-live on a D: drive or a pendrive folder while a teammate keeps theirs inside
-the repository, and neither choice can ever collide in a merge.
-"""
-
 from __future__ import annotations
 
 import fnmatch
@@ -268,10 +235,23 @@ scripts/fetch_indian_data.py (SHRUG and the UP government spreadsheets).
 """
 
 
+def usage() -> None:
+    print("Move the large data folders between machines, and point the project at them.")
+    print()
+    print("usage: python scripts/external_data.py check")
+    print("       python scripts/external_data.py export <target folder> [--full]")
+    print("       python scripts/external_data.py import <bundle folder>")
+    print("       python scripts/external_data.py link <bundle folder>")
+    print("       python scripts/external_data.py unlink")
+    print()
+    print("'link' writes config/local.yaml (not tracked by git), so each machine can keep")
+    print("its data wherever it likes without a merge conflict. See docs/DATA_TRANSFER.md.")
+
+
 def main() -> int:
     args = sys.argv[1:]
     if not args or args[0] in ("-h", "--help"):
-        print(__doc__)
+        usage()
         return 0
     cmd, rest = args[0], args[1:]
     cfg = load_config()
@@ -295,7 +275,7 @@ def main() -> int:
     if cmd == "unlink":
         return cmd_unlink()
     print(f"unknown command: {cmd}")
-    print(__doc__)
+    usage()
     return 2
 
 

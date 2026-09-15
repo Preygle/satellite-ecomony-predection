@@ -1,22 +1,3 @@
-"""Live demo of the Varanasi urban-growth system, served from this laptop.
-
-    python demo/server.py            then open http://127.0.0.1:8765
-    run_demo.bat                     does both
-    python demo/server.py --port 9000 --no-browser
-
-Runs offline, on the data the analysis pipeline has already processed. Three
-things happen live when the page asks for them:
-
-1. the growth model is trained, tested and run by the command-line trainer
-   (demo/train.py), started as a separate process; its output streams into
-   the page as it prints, and its maps are drawn when it finishes;
-2. the ghost-growth typology is re-classified under any of the four
-   definitions of "activity rising" (under a second);
-3. maps of the inputs are drawn from the rasters.
-
-Only the Python standard library serves the page; no web framework is needed.
-"""
-
 from __future__ import annotations
 
 import io

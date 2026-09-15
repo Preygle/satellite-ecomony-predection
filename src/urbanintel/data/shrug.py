@@ -1,25 +1,3 @@
-"""SHRUG — Indian census and economic-census data by town and village.
-
-SHRUG (the Socioeconomic High-resolution Rural-Urban Geographic Platform for
-India, from the Development Data Lab) links the Population Census, the
-Economic Census and other sources to one set of town and village identifiers,
-called *shrids*. Four parts of it are used here:
-
-* 2011 Population Census Abstract — population per town/village and district
-* 2013 Economic Census (the 6th Economic Census, MoSPI) — non-farm
-  establishments and employment per town/village and district
-* shrid location names — state, district, sub-district, town and village
-* open polygons — shrid and 2011 district boundaries (EPSG:4326)
-
-Data: https://www.devdatalab.org/shrug, CC BY-NC-SA 4.0. Cite Asher, Lunt,
-Matsuura & Novosad (2021), *The World Bank Economic Review* 35(4). The files
-are downloaded by ``scripts/fetch_indian_data.py`` into
-``data/raw/india/shrug/``.
-
-A shrid2 code reads ``11-SS-DDD-TTTTT-VVVVVV``: census year (2011), then the
-2011 Census codes for state, district, sub-district and town or village.
-"""
-
 from __future__ import annotations
 
 import logging

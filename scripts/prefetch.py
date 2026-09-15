@@ -1,15 +1,3 @@
-"""Download every open-path input for the configured city, in parallel.
-
-The JRC server throttles hard per connection (~30 KB/s observed), so the
-eight GHSL tiles are fetched concurrently rather than in sequence. OSM is
-fetched on the main thread afterwards because the public Overpass endpoints
-rate-limit aggressively and parallel queries get refused.
-
-    python scripts/prefetch.py                # everything
-    python scripts/prefetch.py --skip-osm
-    python scripts/prefetch.py --workers 4
-"""
-
 from __future__ import annotations
 
 import argparse

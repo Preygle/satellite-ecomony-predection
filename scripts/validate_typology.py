@@ -1,30 +1,3 @@
-"""Is the emerging / ghost-growth split real? A temporal hold-out test.
-
-    python scripts/validate_typology.py
-
-The typology separates low-activity new development into ``emerging``
-(night-time lights rising faster than the established city — filling up) and
-``ghost_growth`` (not rising). There are no ground labels for Varanasi, so the
-strongest available check is a hold-out in time:
-
-1. Re-run the classification using ONLY the 2013-2020 night-light record —
-   all of it from ``NOAA/VIIRS/DNB/ANNUAL_V21``, so there is no product-version
-   change inside it. Activity level = mean of 2018-2020; trend = 2013-2020.
-2. Measure what happened NEXT, which the classifier never saw: each cell's
-   change in brightness relative to the established city, from 2018-2020 to
-   2022-2024.
-3. If the split means something, cells called ``emerging`` should have kept
-   catching up — brightened relative to the city more than cells called
-   ``ghost_growth``. A one-sided Mann-Whitney U test says whether the
-   difference could be chance.
-
-VIIRS pixels are about 463 m across, so neighbouring 100 m cells share one
-measurement and are not independent. The test is therefore repeated on 500 m
-blocks (the mean outcome of each class within each block), which is close to
-one observation per VIIRS pixel. All four definitions of "rising" are tested,
-with the configured one reported first.
-"""
-
 from __future__ import annotations
 
 import json

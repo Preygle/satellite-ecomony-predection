@@ -1,25 +1,3 @@
-"""Does night-time light track economic activity here? Two tests with Indian data.
-
-    python scripts/validate_economy.py
-
-The project uses VIIRS night-time radiance as a proxy for economic activity.
-This checks that proxy against two Indian sources:
-
-1. **Towns and villages, 2013.** Employment in the 2013 Economic Census (the
-   6th Economic Census) for every town and village in Varanasi and the five
-   surrounding districts, from SHRUG, against VIIRS 2013 radiance over each
-   town/village polygon. Same year, so there is no timing mismatch.
-2. **Districts, 2020-21 and 2021-22.** Gross District Domestic Product for
-   every district of Uttar Pradesh (Directorate of Economics & Statistics,
-   Government of Uttar Pradesh) against VIIRS Sum of Lights per district.
-   The 2013 Economic Census district totals are tested the same way.
-
-Spearman rank correlation answers "are the brighter places the ones with more
-jobs / output?"; the slope of the log-log line (the elasticity) answers "by
-how much?". The night-light literature (Henderson, Storeygard & Weil 2012)
-works with the same two quantities.
-"""
-
 from __future__ import annotations
 
 import json

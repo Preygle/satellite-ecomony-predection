@@ -1,14 +1,3 @@
-"""Extract Sentinel-2 and Landsat imagery for a date window you choose.
-
-Used by ``app.py``, but runnable on its own:
-
-    python mentor_task/extract.py 2024-10-01 2025-03-31
-
-Both sensors are pulled for the same window over the same area of interest, so
-the two are directly comparable. The area comes from the main project's
-configuration, so this stays in step with the rest of the system.
-"""
-
 from __future__ import annotations
 
 import sys
@@ -131,7 +120,7 @@ def download(images: dict, scale: int, tag: str) -> list[Path]:
 
 def main() -> int:
     if len(sys.argv) < 3:
-        print(__doc__)
+        print("usage: python mentor_task/extract.py <start YYYY-MM-DD> <end YYYY-MM-DD>")
         return 2
     start, end = sys.argv[1], sys.argv[2]
     tag = f"{start}_{end}".replace("-", "")

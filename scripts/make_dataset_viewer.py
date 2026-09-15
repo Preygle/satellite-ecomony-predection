@@ -1,12 +1,3 @@
-"""Render each acquired dataset to a PNG for the dataset viewer page.
-
-    python scripts/make_dataset_viewer.py
-
-Reads the rasters the pipeline already produced and writes one image per
-dataset into ``dataset_viewer/img``. The viewer page itself is plain HTML and
-needs no server — open ``dataset_viewer/index.html`` in a browser.
-"""
-
 from __future__ import annotations
 
 import warnings

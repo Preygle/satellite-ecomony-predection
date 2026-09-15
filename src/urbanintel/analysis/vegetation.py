@@ -1,18 +1,3 @@
-"""Green cover and its loss to urban expansion.
-
-Two questions this answers for a planner:
-
-* How much vegetated land did the city lose, and where?
-* How much of that loss was *converted to built-up* rather than lost to
-  seasonal or agricultural variation?
-
-The second question is the one that matters, and it is why green loss is
-always intersected with built-up gain here. Varanasi sits in intensively
-cropped Gangetic plain; a naive year-on-year NDVI difference mostly measures
-the cropping calendar, not urbanisation. Requiring co-located built-up gain
-isolates genuine, permanent green loss.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

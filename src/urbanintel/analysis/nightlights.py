@@ -1,24 +1,3 @@
-"""Nighttime lights: the economic-activity axis.
-
-Nightlight radiance is the standard satellite proxy for economic activity
-(Henderson, Storeygard & Weil 2012, *AER* 102:994). Two cautions shape how
-it is used here.
-
-1. **It is a proxy, not a measurement.** The elasticity of light to output is
-   well below one and varies by sector and country. This module therefore
-   reports radiance and its *trend*, and never converts to a currency figure.
-
-2. **Radiance scales with built-up area.** A bright cell may simply be a
-   large cell of ordinary activity. Every comparative measure here is
-   normalised by built-up surface, which is what makes the ghost-growth test
-   meaningful — the question is activity *per unit of development*, not
-   activity in absolute terms.
-
-VIIRS is coarse (~460 m) relative to the 100 m built-up grid. Values are used
-as an intensity surface, not as a per-building attribute; `lit_fraction`
-exists to make that resolution mismatch explicit rather than hidden.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,11 +1,3 @@
-"""Build the 10-slide review presentation.
-
-    python scripts/make_presentation.py
-
-Every figure comes from the project's own outputs. Slide images are the
-dataset renders in ``dataset_viewer/map``.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path

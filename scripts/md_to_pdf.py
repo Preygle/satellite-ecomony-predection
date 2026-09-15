@@ -1,12 +1,3 @@
-"""Convert a project Markdown document to a print-ready PDF.
-
-    python scripts/md_to_pdf.py docs/REVIEW2_DOCUMENTATION.md
-
-Renders the Markdown to styled HTML, then prints it with headless Chrome.
-Chrome is used because it is already installed on this machine and handles
-page breaks, table splitting and fonts correctly without a LaTeX toolchain.
-"""
-
 from __future__ import annotations
 
 import subprocess
@@ -140,7 +131,7 @@ def convert(md_path: Path, pdf_path: Path, cover: bool = True) -> Path:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print(__doc__)
+        print("usage: python scripts/md_to_pdf.py <document.md>")
         return 2
     md = Path(sys.argv[1])
     if not md.is_absolute():

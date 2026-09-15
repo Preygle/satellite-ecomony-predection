@@ -1,13 +1,3 @@
-"""Export each acquired dataset as a georeferenced overlay for the map viewer.
-
-    python scripts/make_dataset_map.py
-
-Each raster is reprojected to EPSG:4326, colour-mapped at its **native
-resolution** (no downsampling, so nothing is blurred), given a transparent
-background, and written as a PNG together with its latitude/longitude bounds.
-The bounds are collected into ``layers.js``, which the map page reads.
-"""
-
 from __future__ import annotations
 
 import json
