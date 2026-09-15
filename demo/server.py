@@ -7,12 +7,12 @@
 Runs offline, on the data the analysis pipeline has already processed. Three
 things happen live when the page asks for them:
 
-1. the growth model is trained on 2010-2015, tested on 2015-2020 and used to
-   predict 2025 and 2030 - logistic regression or random forest, with or
-   without the road driver (a 300-tree forest takes about 6 s);
+1. the growth model is trained, tested and run by the command-line trainer
+   (demo/train.py), started as a separate process; its output streams into
+   the page as it prints, and its maps are drawn when it finishes;
 2. the ghost-growth typology is re-classified under any of the four
    definitions of "activity rising" (under a second);
-3. maps of the inputs and of every result are drawn from the rasters.
+3. maps of the inputs are drawn from the rasters.
 
 Only the Python standard library serves the page; no web framework is needed.
 """
@@ -21,7 +21,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import warnings
@@ -35,17 +38,13 @@ from PIL import Image
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "scripts"))
 
 import matplotlib  # noqa: E402
 import rasterio  # noqa: E402
 
-from run_growth_model import random_baseline  # noqa: E402
 from urbanintel.analysis import ghost as GH  # noqa: E402
-from urbanintel.analysis import growth_model as GM  # noqa: E402
 from urbanintel.aoi import AOI  # noqa: E402
 from urbanintel.config import load_config  # noqa: E402
-from urbanintel.data import gee  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ZONES = ROOT / "docs" / "figures" / "zones"
@@ -59,23 +58,13 @@ PRED_COLOURS = {2025: "#eda100", 2030: "#d03b3b"}
 TYPE_COLOURS = dict(GH.TYPE_COLOURS)
 TYPE_COLOURS[GH.TYPE_UNDEVELOPED] = "#ffffff"
 
-DRIVER_LABELS = {
-    "distance_centre_km": "Distance to city centre",
-    "neighbourhood_built_500m": "Built-up within 500 m",
-    "neighbourhood_built_1500m": "Built-up within 1.5 km",
-    "distance_to_urban_edge_km": "Distance to urban edge",
-    "road_density": "Road density",
-    "population_density": "Population",
-    "builtup_fraction": "Built-up fraction",
-    "slope_deg": "Terrain slope",
-}
 RULE_LABELS = {
     "raw": "Light trend above zero (Review 2 rule)",
     "significant": "Light rising, statistically significant",
     "relative": "Light rising faster than the city",
     "relative_significant": "Rising faster than the city, significant (Review 3 rule)",
 }
-MODEL_LABELS = {"random_forest": "Random forest", "logistic_regression": "Logistic regression"}
+MODELS = ("random_forest", "logistic_regression")
 
 
 # ------------------------------------------------------------------ images ---
@@ -122,7 +111,7 @@ def png(rgb: np.ndarray, scale: int = 2) -> bytes:
 # -------------------------------------------------------------------- demo ---
 
 class Demo:
-    """Everything the page needs, loaded once at start-up."""
+    """The maps and numbers the page needs, loaded once at start-up."""
 
     def __init__(self) -> None:
         t = time.time()
@@ -149,18 +138,13 @@ class Demo:
         self.cell_km2 = cell / 1e6
         self.thr = float(cfg.get("thresholds.builtup.surface_fraction_urban"))
         self.built = {y: self.read(f"builtup_m2_{y}") / cell for y in self.years}
-        self.pop = {y: self.read(f"population_{y}") for y in self.years}
-        self.dist = self.read("distance_km")
-        self.roads = self.read("road_density")
-        sp = cfg.raw_dir / "gee" / "slope.tif"
-        self.slope = np.nan_to_num(gee.to_frame(sp, self.frame), nan=0.0) if sp.exists() else None
 
         # Inputs of the ghost-growth screen, built exactly as the pipeline builds them.
         self.activity = GH.activity_index(
             self.read(f"builtup_m2_{cur}"), self.frame,
             nightlights=self.read("nightlights_level"),
             poi_density=self.read("poi_density"),
-            population=self.pop[cur],
+            population=self.read(f"population_{cur}"),
             min_builtup_m2=cfg.get("grid.min_builtup_fraction_for_analysis") * cell)
         self.evidence = GH.TrendEvidence(
             slope=self.read("nightlights_slope"), p_value=self.read("nightlights_pvalue"),
@@ -234,120 +218,27 @@ class Demo:
             "grid": {"rows": h, "cols": w, "cell_m": round(self.frame.res),
                      "area_km2": round(h * w * self.cell_km2)},
             "years": self.years,
-            "has_slope": self.slope is not None,
             "overview": self.overview,
             "zones": self.zones,
             "rules": RULE_LABELS,
             "default_rule": self.default_rule,
         }
 
-    # ---- live: growth model -------------------------------------------------
-    def drivers(self, year: int, roads: bool):
-        return GM.build_drivers(self.built[year], self.frame, distance_km=self.dist,
-                                road_density=self.roads if roads else None,
-                                population=self.pop[year], slope=self.slope,
-                                urban_threshold=self.thr)
-
-    def run_model(self, kind: str, roads: bool, trees: int) -> dict:
-        (t0, t1, t2) = self.years
-        start = time.time()
-        log: list[str] = []
-
-        def note(msg: str) -> None:
-            log.append(f"{time.time() - start:5.1f} s   {msg}")
-
-        X_tr, names = self.drivers(t0, roads)
-        X_te, _ = self.drivers(t1, roads)
-        note(f"Measured {len(names)} drivers for all {X_tr.shape[0]:,} grid cells, "
-             f"in {t0} (training) and {t1} (test).")
-        if kind == "logistic_regression":
-            m = GM.fit(self.built[t0], self.built[t1], X_tr, names, self.frame,
-                       period=(t0, t1), urban_threshold=self.thr)
-        else:
-            m = GM.fit_forest(self.built[t0], self.built[t1], X_tr, names, self.frame,
-                              period=(t0, t1), urban_threshold=self.thr, n_estimators=trees)
-        note(f"Trained {MODEL_LABELS[kind].lower()} on the {m.n_train_total:,} cells that were "
-             f"not urban in {t0}; {m.n_train_positive:,} of them became urban by {t1}.")
-
-        _, pred, obs, elig = GM.validate(m, self.built, X_te, self.frame, test=(t1, t2),
-                                         urban_threshold=self.thr)
-        v = m.validation
-        demand = int(obs.sum())
-        note(f"Tested on {t1}-{t2}, which the model never saw: placed the {demand:,} cells that "
-             f"really converted; {v.hits:,} landed in the right place.")
-        base = random_baseline(obs, elig)
-        note(f"Random placement of the same {demand:,} cells, 20 draws: "
-             f"{base['mean_hits']} right on average.")
-
-        demands = {y: GM.extrapolate_demand(self.built, self.frame, target_year=y,
-                                            urban_threshold=self.thr) for y in (2025, 2030)}
-        steps = GM.project_steps(m, self.built[t2], self.frame, demands=demands,
-                                 distance_km=self.dist,
-                                 road_density=self.roads if roads else None,
-                                 population=self.pop[t2], slope=self.slope,
-                                 urban_threshold=self.thr)
-        note(f"Predicted {demands[2025]:,} new urban cells by 2025 and {demands[2030]:,} by 2030, "
-             f"in two five-year steps from {t2}.")
-
-        # Maps: suitability now, the test, the prediction.
-        urban_now = self.built[t2] >= self.thr
-        suit_now = steps[2025][0]
-        rgb = shade(suit_now, "YlOrRd", 0.0, 1.0, show=~urban_now)
+    # ---- maps of a finished training run ----------------------------------------
+    def render_run(self, z) -> None:
+        urban_now, urban_start = z["urban_now"], z["urban_test_start"]
+        obs, pred = z["obs"], z["pred"]
+        rgb = shade(z["suit"], "YlOrRd", 0.0, 1.0, show=~urban_now)
         self.maps["suit"] = png(paint(rgb, urban_now, GREY))
-        rgb = paint(blank(obs.shape), self.built[t1] >= self.thr, GREY)
+        rgb = paint(blank(obs.shape), urban_start, GREY)
         paint(rgb, obs & pred, TEST_COLOURS["hit"])
         paint(rgb, obs & ~pred, TEST_COLOURS["miss"])
         paint(rgb, pred & ~obs, TEST_COLOURS["false_alarm"])
         self.maps["test"] = png(rgb)
-        new25, new30 = steps[2025][1], steps[2030][1]
         rgb = paint(blank(obs.shape), urban_now, GREY)
-        paint(rgb, new30 & ~new25, PRED_COLOURS[2030])
-        paint(rgb, new25, PRED_COLOURS[2025])
+        paint(rgb, z["new30"] & ~z["new25"], PRED_COLOURS[2030])
+        paint(rgb, z["new25"], PRED_COLOURS[2025])
         self.maps["pred"] = png(rgb)
-        note("Drew the three maps.")
-
-        if kind == "logistic_regression":
-            imp_title = "Weight of each driver (per standard deviation; + raises the chance)"
-            imp = {n: round(float(c), 3) for n, c in m.coefficients.items()}
-        else:
-            imp_title = "Importance of each driver (share of the forest's splitting gain)"
-            imp = {n: round(float(x), 3) for n, x in zip(names, m.estimator.feature_importances_)}
-        rf = kind == "random_forest"
-        return {
-            "model": MODEL_LABELS[kind],
-            "roads": roads,
-            "trees": trees if rf else None,
-            "drivers": [DRIVER_LABELS.get(n, n) for n in names],
-            "train_period": f"{t0}-{t1}",
-            "test_period": f"{t1}-{t2}",
-            "train_cells": m.n_train_total,
-            "train_positive": m.n_train_positive,
-            "auc_train": round(m.auc, 3),
-            "auc_train_kind": "out-of-bag" if rf else "on the training cells",
-            "auc_test": round(m.test_auc, 3),
-            "demand": demand,
-            "hits": v.hits,
-            "misses": v.misses,
-            "false_alarms": v.false_alarms,
-            "figure_of_merit": round(v.figure_of_merit, 4),
-            "producers_accuracy": round(v.producers_accuracy * 100, 1),
-            "kappa": round(v.kappa, 3),
-            "overall_accuracy": round(v.overall_accuracy * 100, 1),
-            "null_accuracy": round(v.null_overall_accuracy * 100, 1),
-            "random_hits": base["mean_hits"],
-            "random_fom": base["mean_figure_of_merit"],
-            "skill": (round(v.figure_of_merit / base["mean_figure_of_merit"], 1)
-                      if base["mean_figure_of_merit"] else None),
-            "demand_2025": demands[2025],
-            "demand_2030": demands[2030],
-            "pred_2025_km2": round(int(new25.sum()) * self.cell_km2, 2),
-            "pred_2030_km2": round(int(new30.sum()) * self.cell_km2, 2),
-            "importance_title": imp_title,
-            "importance": [[DRIVER_LABELS.get(n, n), x] for n, x in
-                           sorted(imp.items(), key=lambda kv: -abs(kv[1]))],
-            "log": log,
-            "seconds": round(time.time() - start, 1),
-        }
 
     # ---- live: ghost-growth typology ----------------------------------------
     def classify(self, rule: str) -> dict:
@@ -372,7 +263,71 @@ class Demo:
         }
 
 
+class Trainer:
+    """Runs the command-line trainer as a child process and keeps its output."""
+
+    def __init__(self, demo: Demo) -> None:
+        self.demo = demo
+        self.lock = threading.Lock()
+        self.tmp = Path(tempfile.mkdtemp(prefix="urbanintel_demo_"))
+        self.run_id = 0
+        self.command = ""
+        self.lines: list[str] = []
+        self.running = False
+        self.result: dict | None = None
+        self.error: str | None = None
+
+    def start(self, kind: str, roads: bool, trees: int) -> dict | None:
+        with self.lock:
+            if self.running:
+                return None
+            self.running, self.lines, self.result, self.error = True, [], None, None
+            self.run_id += 1
+        args = ["--model", "rf" if kind == "random_forest" else "lr"]
+        if kind == "random_forest":
+            args += ["--trees", str(trees)]
+        if not roads:
+            args.append("--no-roads")
+        self.command = "python demo/train.py " + " ".join(args)
+        out = self.tmp / f"run_{self.run_id}"
+        env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, "-u", str(HERE / "train.py"), *args, "--out", str(out)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                errors="replace", env=env, cwd=str(ROOT))
+        except OSError as exc:
+            self.error, self.running = f"could not start the trainer: {exc}", False
+            return {"run": self.run_id, "command": self.command}
+        threading.Thread(target=self._pump, args=(proc, out), daemon=True).start()
+        return {"run": self.run_id, "command": self.command}
+
+    def _pump(self, proc: subprocess.Popen, out: Path) -> None:
+        for line in proc.stdout:
+            self.lines.append(line.rstrip("\n"))
+        code = proc.wait()
+        try:
+            if code != 0:
+                raise RuntimeError(f"the trainer stopped with exit code {code}; see its output")
+            result = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+            with np.load(out.with_suffix(".npz")) as z:
+                self.demo.render_run(z)
+            self.result = result
+        except Exception as exc:                  # shown on the page
+            self.error = f"{type(exc).__name__}: {exc}"
+        finally:
+            self.running = False
+
+    def poll(self, since: int) -> dict:
+        running = self.running                    # read first: no line is appended after it drops
+        return {"run": self.run_id, "command": self.command, "lines": self.lines[since:],
+                "next": since + len(self.lines[since:]), "running": running,
+                "result": None if running else self.result,
+                "error": None if running else self.error}
+
+
 DEMO: Demo | None = None
+TRAINER: Trainer | None = None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -391,11 +346,17 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj).encode("utf-8"), "application/json")
 
     def do_GET(self):
-        path = self.path.split("?")[0].split("#")[0]
+        path, _, query = self.path.partition("?")
         if path in ("/", "/index.html"):
             return self._send(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
         if path == "/api/info":
             return self._json(DEMO.info())
+        if path == "/api/model/log":
+            since = 0
+            for part in query.split("&"):
+                if part.startswith("since="):
+                    since = max(0, int(part[6:] or 0))
+            return self._json(TRAINER.poll(since))
         if path.startswith("/map/") and path.endswith(".png"):
             data = DEMO.maps.get(path[len("/map/"):-len(".png")])
             if data is None:
@@ -414,41 +375,45 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?")[0]
-        if path not in ("/api/model", "/api/typology"):
-            return self._json({"error": "not found"}, 404)
         n = int(self.headers.get("Content-Length") or 0)
         try:
             body = json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
             return self._json({"error": "The request body must be JSON."}, 400)
-        if not DEMO.lock.acquire(blocking=False):
-            return self._json({"error": "Another run is still going. Wait for it to finish."}, 409)
-        try:
-            if path == "/api/model":
-                kind = body.get("model", "random_forest")
-                if kind not in MODEL_LABELS:
-                    return self._json({"error": f"unknown model {kind!r}"}, 400)
-                trees = min(max(int(body.get("trees", 300)), 10), 1000)
-                out = DEMO.run_model(kind, bool(body.get("roads", True)), trees)
-            else:
-                out = DEMO.classify(body.get("rule", DEMO.default_rule))
-            return self._json(out)
-        except Exception as exc:                  # show the reason on the page
-            return self._json({"error": f"{type(exc).__name__}: {exc}"}, 500)
-        finally:
-            DEMO.lock.release()
+
+        if path == "/api/model":
+            kind = body.get("model", "random_forest")
+            if kind not in MODELS:
+                return self._json({"error": f"unknown model {kind!r}"}, 400)
+            trees = min(max(int(body.get("trees", 300)), 10), 1000)
+            started = TRAINER.start(kind, bool(body.get("roads", True)), trees)
+            if started is None:
+                return self._json({"error": "A training run is still going. Wait for it to finish."}, 409)
+            return self._json(started)
+
+        if path == "/api/typology":
+            if not DEMO.lock.acquire(blocking=False):
+                return self._json({"error": "A classification is still running."}, 409)
+            try:
+                return self._json(DEMO.classify(body.get("rule", DEMO.default_rule)))
+            except Exception as exc:              # show the reason on the page
+                return self._json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+            finally:
+                DEMO.lock.release()
+
+        return self._json({"error": "not found"}, 404)
 
 
 def main() -> int:
-    global DEMO
+    global DEMO, TRAINER
     port = PORT
     if "--port" in sys.argv:
         port = int(sys.argv[sys.argv.index("--port") + 1])
     print("Loading the processed rasters ...")
     DEMO = Demo()
+    TRAINER = Trainer(DEMO)
     h, w = DEMO.frame.shape
-    print(f"Loaded in {DEMO.load_s} s: {h} x {w} cells of {DEMO.frame.res:.0f} m, "
-          f"slope driver {'available' if DEMO.slope is not None else 'missing'}.")
+    print(f"Loaded in {DEMO.load_s} s: {h} x {w} cells of {DEMO.frame.res:.0f} m.")
     url = f"http://{HOST}:{port}/"
     server = ThreadingHTTPServer((HOST, port), Handler)
     print(f"Demo running at {url}   (close this window or press Ctrl+C to stop)")

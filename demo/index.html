@@ -7,6 +7,7 @@
 <style>
   :root { --ink: #16191c; --muted: #5b6166; --line: #d9dcd5; --accent: #1f5f8b; --bg: #f6f7f4; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* layout classes must not un-hide a hidden block */
   body { margin: 0; background: var(--bg); color: var(--ink);
          font: 16px/1.5 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
   main { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
@@ -52,7 +53,10 @@
   .bars .track { background: #eef0ec; height: 14px; position: relative; }
   .bars .fill { position: absolute; top: 0; bottom: 0; background: var(--accent); }
   .bars .fill.neg { background: #eb6834; }
-  ol.log { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; padding-left: 22px; }
+  .term { margin: 10px 0 6px; border-radius: 6px; overflow: hidden; border: 1px solid #0b0f12; }
+  .term-bar { background: #1f262b; color: #aeb8b0; font: 12px/1 Consolas, "Cascadia Mono", monospace; padding: 8px 12px; }
+  .term pre { margin: 0; background: #0f1417; color: #d5e1d8; font: 12.5px/1.45 Consolas, "Cascadia Mono", "Courier New", monospace;
+              padding: 12px 14px; height: 460px; overflow: auto; white-space: pre; }
   .tablewrap { overflow-x: auto; }
 </style>
 </head>
@@ -100,6 +104,10 @@
     <button type="button" class="go" id="runModel">Train, test and predict</button>
   </div>
   <p id="runStatus" class="status"></p>
+  <div class="term">
+    <div class="term-bar">model training &middot; command-line output &middot; the same program runs in a terminal: train_model.bat</div>
+    <pre id="term">Press "Train, test and predict" to start a training run.</pre>
+  </div>
 
   <div id="runOut" hidden>
     <div class="grid2">
@@ -110,7 +118,6 @@
       <div>
         <h3 id="impTitle">Driver importance</h3>
         <div class="bars" id="imp"></div>
-        <details><summary>What happened, step by step</summary><ol class="log" id="log"></ol></details>
       </div>
     </div>
     <div class="grid3">
@@ -256,12 +263,28 @@ async function runModel() {
   const body = {model: $("model").value, trees: Number($("trees").value), roads: $("roads").checked};
   const btn = $("runModel");
   btn.disabled = true;
-  const stop = timer($("runStatus"), `Training ${body.model === "random_forest" ? "the random forest" : "logistic regression"} ...`);
+  const term = $("term");
+  const stop = timer($("runStatus"), `Training ${body.model === "random_forest" ? "the random forest" : "logistic regression"} - output below ...`);
   try {
-    const r = await api("/api/model", body);
-    stop();
-    $("runStatus").textContent = `Done in ${r.seconds} s.`;
-    renderRun(r);
+    const start = await api("/api/model", body);
+    term.textContent = "$ " + start.command + "\n";
+    let since = 0;
+    for (;;) {
+      await new Promise(res => setTimeout(res, 200));
+      const p = await api("/api/model/log?since=" + since);
+      if (p.lines.length) {
+        term.textContent += p.lines.join("\n") + "\n";
+        term.scrollTop = term.scrollHeight;
+      }
+      since = p.next;
+      if (!p.running) {
+        if (p.error) throw new Error(p.error);
+        stop();
+        $("runStatus").textContent = `Done in ${p.result.seconds} s.`;
+        renderRun(p.result);
+        break;
+      }
+    }
   } catch (e) {
     stop();
     $("runStatus").textContent = "Run failed: " + e.message;
@@ -296,7 +319,6 @@ function renderRun(r) {
     ? `<p class="note">Orange = the driver lowers the chance of becoming urban.</p>`
     : `<p class="note">Measured while the trees were built. On the test years the picture differs:
        shuffling population there actually improves the forest, so population is a candidate to drop (Review 4).</p>`);
-  $("log").innerHTML = r.log.map(l => `<li>${l}</li>`).join("");
   for (const [id, m] of [["mapSuit", "suit"], ["mapTest", "test"], ["mapPred", "pred"]]) $(id).src = `/map/${m}.png` + bust();
   runs += 1;
   const tb = $("history").tBodies[0];
