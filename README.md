@@ -252,6 +252,7 @@ tests/test_core.py              41 tests
 docs/                           reports, method documents, figures/, diagrams/, decks
 run_review3.bat                 the whole chain in one command
 run_demo.bat, demo/             live demo website (offline): trains and runs the model on request
+train_model.bat                 the same training run in a terminal, with full command-line output
 ```
 
 ---

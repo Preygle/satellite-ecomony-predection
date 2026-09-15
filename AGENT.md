@@ -167,7 +167,8 @@ downloads cap at ~50 MB; the export scripts step down the scale automatically.
 | Zone evidence cards | `python scripts/make_zone_cards.py` | ~15 s |
 | Architecture diagrams + progress charts | `python scripts/make_diagrams.py` | ~17 s |
 | Panel deck, no code on slides | `python scripts/make_diagrams.py --clean` then `python scripts/make_presentation_panel.py` | ~20 s |
-| Live demo website (offline, for the review) | `run_demo.bat` or `python demo/server.py` → http://127.0.0.1:8765 | loads in <1 s; RF run ~6 s |
+| Live demo website (offline, for the review) | `run_demo.bat` or `python demo/server.py` → http://127.0.0.1:8765 | loads in <1 s; RF run 7–10 s |
+| Growth-model training, command line | `train_model.bat` or `python demo/train.py [--model lr] [--no-roads] [--permutation]` | RF 7–10 s, LR ~1 s |
 | **All of the above** | **`run_review3.bat`** | **about 3 min 40 s** |
 | Report PDF | `python scripts/md_to_pdf.py docs/REVIEW3_REPORT.md` | ~20 s |
 | Review 3 deck | `python scripts/make_presentation_r3.py` | ~5 s |
