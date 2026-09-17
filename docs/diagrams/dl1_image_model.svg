@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870" role="img" aria-label="Image model: two Landsat dates enter a Prithvi-EO-2.0 temporal encoder, a UNet decoder produces 30 m conversion logits, an eligible-cell mask averages them to 100 m suitability, and the unchanged cellular automaton allocates new urban cells; trained on 2005-2010 and 2010-2015, tested on 2015-2020, forecasting 2025 and 2030.">
+  <defs>
+    <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+    </marker>
+  </defs>
+  <rect width="1000" height="560" style="fill:var(--ground)"></rect>
+
+  <!-- row 1: forward pass -->
+  <text x="30" y="62" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">INPUT · 2 DATES × 6 BANDS · 224 × 224 PX · 30 M</text>
+  <rect x="30" y="80" width="120" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="36" y="93" font-size="10" fill="currentColor">t − 5</text>
+  <rect x="48" y="98" width="120" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="108" y="130" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Landsat</text>
+  <text x="108" y="146" text-anchor="middle" fill="currentColor">date t</text>
+  <text x="108" y="162" text-anchor="middle" fill="currentColor">B · G · R · NIR · SWIR1 · SWIR2</text>
+  <text x="99" y="200" text-anchor="middle" style="fill:var(--muted)">+ date · lat / lon metadata</text>
+  <line x1="168" y1="138" x2="208" y2="138" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
+
+  <rect x="210" y="80" width="200" height="110" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="310" y="104" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Prithvi-EO-2.0-300M-TL</text>
+  <text x="310" y="122" text-anchor="middle" fill="currentColor">temporal ViT encoder (ViT-L)</text>
+  <text x="310" y="138" text-anchor="middle" fill="currentColor">3D patch embedding 16 × 16 × 2</text>
+  <text x="310" y="154" text-anchor="middle" fill="currentColor">pretrained as a masked</text>
+  <text x="310" y="170" text-anchor="middle" fill="currentColor">autoencoder on HLS, 30 m</text>
+  <line x1="410" y1="135" x2="448" y2="135" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
+
+  <rect x="450" y="95" width="150" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="525" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">UNet decoder</text>
+  <text x="525" y="140" text-anchor="middle" fill="currentColor">4 up-sampling blocks</text>
+  <text x="525" y="156" text-anchor="middle" fill="currentColor">conversion logits at 30 m</text>
+  <line x1="600" y1="135" x2="638" y2="135" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
+
+  <rect x="640" y="95" width="190" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="735" y="118" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Eligible-cell mask + mean</text>
+  <text x="735" y="136" text-anchor="middle" fill="currentColor">keep cells not urban at t</text>
+  <text x="735" y="152" text-anchor="middle" fill="currentColor">average pixels → 100 m cells</text>
+  <text x="735" y="168" text-anchor="middle" fill="currentColor">= suitability s</text>
+  <line x1="735" y1="175" x2="735" y2="238" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
+
+  <!-- row 2: training and allocation -->
+  <rect x="210" y="240" width="390" height="110" rx="3" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" style="fill:var(--surface)"></rect>
+  <text x="222" y="258" font-size="10.5" letter-spacing="1" font-weight="700" fill="currentColor">TRAINING</text>
+  <text x="222" y="275" fill="currentColor">loss: focal + Dice, on eligible pixels only</text>
+  <text x="222" y="291" fill="currentColor">label: built-up ≥ 0.20 at t + 5 and &lt; 0.20 at t</text>
+  <text x="222" y="307" fill="currentColor">224-px random crops · 8 flips and rotations · band jitter</text>
+  <text x="222" y="323" fill="currentColor">AdamW · encoder 1e-5, decoder 1e-4 · mixed precision</text>
+  <text x="222" y="339" fill="currentColor">early stopping on held-out 5 × 5 km blocks</text>
+  <line x1="310" y1="238" x2="310" y2="192" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahA)"></line>
+  <line x1="525" y1="238" x2="525" y2="177" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahA)"></line>
+  <text x="318" y="218" font-size="10" style="fill:var(--muted)">backprop</text>
+  <text x="533" y="212" font-size="10" style="fill:var(--muted)">backprop</text>
+
+  <rect x="640" y="240" width="190" height="110" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="735" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Cellular automaton</text>
+  <text x="735" y="278" text-anchor="middle" style="fill:var(--muted)">unchanged from Review 3</text>
+  <text x="735" y="296" text-anchor="middle" fill="currentColor">score = 0.65 s + 0.35 n₃₀₀</text>
+  <text x="735" y="312" text-anchor="middle" fill="currentColor">8 allocation rounds</text>
+  <text x="735" y="328" text-anchor="middle" fill="currentColor">demand from CAGR, 1.86 % / yr</text>
+  <line x1="830" y1="295" x2="868" y2="295" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
+
+  <rect x="870" y="255" width="110" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
+  <text x="925" y="280" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">New urban</text>
+  <text x="925" y="296" text-anchor="middle" fill="currentColor">cells at t + 5</text>
+  <text x="925" y="318" text-anchor="middle" fill="currentColor">FoM · AUC · TOC</text>
+
+  <!-- row 3: transitions -->
+  <text x="30" y="392" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">TRANSITIONS · INPUT = LANDSAT AT T − 5 AND T · LABEL = GHSL BUILT-UP CHANGE T → T + 5</text>
+  <rect x="520" y="405" width="140" height="110" fill="currentColor" opacity="0.07"></rect>
+
+  <line x1="100" y1="470" x2="940" y2="470" stroke="currentColor" stroke-width="1"></line>
+  <line x1="100" y1="466" x2="100" y2="474" stroke="currentColor"></line>
+  <line x1="240" y1="466" x2="240" y2="474" stroke="currentColor"></line>
+  <line x1="380" y1="466" x2="380" y2="474" stroke="currentColor"></line>
+  <line x1="520" y1="466" x2="520" y2="474" stroke="currentColor"></line>
+  <line x1="660" y1="466" x2="660" y2="474" stroke="currentColor"></line>
+  <line x1="800" y1="466" x2="800" y2="474" stroke="currentColor"></line>
+  <line x1="940" y1="466" x2="940" y2="474" stroke="currentColor"></line>
+  <text x="100" y="490" text-anchor="middle" fill="currentColor">2000</text>
+  <text x="240" y="490" text-anchor="middle" fill="currentColor">2005</text>
+  <text x="380" y="490" text-anchor="middle" fill="currentColor">2010</text>
+  <text x="520" y="490" text-anchor="middle" fill="currentColor">2015</text>
+  <text x="660" y="490" text-anchor="middle" fill="currentColor">2020</text>
+  <text x="800" y="490" text-anchor="middle" fill="currentColor">2025</text>
+  <text x="940" y="490" text-anchor="middle" fill="currentColor">2030</text>
+
+  <path d="M104,452 v6 H236 v-6" fill="none" stroke="currentColor"></path>
+  <path d="M244,452 v6 H376 v-6" fill="none" stroke="currentColor"></path>
+  <path d="M384,452 v6 H516 v-6" fill="none" stroke="currentColor"></path>
+  <path d="M524,452 v6 H656 v-6" fill="none" stroke-width="1.5" style="stroke:var(--accent)"></path>
+  <path d="M664,452 v6 H796 v-6" fill="none" stroke="currentColor"></path>
+  <path d="M804,452 v6 H936 v-6" fill="none" stroke="currentColor"></path>
+  <text x="170" y="446" text-anchor="middle" style="fill:var(--muted)">train (optional)</text>
+  <text x="310" y="446" text-anchor="middle" fill="currentColor">train</text>
+  <text x="450" y="446" text-anchor="middle" fill="currentColor">train</text>
+  <text x="590" y="446" text-anchor="middle" font-weight="700" style="fill:var(--accent)">TEST, touched once</text>
+  <text x="730" y="446" text-anchor="middle" fill="currentColor">forecast</text>
+  <text x="870" y="446" text-anchor="middle" fill="currentColor">forecast</text>
+
+  <text x="30" y="510" style="fill:var(--muted)">sensor</text>
+  <text x="100" y="510" text-anchor="middle" fill="currentColor">L5 / L7</text>
+  <text x="240" y="510" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="380" y="510" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="520" y="510" text-anchor="middle" fill="currentColor">L8 · HLS</text>
+  <text x="660" y="510" text-anchor="middle" fill="currentColor">L8 · HLS</text>
+  <text x="800" y="510" text-anchor="middle" fill="currentColor">L8 / L9 · HLS</text>
+
+  <text x="30" y="531" style="fill:var(--muted)">GHSL</text>
+  <circle cx="100" cy="527" r="4" fill="currentColor"></circle>
+  <circle cx="240" cy="527" r="4" fill="currentColor"></circle>
+  <circle cx="380" cy="527" r="4" fill="currentColor"></circle>
+  <circle cx="520" cy="527" r="4" fill="currentColor"></circle>
+  <circle cx="660" cy="527" r="4" fill="currentColor"></circle>
+  <circle cx="800" cy="527" r="4" fill="none" stroke="currentColor"></circle>
+  <circle cx="940" cy="527" r="4" fill="none" stroke="currentColor"></circle>
+  <text x="100" y="550" font-size="10.5" style="fill:var(--muted)">● observed epoch, usable as a label    ○ GHSL projection, never used as a label</text>
+</svg>
