@@ -13,7 +13,7 @@
   <rect x="48" y="98" width="120" height="80" rx="3" stroke="currentColor" stroke-width="1" style="fill:var(--surface)"></rect>
   <text x="108" y="130" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Landsat</text>
   <text x="108" y="146" text-anchor="middle" fill="currentColor">date t</text>
-  <text x="108" y="162" text-anchor="middle" fill="currentColor">B · G · R · NIR · SWIR1 · SWIR2</text>
+  <text x="108" y="162" text-anchor="middle" fill="currentColor">6 bands, 30 m</text>
   <text x="99" y="200" text-anchor="middle" style="fill:var(--muted)">+ date · lat / lon metadata</text>
   <line x1="168" y1="138" x2="208" y2="138" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahA)"></line>
 

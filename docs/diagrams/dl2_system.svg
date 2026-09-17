@@ -10,9 +10,9 @@
   <rect x="20" y="40" width="920" height="225" rx="4" fill="currentColor" opacity="0.035"></rect>
   <rect x="20" y="278" width="920" height="192" rx="4" fill="currentColor" opacity="0.035"></rect>
   <rect x="20" y="492" width="920" height="110" rx="4" fill="currentColor" opacity="0.035"></rect>
-  <text x="30" y="56" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">1 · PERCEPTION — DEEP LEARNING ON IMAGERY</text>
-  <text x="30" y="294" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">2 · REASONING — TABULAR MODEL + CELLULAR AUTOMATON, SAME HOLD-OUT AS REVIEW 3</text>
-  <text x="30" y="506" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">3 · EXPLANATION — GENERATIVE AI, GROUNDED IN TIER 2 NUMBERS</text>
+  <text x="30" y="56" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">1 · PERCEPTION</text>
+  <text x="30" y="294" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">2 · REASONING</text>
+  <text x="30" y="506" font-size="10.5" letter-spacing="1" style="fill:var(--muted)">3 · EXPLANATION</text>
 
   <!-- tier 1 -->
   <rect x="30" y="80" width="170" height="45" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
