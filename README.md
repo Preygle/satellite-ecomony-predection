@@ -237,6 +237,10 @@ scripts/
   export_review3_layers.py      the extra Earth Engine layers used by the checks
   fetch_indian_data.py          SHRUG and Uttar Pradesh district GDP downloads
   run_growth_model.py           fit, validate, compare and project the growth models
+  train_image_model.py          train the image model (Model A) and score it once
+  run_deep_system.py            image + boosted trees + blend + ensemble + ghost check
+  export_landsat_stack.py       six-band Landsat composites, harmonised across sensors
+  make_dl_figures.py            11 analytics figures -> docs/figures/dl/
   validate_typology.py          temporal hold-out test of the ghost / emerging split
   cross_checks.py               six built-up datasets, Open Buildings, Landsat vs MODIS
   validate_population.py        GHS-POP and WorldPop against the Census of India
@@ -249,6 +253,7 @@ scripts/
   md_to_pdf.py                  Markdown report -> PDF
 dashboard/app.py                Streamlit dashboard, 7 tabs
 tests/test_core.py              41 tests
+tests/test_deep.py              12 tests for the deep models (no PyTorch needed)
 docs/                           reports, method documents, figures/, diagrams/, decks
 run_review3.bat                 the whole chain in one command
 run_demo.bat, demo/             live demo website (offline): trains and runs the model on request

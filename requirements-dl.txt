@@ -1,0 +1,15 @@
+# Deep-learning extras. The main pipeline does not import any of these:
+# install them only to run scripts/train_image_model.py, run_deep_system.py
+# and make_dl_figures.py.
+#
+#   pip install -r requirements-dl.txt
+#
+# torch: the CPU wheel is enough for the model in this repository (about four
+# minutes to train). For a GPU build pick the right index for your CUDA
+# version from https://pytorch.org.
+torch>=2.2
+xgboost>=2.0
+
+# Only needed for --encoder prithvi, which loads Prithvi-EO-2.0 (IBM and NASA,
+# Apache-2.0) pretrained on Harmonized Landsat and Sentinel-2 at 30 m.
+# terratorch>=1.0

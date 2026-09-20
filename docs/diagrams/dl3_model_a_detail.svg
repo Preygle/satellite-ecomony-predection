@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 660" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd" role="img" aria-label="Detailed architecture of the image model as implemented: eight driver maps at 100 metres are cut into 32 by 32 tiles, passed through a three-stage convolutional encoder and a UNet decoder with skip connections to one logit per cell, trained with focal and Dice loss on eligible cells, and the resulting suitability surface is allocated by the cellular automaton and scored on the held-out period.">
+  <defs>
+    <marker id="ahC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+    </marker>
+  </defs>
+  <rect width="1180" height="660" style="fill:var(--ground)"></rect>
+
+  <text x="30" y="34" font-size="13" font-weight="700" fill="currentColor">Model A as implemented</text>
+  <text x="30" y="52" style="fill:var(--muted)">src/urbanintel/deep · trained by scripts/train_image_model.py · 500,481 parameters, all trainable</text>
+
+  <!-- INPUT -->
+  <text x="30" y="88" font-size="10" letter-spacing="1" style="fill:var(--muted)">INPUT · ONE DATE · EIGHT DRIVER MAPS AT 100 M</text>
+  <rect x="30" y="100" width="188" height="176" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="124" y="120" text-anchor="middle" font-weight="700" fill="currentColor">driver maps, t = 2010</text>
+  <text x="42" y="140" fill="currentColor">distance to centre</text>
+  <text x="42" y="156" fill="currentColor">neighbourhood built 500 m</text>
+  <text x="42" y="172" fill="currentColor">neighbourhood built 1500 m</text>
+  <text x="42" y="188" fill="currentColor">distance to urban edge</text>
+  <text x="42" y="204" fill="currentColor">road density</text>
+  <text x="42" y="220" fill="currentColor">population density</text>
+  <text x="42" y="236" fill="currentColor">built-up fraction</text>
+  <text x="42" y="252" fill="currentColor">slope</text>
+  <text x="124" y="270" text-anchor="middle" style="fill:var(--muted)">(8, 345, 365) float32</text>
+
+  <text x="124" y="300" text-anchor="middle" style="fill:var(--accent)">same eight columns the</text>
+  <text x="124" y="315" text-anchor="middle" style="fill:var(--accent)">random forest is given,</text>
+  <text x="124" y="330" text-anchor="middle" style="fill:var(--accent)">kept as maps</text>
+
+  <line x1="218" y1="188" x2="256" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- TILING -->
+  <rect x="258" y="130" width="150" height="116" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="333" y="150" text-anchor="middle" font-weight="700" fill="currentColor">tile + normalise</text>
+  <text x="333" y="168" text-anchor="middle" fill="currentColor">32 x 32 cells, stride 8</text>
+  <text x="333" y="184" text-anchor="middle" fill="currentColor">mean 0, sd 1 per channel</text>
+  <text x="333" y="200" text-anchor="middle" fill="currentColor">8 flips and rotations</text>
+  <text x="333" y="216" text-anchor="middle" fill="currentColor">tiles with growth drawn 4x</text>
+  <text x="333" y="236" text-anchor="middle" style="fill:var(--muted)">batch (16, 1, 8, 32, 32)</text>
+  <line x1="408" y1="188" x2="446" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- ENCODER -->
+  <rect x="448" y="96" width="250" height="184" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="573" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">encoder</text>
+  <text x="573" y="132" text-anchor="middle" style="fill:var(--muted)">LocalEncoder · swap for Prithvi-EO-2.0</text>
+
+  <rect x="462" y="142" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="472" y="157" fill="currentColor">stem: conv 3x3 x2 + BN + ReLU</text>
+  <text x="472" y="171" style="fill:var(--muted)">(16, 32, 32, 32)   stride 1</text>
+
+  <rect x="462" y="184" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="472" y="199" fill="currentColor">stage 2: stride 2 + dropout 0.1</text>
+  <text x="472" y="213" style="fill:var(--muted)">(16, 64, 16, 16)</text>
+
+  <rect x="462" y="226" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="472" y="241" fill="currentColor">stage 3: stride 2 + dropout 0.1</text>
+  <text x="472" y="255" style="fill:var(--muted)">(16, 128, 8, 8)</text>
+
+  <line x1="698" y1="188" x2="736" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- DECODER -->
+  <rect x="738" y="96" width="210" height="184" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="843" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">UNet decoder</text>
+  <text x="843" y="132" text-anchor="middle" style="fill:var(--muted)">upsample, concatenate, convolve</text>
+  <rect x="750" y="142" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="760" y="161" fill="currentColor">1x1 project 128 &#8594; 64</text>
+  <rect x="750" y="178" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="760" y="197" fill="currentColor">up x2 + skip 64 &#8594; 64</text>
+  <rect x="750" y="214" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="760" y="233" fill="currentColor">up x2 + skip 32 &#8594; 64</text>
+  <rect x="750" y="250" width="186" height="24" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="760" y="266" fill="currentColor">1x1 head &#8594; (16, 1, 32, 32)</text>
+
+  <!-- skip connections -->
+  <path d="M684,160 C716,160 716,193 748,193" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahC)"></path>
+  <path d="M684,202 C706,202 706,229 748,229" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahC)"></path>
+  <text x="700" y="150" font-size="9.5" style="fill:var(--muted)">skip</text>
+
+  <line x1="948" y1="188" x2="986" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- LOSS -->
+  <rect x="988" y="120" width="162" height="136" rx="3" stroke-width="1.5" style="fill:var(--warm-soft);stroke:var(--warm)"></rect>
+  <text x="1069" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">loss</text>
+  <text x="1069" y="158" text-anchor="middle" fill="currentColor">focal(&#945;=0.25, &#947;=2)</text>
+  <text x="1069" y="174" text-anchor="middle" fill="currentColor">+ 0.5 x soft Dice</text>
+  <text x="1069" y="194" text-anchor="middle" fill="currentColor">masked to cells not</text>
+  <text x="1069" y="208" text-anchor="middle" fill="currentColor">urban at t</text>
+  <text x="1069" y="228" text-anchor="middle" style="fill:var(--muted)">label: built-up &#8805; 0.20</text>
+  <text x="1069" y="242" text-anchor="middle" style="fill:var(--muted)">at t + 5</text>
+
+  <path d="M1069,256 C1069,296 573,296 573,282" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ahC)"></path>
+  <text x="820" y="318" text-anchor="middle" font-size="10" style="fill:var(--muted)">gradients &#183; AdamW, lr 1e-3, cosine decay, gradient clip 5.0</text>
+
+  <!-- SPLIT -->
+  <text x="30" y="372" font-size="10" letter-spacing="1" style="fill:var(--muted)">SPLIT · WHOLE 8 KM BLOCKS, NEVER SINGLE CELLS</text>
+  <rect x="30" y="384" width="378" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="44" y="404" font-weight="700" fill="currentColor">25 blocks &#8594; 6 held out (seed 0)</text>
+  <text x="44" y="424" fill="currentColor">919 training tiles &#183; 357 validation tiles</text>
+  <text x="44" y="440" fill="currentColor">487 tiles dropped: they straddle a boundary</text>
+  <text x="44" y="456" style="fill:var(--accent)">that gap is the buffer &#8212; no training tile</text>
+  <text x="44" y="470" style="fill:var(--accent)">shares a single cell with a validation tile</text>
+  <text x="44" y="492" style="fill:var(--muted)">early stopping watches average precision, not AUC:</text>
+  <text x="44" y="506" style="fill:var(--muted)">the automaton only ever uses the top of the ranking</text>
+
+  <line x1="408" y1="448" x2="446" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- PREDICT -->
+  <rect x="448" y="384" width="250" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="573" y="404" text-anchor="middle" font-weight="700" fill="currentColor">predict the whole frame</text>
+  <text x="462" y="424" fill="currentColor">sliding window, stride 8</text>
+  <text x="462" y="440" fill="currentColor">logits averaged where windows overlap,</text>
+  <text x="462" y="454" fill="currentColor">then one sigmoid &#8212; so no tile seams</text>
+  <text x="462" y="476" fill="currentColor">suitability s: (345, 365) in [0, 1]</text>
+  <text x="462" y="498" style="fill:var(--muted)">18 draws (3 seeds x 6 dropout) for uncertainty</text>
+
+  <line x1="698" y1="448" x2="736" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- CA -->
+  <rect x="738" y="384" width="210" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="843" y="404" text-anchor="middle" font-weight="700" fill="currentColor">cellular automaton</text>
+  <text x="752" y="424" fill="currentColor">score = 0.65 s + 0.35 n&#8323;&#8320;&#8320;</text>
+  <text x="752" y="440" fill="currentColor">8 rounds, demand = 1,214 cells</text>
+  <text x="752" y="456" fill="currentColor">(the count really observed)</text>
+  <text x="752" y="478" style="fill:var(--warm)">the 0.35 is swept, not assumed:</text>
+  <text x="752" y="492" style="fill:var(--warm)">see docs/figures/dl/DL11</text>
+
+  <line x1="948" y1="448" x2="986" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+
+  <!-- SCORE -->
+  <rect x="988" y="384" width="162" height="128" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="1069" y="404" text-anchor="middle" font-weight="700" fill="currentColor">scored once</text>
+  <text x="1069" y="422" text-anchor="middle" fill="currentColor">2015 &#8594; 2020</text>
+  <text x="1002" y="444" fill="currentColor">FoM   0.1067</text>
+  <text x="1002" y="460" fill="currentColor">AUC   0.6807</text>
+  <text x="1002" y="476" fill="currentColor">AP      0.0969</text>
+  <text x="1002" y="492" fill="currentColor">hits    234 / 1,214</text>
+
+  <!-- footer facts -->
+  <line x1="30" y1="546" x2="1150" y2="546" stroke="currentColor" opacity="0.25"></line>
+  <text x="30" y="568" font-size="10" letter-spacing="1" style="fill:var(--muted)">MEASURED, NOT ASSUMED</text>
+  <text x="30" y="590" fill="currentColor">Training: 37 epochs x 5.5 s on 16 CPU cores, no GPU. Best epoch 27 by validation average precision.</text>
+  <text x="30" y="608" fill="currentColor">Across three seeds the Figure of Merit is 0.1041 &#177; 0.0018, and the test AUC swings from 0.679 to 0.835 &#8212; the ranking is far less stable than the allocation.</text>
+  <text x="30" y="626" fill="currentColor">Eligible cells 111,700 &#183; conversions 1,214 (1.09%) &#183; random allocation reaches a Figure of Merit of 0.0055.</text>
+  <text x="30" y="644" style="fill:var(--muted)">Two input dates and 30 m Landsat bands are supported by the same code; only one GHSL date is on disk today, so the model runs on one.</text>
+</svg>
