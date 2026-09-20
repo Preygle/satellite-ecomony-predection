@@ -86,7 +86,8 @@ class GrowthNet(nn.Module):
 
     def __init__(self, *, n_channels: int, n_dates: int, encoder: str = "local",
                  widths: tuple[int, ...] = (32, 64, 128), decoder_width: int = 64,
-                 dropout: float = 0.1, freeze_encoder: bool = True):
+                 dropout: float = 0.1, freeze_encoder: bool = True,
+                 encoder_checkpoint: str | None = None):
         super().__init__()
         self.encoder_kind = encoder
         if encoder == "local":
@@ -94,7 +95,8 @@ class GrowthNet(nn.Module):
         elif encoder == "prithvi":
             from .prithvi import PrithviEncoder
 
-            self.encoder = PrithviEncoder(n_dates=n_dates, freeze=freeze_encoder)
+            self.encoder = PrithviEncoder(n_dates=n_dates, freeze=freeze_encoder,
+                                          checkpoint=encoder_checkpoint)
         else:
             raise ValueError(f"unknown encoder {encoder!r}; use 'local' or 'prithvi'")
         self.decoder = UNetDecoder(self.encoder.out_channels, width=decoder_width,

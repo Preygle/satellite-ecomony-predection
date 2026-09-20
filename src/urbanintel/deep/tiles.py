@@ -44,13 +44,31 @@ def block_ids(shape: tuple[int, int], frame: AnalysisFrame, *,
     return (rows * (shape[1] // side + 1) + cols).astype("int32")
 
 
-def block_split(ids: np.ndarray, *, val_fraction: float = 0.25,
-                seed: int = 0) -> tuple[np.ndarray, list[int]]:
-    """Choose whole blocks for validation. Returns (validation mask, block ids)."""
+def block_split(ids: np.ndarray, *, val_fraction: float = 0.25, seed: int = 0,
+                min_span: int = 0) -> tuple[np.ndarray, list[int]]:
+    """Choose whole blocks for validation. Returns (validation mask, block ids).
+
+    `min_span` keeps blocks that are too small to hold one tile out of the
+    validation set. The blocks along the right and bottom edges of the frame
+    are slivers left over by the division, and a validation tile has to fit
+    wholly inside its block — so picking a sliver silently leaves the run with
+    no validation data at all. Those edge blocks stay available for training.
+    """
     rng = np.random.default_rng(seed)
     uniq = np.unique(ids)
+    if min_span > 0:
+        big = []
+        for b in uniq:
+            rows, cols = np.where(ids == b)
+            if (rows.max() - rows.min() + 1) >= min_span and                     (cols.max() - cols.min() + 1) >= min_span:
+                big.append(b)
+        if not big:
+            raise ValueError(
+                f"no block spans {min_span} pixels; use a larger --block-km or a "
+                f"smaller --tile")
+        uniq = np.asarray(big)
     n_val = max(1, int(round(len(uniq) * val_fraction)))
-    chosen = rng.choice(uniq, size=n_val, replace=False)
+    chosen = rng.choice(uniq, size=min(n_val, len(uniq)), replace=False)
     mask = np.isin(ids, chosen)
     return mask, sorted(int(c) for c in chosen)
 

@@ -339,6 +339,45 @@ def fig_ca_sweep(sysd: dict) -> None:
     save(fig, "DL11_neighbourhood_weight.png")
 
 
+def fig_sensor_consistency(cfg) -> None:
+    """Per-band median reflectance by epoch, with the sensor change marked."""
+    import rasterio
+
+    years, rows = [], []
+    for y in range(1985, 2026, 5):
+        p = cfg.raw_dir / "gee" / f"landsat_{y}.tif"
+        if not p.exists():
+            continue
+        with rasterio.open(p) as d:
+            a = d.read().astype("float32")
+            nd = d.nodata if d.nodata is not None else -32768
+            valid = np.isfinite(a[0]) & (a[0] != nd) & (a[0] != 0)
+            rows.append([float(np.median(a[i][valid])) / 10000 for i in range(a.shape[0])])
+            years.append(y)
+    if len(years) < 2:
+        return
+    rows = np.asarray(rows)
+    bands = ["blue", "green", "red", "near infrared", "shortwave infrared 1",
+             "shortwave infrared 2"]
+    colours = [BLUE, GREEN, RED, NAVY, AMBER, MUTED]
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    for i, (b, c) in enumerate(zip(bands, colours)):
+        ax.plot(years, rows[:, i], "o-", ms=5, lw=1.8, color=c, label=b)
+    ax.axvline(2012.5, color=INK2, lw=1.2, ls="--")
+    ax.annotate("Landsat 5 (TM)", xy=(2012, ax.get_ylim()[1]), ha="right", va="top",
+                fontsize=8.5, color=INK2)
+    ax.annotate("Landsat 8 (OLI)", xy=(2013, ax.get_ylim()[1]), ha="left", va="top",
+                fontsize=8.5, color=INK2)
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("median surface reflectance")
+    ax.set_title("The sensor change does not show up as a change on the ground")
+    ax.legend(ncol=3, fontsize=8.5, loc="center left")
+    note(ax, "Dry-season medians over the whole study area, after the Roy et al. (2016) "
+             "harmonisation.\nA jump at the 2013 sensor change would mean the model "
+             "was reading the satellite, not the city.")
+    save(fig, "DL12_sensor_consistency.png")
+
+
 def fig_maps(cfg, sysd: dict) -> None:
     layers = [("growth_suitability_rf", "random forest suitability", "viridis"),
               ("growth_suitability_image", "image model suitability", "viridis"),
@@ -382,6 +421,7 @@ def main() -> int:
     fig_stability(sysd)
     fig_seeds(cfg)
     fig_ca_sweep(sysd)
+    fig_sensor_consistency(cfg)
     fig_maps(cfg, sysd)
     print(f"\n  {len(list(FIG.glob('*.png')))} figures in docs/figures/dl")
     return 0
