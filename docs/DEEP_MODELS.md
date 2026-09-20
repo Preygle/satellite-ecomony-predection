@@ -1,166 +1,169 @@
 # Deep models: what was built, what it scores, what it changed
 
-Run on 20 September 2026. Both models in `docs/ARCHITECTURE_DEEP_LEARNING.md` are now
-implemented and have been run end to end on the Varanasi data. Diagrams:
-`docs/diagrams/dl3_model_a_detail.svg` (Model A) and `dl4_system_detail.svg` (Model B).
+Last run 21 September 2026. Both models are implemented and have been run end to
+end on the Varanasi data, the image model now on **real Landsat surface reflectance
+at 30 m**. Diagrams: `docs/diagrams/dl3_model_a_detail.svg` and `dl4_system_detail.svg`.
 Every number below comes from `outputs/varanasi_deep_system.json` and
-`outputs/varanasi_image_model.json`, written by the two commands in section 5.
+`outputs/varanasi_image_model.json`.
 
 ---
 
-## 1. Results, held-out 2015-2020, scored once
+## 1. The complete image model
 
-| Model | AUC | Average precision | Figure of Merit | Hits of 1,214 | Kappa |
+| | First run (7 Sep) | Complete run |
+|---|---|---|
+| Input | 8 driver maps, 100 m | **6-band Landsat surface reflectance, 30 m** |
+| Dates per sample | 1 | **2** (t - 5 and t) |
+| Training transitions | 1 (2010-2015) | **2** (1995-2000, 2010-2015) |
+| Working grid | 100 m, 125,925 cells | **30 m, 1,343,384 pixels**, averaged back to 100 m |
+| Parameters | 500,481 | 501,633 |
+| Training time | 3.4 min | 22.7 min |
+
+**Result on the held-out 2015-2020 period, scored once:**
+
+- test AUC **0.8603**
+- average precision 0.0761 (7.0x the base rate)
+- Figure of Merit **0.0635**, 145 of 1,214 conversions found
+- validation AUC 0.8691, average precision 0.6444 (spatial blocks, training period)
+
+The first thing to say about that: **reading nothing but satellite pixels, the model
+reaches a higher test AUC (0.860) than the random forest does (0.833) with
+OpenStreetMap roads and GHS-POP population in hand.** The growth signal really is
+visible in the imagery. That is the answer to "can the model use satellite images",
+and it is a yes.
+
+The second thing to say is that its Figure of Merit is the lowest in the table
+(0.0635). It ranks the whole map well and the top of the map badly, and the Figure
+of Merit only looks at the top. Both facts are true at once and both belong in the
+report.
+
+**It is also undertrained.** The run was capped at 15 epochs to fit a time budget,
+and validation average precision was still climbing when it stopped (0.6119 at epoch
+5, 0.6444 at epoch 14). The earlier 100 m model peaked at epoch 27. A longer run is
+the obvious next step and may well move the Figure of Merit.
+
+## 2. Where the imagery actually pays: as features
+
+| Model | AUC | Avg. precision | Figure of Merit | FoM, no automaton | Hits / 1,214 |
 |---|---|---|---|---|---|
-| Image model (Model A) | 0.681 | 0.097 | **0.1067** | 234 | 0.184 |
-| Random forest (Review 3) | 0.833 | 0.127 | 0.1016 | 224 | 0.176 |
-| XGBoost + 16 image components | 0.902 | 0.141 | 0.0898 | 200 | 0.156 |
-| Blend of image and tabular | 0.899 | 0.137 | 0.0868 | 194 | 0.151 |
-| XGBoost, 8 drivers | **0.905** | **0.148** | 0.0864 | 193 | 0.150 |
-| Logistic regression | 0.910 | 0.109 | 0.0687 | 156 | 0.119 |
-| Random allocation | 0.500 | - | 0.0055 | 13 | - |
+| Random forest (Review 3) | 0.8331 | 0.1270 | **0.1016** | 0.1087 | 224 |
+| XGBoost + 16 image components | **0.9080** | 0.1295 | 0.0981 | 0.1204 | 217 |
+| Blend of image and tabular | 0.8759 | 0.1096 | 0.0903 | 0.1122 | 201 |
+| XGBoost, 8 drivers | 0.9048 | **0.1476** | 0.0864 | **0.1262** | 193 |
+| Logistic regression | 0.9096 | 0.1092 | 0.0687 | 0.1051 | 156 |
+| Image model alone | 0.8597 | 0.0752 | 0.0635 | 0.0673 | 145 |
+| Random allocation | 0.5000 | - | 0.0055 | 0.0055 | 13 |
 
-Read that table twice, because it says two different things. By **ranking** — AUC and
-average precision — XGBoost is clearly best and the image model is clearly worst. By
-**Figure of Merit**, which is what the project reports, the order is almost exactly
-reversed.
+Feeding the encoder's features into the boosted model — sixteen components holding
+98.2 percent of the feature variance — moves it from 0.0864 to **0.0981** and from
+193 hits to 217, an extra 24 correctly placed cells. That is the clearest benefit
+the deep model delivers: **as a feature extractor it helps, as a standalone
+predictor it does not.**
 
-The reason is the cellular automaton, and it is the most important finding here.
+The blend disagrees with the image model even more bluntly. Fitted on the blocks the
+image model itself held out, it gives the image surface a **negative** weight
+(-0.237 against the tabular model's 0.782): once the tabular score is present, the
+image surface actively subtracts. Reported as the null result it is.
 
-## 2. The cellular automaton is costing accuracy
+The random forest still has the best Figure of Merit. Nothing here displaces it.
 
-The allocation step mixes suitability with how much development is already nearby:
-`score = 0.65 x suitability + 0.35 x neighbourhood`. That 0.35 has been fixed by hand
-since Review 2 and was never tested. Sweeping it, for every model
-(`docs/figures/dl/DL11_neighbourhood_weight.png`):
+## 3. The cellular automaton still costs accuracy
 
-| Model | weight 0 | 0.1 | 0.2 | **0.35 in use** | 0.5 | best |
-|---|---|---|---|---|---|---|
-| XGBoost | **0.1262** | 0.1082 | 0.0976 | 0.0864 | 0.0825 | 0 |
-| XGBoost + image | **0.1236** | 0.1072 | 0.0991 | 0.0898 | 0.0815 | 0 |
-| Random forest | 0.1087 | **0.1097** | 0.1056 | 0.1016 | 0.0937 | 0.1 |
-| Logistic regression | **0.1051** | 0.0796 | 0.0743 | 0.0687 | 0.0630 | 0 |
-| Image model | 0.1036 | 0.1046 | 0.1056 | **0.1067** | 0.1046 | 0.35 |
+The sweep from the previous run holds, and now prefers an even lower weight: the
+best setting for the leading model is **0.1**, not the 0.35 in use, and allocating by
+suitability alone gives XGBoost 0.1262 against the 0.1016 the forest scores through
+the automaton. See `docs/figures/dl/DL11_neighbourhood_weight.png`.
 
-**Allocating purely by suitability, XGBoost reaches a Figure of Merit of 0.1262** against
-the 0.1016 the random forest scores through the automaton — about 70 more correctly
-placed cells out of 1,214. Only the image model prefers the current setting, and only
-because its surface is already spatially smooth, so the neighbourhood term adds little
-and costs little.
+## 4. The imagery itself checks out
 
-This is consistent with something the project already measured: Varanasi's growth is
-heavily leapfrog. Insisting on contiguity moves predictions to the edge of the existing
-city when much of the new development appeared away from it.
+Six dry-season composites exported at 30 m (1990, 1995, 2000, 2005, 2010, 2015),
+six bands each, Landsat 5 harmonised onto the Landsat 8 scale with the Roy et al.
+(2016) coefficients.
 
-**What to do about it.** Do not simply set the weight to zero — that removes the
-mechanism that makes the predicted map look like a city rather than a scatter of cells,
-and the projection maps for 2025 and 2030 would change character. Report the sweep, say
-that the automaton buys plausibility at a measurable cost in accuracy, and let the panel
-see the trade-off. That is a stronger Review 4 answer than either extreme.
+- **97.06 percent valid pixels in every epoch** — the missing 3 percent is the frame
+  corner outside the clip.
+- Median near-infrared reflectance **0.251 to 0.260 across all six epochs**, straight
+  through the 2013 sensor change. A jump there would have meant the model was reading
+  the satellite rather than the city. See `DL12_sensor_consistency.png`.
+- Blue varies more (0.048 to 0.075), which is what winter haze over the
+  Indo-Gangetic plain does to the blue band.
 
-## 3. The image model, honestly
+The model is not circular, and it is worth being able to say why: GHSL for the label
+year is derived from imagery of that year, which the model never sees. It reads
+t - 5 and t and is asked about t + 5.
 
-It reaches the best Figure of Merit under the current settings, but three things have to
-be said with it.
+## 5. Uncertainty and the ghost check
 
-- **The margin is close to noise.** Trained again with seeds 1 and 2, the Figure of Merit
-  is 0.1041 on average with a spread of 0.0018 (0.1016, 0.1051, 0.1056). The gap to the
-  forest is about one and a half times that spread.
-- **Its ranking is weak and unstable.** Test AUC across the three seeds is 0.679, 0.835
-  and 0.768. Scored on each fifth of the city separately, it averages 0.645 with a spread
-  of 0.056, where XGBoost averages 0.899 with a spread of 0.007. The image model is good
-  at the very top of the ranking and poor everywhere else.
-- **It sees no more than the forest does.** Its eight input channels are the random
-  forest's eight drivers, kept as maps instead of as a table — there is a test that
-  asserts they are identical (`tests/test_deep.py`). So its advantage, where it has one,
-  comes from reading spatial pattern, not from extra information.
+Twenty dropout draws, one allocation each: 1,167 cells chosen in every draw, 44 in
+most, 54 only sometimes. The confident core is far larger than the uncertain fringe.
 
-Within-period validation reached an AUC of 0.96 while the held-out period gave 0.68. The
-network learns *where* growth happened in 2010-2015, and that knowledge does not carry to
-2015-2020. This is the clearest argument in the project for why a temporal hold-out is
-the only honest test.
+The label-free autoencoder flags the 5 percent of built-up cells it reconstructs
+worst (772 cells) and independently picks out 34 of the 144 the activity rule flags.
+Neither has ground truth, so this is corroboration, not accuracy.
 
-## 4. The other pieces
-
-**Image components in the tabular model.** The encoder's feature map, reduced to 16
-components holding 98.4 percent of its variance, lifts XGBoost from 0.0864 to 0.0898 and
-its average precision falls slightly. A small, mixed effect, reported as such.
-
-**The blend.** A logistic stacker on the two logits, fitted only on validation blocks
-where neither member trained, gives the tabular model a weight of 0.75 and the image
-model 0.09. It does not beat either parent on Figure of Merit. Reported as a null result.
-
-**Uncertainty.** Three separately trained models, six dropout draws each, one allocation
-per draw: 1,113 cells are chosen in every one of the 18 draws, 108 in most of them and 75
-only sometimes. The confident core is much larger than the uncertain fringe, which is
-worth saying plainly to a planner.
-
-**Ghost growth without labels.** An autoencoder trained only on built-up cells whose
-activity is at or above expected flags the 5 percent it reconstructs worst: 772 cells. It
-independently picks out 34 of the 144 cells the existing rule flags. Neither method has
-ground truth, so this is corroboration, not accuracy — the hand-labelling step remains
-the one thing that would turn the ghost screen into a measured result.
-
-## 5. Running it
+## 6. Running it
 
 ```
-python scripts/train_image_model.py                 # Model A, about 4 minutes on CPU
-python scripts/run_deep_system.py                   # Model B, about 1 minute
-python scripts/make_dl_figures.py                   # 11 figures into docs/figures/dl
-python tests/test_deep.py                           # 12 tests
+python scripts/export_landsat_stack.py --years 1990 1995 2000 2005 2010 2015
+python scripts/train_image_model.py --source landsat --epochs 30   # ~45 min, CPU
+python scripts/run_deep_system.py --components 16                  # ~3 min
+python scripts/make_dl_figures.py                                  # 12 figures
+python tests/test_deep.py                                          # 16 tests
+python scripts/run_ablations.py                                    # the whole matrix
 ```
 
-Useful options: `--quick` for a three-epoch smoke run, `--seed N --tag seedN` for the
-spread, `--monitor auc` to stop on AUC instead of average precision, `--no-image` to run
-the tabular half alone, `--source landsat` once the imagery is exported.
+Add `--encoder prithvi --cache-encoder` once the pretrained weights are downloaded.
+`--single-transition`, `--source drivers` and `--max-dates 1` reproduce the earlier
+runs for comparison.
 
-Deep-learning dependencies are listed separately in `requirements-dl.txt`; the main
-pipeline imports none of them.
+## 7. Defects found and fixed while building this
 
-## 6. Reproducibility, and one warning
+Worth keeping, because each one would have produced a confident wrong number.
 
-Every result file now records the library versions it was produced with. That matters
-more than it sounds:
+- **Validation could vanish silently.** At 30 m the study area divides into nine
+  16 km blocks, but the ones along the edges are slivers. The random split picked two
+  slivers, no 224-pixel validation tile fitted inside either, and the run had no
+  validation data at all. Block selection now refuses blocks too small to hold a tile.
+- **Two models, one block size.** The system inherited the image model's 16 km blocks
+  for every model. Early stopping a boosted tree on two such blocks is far too coarse
+  a signal: XGBoost stopped after **2 rounds** and scored 0.0557 instead of 0.0864.
+  The tabular models now get their own finer split; only the blend uses the image
+  model's blocks, because that is the one thing that has to match.
+- **The blend could have been fitted on cells the image model trained on.** Its split
+  is now reproduced on the model's own grid and projected down, not guessed at 100 m.
+- **Channel sets could differ between transitions.** GHSL 1995 has no population
+  raster, so that transition carried 7 channels against 2010's 8. A driver is now used
+  only if every date the model sees has it, and the log says which was dropped.
+- **Earth Engine refuses downloads over 50 MB**; the six-band float32 export was
+  72 MB. It is written as scaled integers, which is how the products are published.
+- **The JRC label server drops these 40 MB tiles**; the shared downloader restarted
+  from zero each time and never finished. It now resumes by byte range.
 
-> Re-running the **unmodified** Review 3 script on this machine today gives the random
-> forest a Figure of Merit of **0.1016** and a test AUC of **0.8331**, where the recorded
-> Review 3 run gives **0.1031** and **0.834**. The rasters have not changed. Logistic
-> regression reproduces exactly, so this is scikit-learn's forest differing between
-> versions.
+## 8. Reproducibility
 
-The difference is 3 cells out of 1,214 and changes no conclusion, but the team should
-quote 0.103 as "0.103 on the recorded run, 0.102 when re-run on scikit-learn 1.6.1"
-rather than be caught by it in the viva. The current environment is Python 3.13.3, numpy
-2.3.3, scikit-learn 1.6.1, xgboost 3.0.5, torch 2.10.0+cpu.
+Re-running the **unmodified** Review 3 script on this machine gives the random forest
+a Figure of Merit of **0.1016** and a test AUC of **0.8331**, where the recorded
+Review 3 run gives **0.1031** and **0.834**. The rasters have not changed and logistic
+regression reproduces exactly, so this is scikit-learn's forest differing between
+versions. Quote it as "0.103 on the recorded run, 0.102 re-run on scikit-learn 1.6.1".
 
-## 7. What is implemented but not yet fed
+Environment: Python 3.13.3, numpy 2.3.3, scikit-learn 1.6.1, xgboost 3.0.5,
+torch 2.10.0+cpu, no GPU. Every result file records these.
 
-The code supports two input dates and 30 m Landsat bands; today only one GHSL date is on
-disk, so the model runs on a single snapshot. `scripts/export_landsat_stack.py` exports
-six-band dry-season composites for 2000 to 2025, harmonising Landsat 5 and 7 onto the
-Landsat 8 scale with the Roy et al. (2016) coefficients, and with `--ghsl` it also
-downloads the 2000 and 2005 label epochs. That turns one training transition of about
-1,400 conversions into three, which is the single biggest thing that would help the image
-model. It needs an Earth Engine session, so it has not been run here.
+## 9. Not yet run
 
-The Prithvi-EO-2.0 encoder is wired in behind `--encoder prithvi` and loads through
-TerraTorch, which is not installed on this machine. The fallback encoder trained from
-scratch is what produced every number above.
+- **Prithvi-EO-2.0-300M.** The loader is implemented and tested (it reconstructs the
+  published encoder and regenerates its three-dimensional position encoding); the
+  weights download reached 855 MB of 1.2 GB before being stopped. `--encoder prithvi`
+  is one command once it completes.
+- **Two more transitions.** GHSL labels for 2005 are still missing, so 2000-2005 and
+  2005-2010 cannot be used. Four transitions instead of two would roughly double the
+  training data.
+- **A longer image-model run.** Validation was still improving at the 15-epoch cap.
 
-## 8. Figures
+## 10. Figures
 
-`docs/figures/dl/`
-
-| | |
-|---|---|
-| DL01 | learning curve, with the epoch that was kept |
-| DL02 | TOC curves, linear axes |
-| DL03 | Figure of Merit with and without the automaton |
-| DL04 | precision at the top 1, 2, 5 and 10 percent |
-| DL05 | reliability curves and Brier scores |
-| DL06 | exact TreeSHAP contributions, drivers against image components |
-| DL07 | Figure of Merit by distance to the built-up edge |
-| DL08 | AUC per fifth of the city |
-| DL09 | seed spread |
-| DL10 | suitability, conversion probability and uncertainty maps |
-| DL11 | the neighbourhood-weight sweep |
+`docs/figures/dl/` — DL01 learning curve, DL02 TOC curves, DL03 Figure of Merit with
+and without the automaton, DL04 precision at the top k, DL05 calibration, DL06
+TreeSHAP contributions, DL07 error by distance band, DL08 per-block stability,
+DL10 maps, DL11 the neighbourhood-weight sweep, DL12 sensor consistency.

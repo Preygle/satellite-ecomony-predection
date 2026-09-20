@@ -287,9 +287,16 @@ def fig_stability(sysd: dict) -> None:
 
 def fig_seeds(cfg) -> None:
     runs = sorted(cfg.outputs_dir.glob(f"{cfg.city_slug}_image_model*.json"))
+    primary = json.loads(
+        (cfg.outputs_dir / f"{cfg.city_slug}_image_model.json").read_text(encoding="utf-8"))
+    want = primary["model"]["source"]
     rows = []
     for p in runs:
         d = json.loads(p.read_text(encoding="utf-8"))
+        # only compare runs of the same kind: a 30 m Landsat run and a 100 m
+        # driver run are different models, not different seeds of one
+        if d["model"]["source"] != want:
+            continue
         rows.append({"seed": d["model"]["config"]["seed"],
                      "fom": d["analytics"]["validation"]["figure_of_merit"],
                      "auc": d["analytics"]["auc_test"],
