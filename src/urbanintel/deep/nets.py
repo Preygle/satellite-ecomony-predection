@@ -4,7 +4,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .stacks import LANDSAT_BANDS
 
 
 class ConvBlock(nn.Module):
@@ -51,57 +50,6 @@ class LocalEncoder(nn.Module):
         return feats                       # finest first
 
 
-class PrithviEncoder(nn.Module):
-    """Prithvi-EO-2.0, a temporal vision transformer pretrained on satellite imagery.
-
-    Pretrained by IBM and NASA as a masked autoencoder on Harmonized Landsat
-    and Sentinel-2 at 30 m, over the same six bands this project exports, and
-    published under Apache-2.0. It is loaded through TerraTorch, which is not
-    a dependency of the main pipeline; `available()` reports whether it can be
-    used, and the caller falls back to `LocalEncoder` when it cannot.
-    """
-
-    NAME = "prithvi_eo_v2_300_tl"
-
-    def __init__(self, *, n_dates: int = 2, bands: list[str] | None = None,
-                 freeze: bool = True):
-        super().__init__()
-        from terratorch.registry import BACKBONE_REGISTRY
-
-        self.backbone = BACKBONE_REGISTRY.build(
-            self.NAME, pretrained=True, num_frames=n_dates,
-            bands=[b.upper() for b in (bands or LANDSAT_BANDS)],
-        )
-        self.embed_dim = int(getattr(self.backbone, "embed_dim", 1024))
-        self.patch = int(getattr(self.backbone, "patch_size", 16) or 16)
-        self.out_channels = [self.embed_dim]
-        self.expects_time_axis = True
-        if freeze:
-            for p in self.backbone.parameters():
-                p.requires_grad = False
-
-    @staticmethod
-    def available() -> bool:
-        import importlib.util
-
-        return importlib.util.find_spec("terratorch") is not None
-
-    def forward(self, x):
-        # TerraTorch expects (batch, bands, dates, height, width).
-        out = self.backbone(x.permute(0, 2, 1, 3, 4))
-        tokens = out[-1] if isinstance(out, (list, tuple)) else out
-        if tokens.dim() == 4:                        # already a feature map
-            return [tokens]
-        b, n, d = tokens.shape
-        grid = x.shape[-1] // self.patch
-        per_date = grid * grid
-        if n % per_date == 1:                        # drop the class token
-            tokens, n = tokens[:, 1:, :], n - 1
-        t = max(1, n // per_date)
-        tokens = tokens.reshape(b, t, grid, grid, d).mean(dim=1)
-        return [tokens.permute(0, 3, 1, 2).contiguous()]
-
-
 class UNetDecoder(nn.Module):
     """Upsamples encoder features back to the input grid, one logit per pixel."""
 
@@ -144,16 +92,24 @@ class GrowthNet(nn.Module):
         if encoder == "local":
             self.encoder = LocalEncoder(n_channels * n_dates, widths, dropout)
         elif encoder == "prithvi":
+            from .prithvi import PrithviEncoder
+
             self.encoder = PrithviEncoder(n_dates=n_dates, freeze=freeze_encoder)
         else:
             raise ValueError(f"unknown encoder {encoder!r}; use 'local' or 'prithvi'")
         self.decoder = UNetDecoder(self.encoder.out_channels, width=decoder_width,
                                    dropout=dropout)
 
-    def forward(self, x):                            # (B, T, C, H, W)
+    def encode(self, x):                             # (B, T, C, H, W)
         b, t, c, h, w = x.shape
         z = x if self.encoder.expects_time_axis else x.reshape(b, t * c, h, w)
-        return self.decoder(self.encoder(z), (h, w))
+        return self.encoder(z)
+
+    def decode(self, feats, out_size):
+        return self.decoder(feats, out_size)
+
+    def forward(self, x):                            # (B, T, C, H, W)
+        return self.decoder(self.encode(x), (x.shape[-2], x.shape[-1]))
 
     @property
     def n_parameters(self) -> int:

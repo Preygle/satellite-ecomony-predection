@@ -8,7 +8,7 @@ from typing import Callable
 import numpy as np
 
 from .stacks import Normaliser, TemporalStack
-from .tiles import TileSet, dihedral, tile_origins
+from .tiles import Tiles, dihedral, symmetry, tile_origins
 
 
 @dataclass
@@ -28,6 +28,7 @@ class TrainConfig:
     oversample: float = 4.0
     steps_per_epoch: int | None = None
     monitor: str = "average_precision"   # what early stopping watches
+    cache_encoder: bool = False          # only valid when the encoder is frozen
     seed: int = 0
     device: str = "auto"
     encoder: str = "local"
@@ -59,6 +60,7 @@ class ImageModel:
     val_average_precision: float = float("nan")
     n_parameters: int = 0
     n_trainable: int = 0
+    encode_seconds: float = 0.0
     train_periods: list[tuple[int, int]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -79,6 +81,7 @@ class ImageModel:
             "validation_average_precision": (
                 None if np.isnan(self.val_average_precision)
                 else round(float(self.val_average_precision), 4)),
+            "encoder_seconds": round(self.encode_seconds, 1),
             "config": self.config.as_dict(),
             "history": self.history,
             "notes": self.notes,
@@ -165,8 +168,8 @@ def _pixel_scores(scores: np.ndarray, labels: np.ndarray, *,
 
 
 def fit_image_model(
-    train_tiles: TileSet,
-    val_tiles: TileSet,
+    train_tiles: Tiles,
+    val_tiles: Tiles,
     *,
     channels: list[str],
     n_dates: int,
@@ -204,14 +207,46 @@ def fit_image_model(
     ]
     opt = torch.optim.AdamW([g for g in groups if g["params"]], weight_decay=cfg.weight_decay)
 
+    # Caching only makes sense for a pretrained encoder. Freezing a
+    # randomly initialised one and training the decoder on its output
+    # would be a random-features model, not the model asked for.
+    cache = cfg.cache_encoder and cfg.freeze_encoder and cfg.encoder != "local"
+    if cache:
+        # A frozen encoder returns the same features for the same tile every
+        # epoch, so running the 300M transformer once and keeping its output
+        # turns hours of repeated forward passes into minutes. Augmentation
+        # then rotates the feature map rather than the image, which is the
+        # same symmetry applied one stage later.
+        def encode_all(tiles):
+            out = []
+            with torch.no_grad():
+                for s in range(0, len(tiles), cfg.batch_size):
+                    xn, _, _ = tiles.batch(range(s, min(s + cfg.batch_size,
+                                                        len(tiles))))
+                    feats = net.encode(torch.from_numpy(xn).to(device))
+                    out.extend(zip(*[f.cpu().numpy() for f in feats]))
+                    if progress and s % (cfg.batch_size * 10) == 0:
+                        progress({"epoch": 0, "train_loss": float("nan"),
+                                  "val_loss": float("nan"), "val_auc": None,
+                                  "val_average_precision": None,
+                                  "seconds": 0.0,
+                                  "note": f"encoding tile {s}/{len(tiles)}"})
+            return out
+
+        net.eval()
+        t_enc = time.time()
+        feat_train = encode_all(train_tiles)
+        feat_val = encode_all(val_tiles)
+        enc_seconds = time.time() - t_enc
+    else:
+        feat_train = feat_val = None
+        enc_seconds = 0.0
+
     weights = train_tiles.sample_weights(oversample=cfg.oversample)
     weights = weights / weights.sum()
     steps = cfg.steps_per_epoch or max(1, int(np.ceil(len(train_tiles) / cfg.batch_size)))
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max(1, cfg.epochs * steps))
 
-    xv = torch.from_numpy(val_tiles.x)
-    yv = torch.from_numpy(val_tiles.y.astype("float32"))
-    mv = torch.from_numpy(val_tiles.m.astype("float32"))
 
     best_score, best_state, best_epoch, stale = -np.inf, None, 0, 0
     best_val: dict = {}
@@ -225,15 +260,27 @@ def fit_image_model(
             idx = rng.choice(len(train_tiles), size=cfg.batch_size, replace=True, p=weights)
             xb, yb, mb = [], [], []
             for i in idx:
-                x, y, m = dihedral(train_tiles.x[i], train_tiles.y[i], train_tiles.m[i],
-                                   int(rng.integers(0, 8)))
+                k = int(rng.integers(0, 8))
+                if cache:
+                    _, y0, m0 = train_tiles.get(int(i))
+                    # The encoder returns one feature map per scale; the same
+                    # symmetry is applied to each of them and to the labels.
+                    x = symmetry(list(feat_train[int(i)]), k)
+                    y, m = symmetry([y0, m0], k)
+                else:
+                    x, y, m = dihedral(*train_tiles.get(int(i)), k)
                 xb.append(x), yb.append(y), mb.append(m)
-            x = torch.from_numpy(np.stack(xb)).to(device)
             y = torch.from_numpy(np.stack(yb).astype("float32")).unsqueeze(1).to(device)
             m = torch.from_numpy(np.stack(mb).astype("float32")).unsqueeze(1).to(device)
+            if cache:
+                x = [torch.from_numpy(np.stack([s[j] for s in xb]).astype("float32")
+                                      ).to(device) for j in range(len(xb[0]))]
+            else:
+                x = torch.from_numpy(np.stack(xb).astype("float32")).to(device)
 
             opt.zero_grad(set_to_none=True)
-            loss, focal, dice = combined_loss(net(x), y, m, alpha=cfg.focal_alpha,
+            out = (net.decode(x, y.shape[-2:]) if cache else net(x))
+            loss, focal, dice = combined_loss(out, y, m, alpha=cfg.focal_alpha,
                                               gamma=cfg.focal_gamma,
                                               dice_weight=cfg.dice_weight)
             loss.backward()
@@ -246,19 +293,29 @@ def fit_image_model(
 
         net.eval()
         with torch.no_grad():
-            scores, losses = [], []
+            scores, labels, masks, losses = [], [], [], []
             for s in range(0, len(val_tiles), cfg.batch_size):
-                xb = xv[s:s + cfg.batch_size].to(device)
-                yb = yv[s:s + cfg.batch_size].unsqueeze(1).to(device)
-                mb = mv[s:s + cfg.batch_size].unsqueeze(1).to(device)
-                logit = net(xb)
+                xn, yn, mn = val_tiles.batch(range(s, min(s + cfg.batch_size,
+                                                          len(val_tiles))))
+                yb = torch.from_numpy(yn.astype("float32")).unsqueeze(1).to(device)
+                mb = torch.from_numpy(mn.astype("float32")).unsqueeze(1).to(device)
+                if cache:
+                    rows = range(s, min(s + cfg.batch_size, len(val_tiles)))
+                    n_scale = len(feat_val[0])
+                    fx = [torch.from_numpy(
+                        np.stack([feat_val[j][k] for j in rows]).astype("float32")
+                    ).to(device) for k in range(n_scale)]
+                    logit = net.decode(fx, yb.shape[-2:])
+                else:
+                    logit = net(torch.from_numpy(xn).to(device))
                 vl, _, _ = combined_loss(logit, yb, mb, alpha=cfg.focal_alpha,
                                          gamma=cfg.focal_gamma, dice_weight=cfg.dice_weight)
                 losses.append(float(vl))
                 scores.append(torch.sigmoid(logit).squeeze(1).cpu().numpy())
+                labels.append(yn), masks.append(mn)
         sc = np.concatenate(scores)
-        elig = val_tiles.m
-        val = _pixel_scores(sc[elig], val_tiles.y[elig], seed=cfg.seed)
+        elig = np.concatenate(masks)
+        val = _pixel_scores(sc[elig], np.concatenate(labels)[elig], seed=cfg.seed)
         watched = val.get(cfg.monitor, val["average_precision"])
 
         row = {"epoch": epoch, "train_loss": round(run_loss / steps, 5),
@@ -288,8 +345,9 @@ def fit_image_model(
 
     return ImageModel(
         net=net, normaliser=normaliser, channels=list(channels), n_dates=n_dates,
-        tile_size=int(train_tiles.x.shape[-1]), source=source, config=cfg,
+        tile_size=int(train_tiles.size), source=source, config=cfg,
         history=history, best_epoch=best_epoch, val_score=float(best_score),
+        encode_seconds=enc_seconds,
         n_parameters=net.n_parameters, n_trainable=net.n_trainable,
         train_periods=sorted(set(train_tiles.periods)),
         val_auc=float(best_val.get("auc", float("nan"))),
