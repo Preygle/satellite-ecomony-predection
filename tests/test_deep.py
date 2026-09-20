@@ -152,6 +152,66 @@ def test_calibration_is_perfect_when_the_probability_is_the_truth():
     assert out["expected_calibration_error"] < 0.02
 
 
+def test_symmetry_keeps_feature_maps_and_labels_aligned():
+    a = np.zeros((2, 4, 4), dtype="float32")
+    a[:, 0, 3] = 1.0
+    y = np.zeros((4, 4), dtype="uint8")
+    y[0, 3] = 1
+    for k in range(8):
+        fa, fy = TL.symmetry([a, y], k)
+        assert fa.shape == a.shape and fy.shape == y.shape
+        # the marked corner must land in the same place in both
+        assert tuple(np.argwhere(fa[0] == 1.0)[0]) == tuple(np.argwhere(fy == 1)[0])
+
+
+def test_tiles_cut_lazily_and_match_a_manual_slice():
+    f = frame(res=100.0, w=64, h=64)
+    rng = np.random.default_rng(0)
+    stack = ST.TemporalStack(rng.random((1, 3, 64, 64)).astype("float32"),
+                             ["a", "b", "c"], [2010], "drivers")
+    label = np.zeros((64, 64), dtype="uint8")
+    label[10:12, 10:12] = 1
+    elig = np.ones((64, 64), dtype=bool)
+    tr = TL.Transition(stack, label, elig, (2010, 2015))
+    origins = TL.tile_origins(f.shape, 16, 16)
+    tiles = TL.build_tiles([tr], origins, size=16)
+
+    assert len(tiles) == len(origins)
+    x, y, m = tiles.get(0)
+    r, c = origins[0]
+    assert np.array_equal(x, stack.data[:, :, r:r + 16, c:c + 16])
+    assert np.array_equal(y, label[r:r + 16, c:c + 16])
+    # only the tiles holding the marked cells are upweighted
+    w = tiles.sample_weights(oversample=4.0)
+    assert set(np.unique(w)) <= {1.0, 4.0}
+    assert int((w == 4.0).sum()) == int(sum(
+        1 for (rr, cc) in origins if label[rr:rr + 16, cc:cc + 16].any()))
+
+
+def test_tiles_index_every_transition():
+    f = frame(res=100.0, w=32, h=32)
+    def make(year):
+        stack = ST.TemporalStack(np.zeros((1, 2, 32, 32), dtype="float32"),
+                                 ["a", "b"], [year], "drivers")
+        return TL.Transition(stack, np.zeros((32, 32), dtype="uint8"),
+                             np.ones((32, 32), dtype=bool), (year, year + 5))
+    origins = TL.tile_origins(f.shape, 16, 16)
+    tiles = TL.build_tiles([make(2005), make(2010)], origins, size=16)
+    assert len(tiles) == 2 * len(origins)
+    assert set(tiles.periods) == {(2005, 2010), (2010, 2015)}
+
+
+def test_prithvi_position_encoding_is_deterministic_and_sized():
+    from urbanintel.deep.prithvi import sincos_3d
+
+    pos = sincos_3d(1024, (2, 14, 14))
+    assert pos.shape == (2 * 14 * 14, 1024)
+    assert np.allclose(pos, sincos_3d(1024, (2, 14, 14)))
+    # the encoding has to distinguish positions, or the transformer cannot
+    # tell one patch from another
+    assert not np.allclose(pos[0], pos[1])
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

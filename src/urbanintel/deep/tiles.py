@@ -99,21 +99,62 @@ def select_origins(origins: list[tuple[int, int]], size: int, val_mask: np.ndarr
 
 
 @dataclass
-class TileSet:
-    """Tiles ready for the network: inputs, labels, eligibility, provenance."""
+class Tiles:
+    """Tiles cut from the transitions on demand, never all at once.
 
-    x: np.ndarray                        # (N, T, C, size, size) float32
-    y: np.ndarray                        # (N, size, size) uint8
-    m: np.ndarray                        # (N, size, size) bool
-    origins: list[tuple[int, int]] = field(default_factory=list)
-    periods: list[tuple[int, int]] = field(default_factory=list)
+    At 30 m a single 224-pixel tile holds 2.4 MB, and three transitions give
+    about a thousand overlapping tiles — materialising them would cost
+    several gigabytes to store views of arrays already in memory. Keeping the
+    transitions whole and cutting each tile when it is drawn costs a copy per
+    sample and nothing else.
+    """
+
+    transitions: list[Transition]
+    origins: list[tuple[int, int]]
+    size: int
+    index: list[tuple[int, int]] = field(default_factory=list)
+    _positives: np.ndarray | None = None
+
+    def __post_init__(self):
+        if not self.index:
+            self.index = [(t, o) for t in range(len(self.transitions))
+                          for o in range(len(self.origins))]
+        if self._positives is None:
+            self._positives = np.array([
+                int((self.transitions[t].label[r:r + self.size, c:c + self.size]
+                     & self.transitions[t].eligible[r:r + self.size, c:c + self.size]).sum())
+                for t, o in self.index
+                for r, c in [self.origins[o]]
+            ], dtype="int32")
 
     def __len__(self) -> int:
-        return int(self.x.shape[0])
+        return len(self.index)
+
+    def get(self, i: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        t, o = self.index[i]
+        r, c = self.origins[o]
+        tr = self.transitions[t]
+        s = self.size
+        return (tr.stack.data[:, :, r:r + s, c:c + s],
+                tr.label[r:r + s, c:c + s],
+                tr.eligible[r:r + s, c:c + s])
+
+    def batch(self, idx) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        xs, ys, ms = zip(*(self.get(int(i)) for i in idx))
+        return (np.stack(xs).astype("float32"), np.stack(ys).astype("uint8"),
+                np.stack(ms))
 
     @property
     def n_positive(self) -> int:
-        return int((self.y & self.m).sum())
+        return int(self._positives.sum())
+
+    @property
+    def periods(self) -> list[tuple[int, int]]:
+        return [self.transitions[t].period for t, _ in self.index]
+
+    @property
+    def tile_size(self) -> int:
+        return self.size
 
     def sample_weights(self, *, oversample: float = 4.0) -> np.ndarray:
         """Sampling weight per tile, favouring tiles that contain conversions.
@@ -123,25 +164,33 @@ class TileSet:
         countryside. Weighting is preferred to dropping empty tiles: the model
         still has to learn where growth does *not* happen.
         """
-        has_pos = (self.y * self.m).reshape(len(self), -1).sum(axis=1) > 0
-        return np.where(has_pos, oversample, 1.0).astype("float64")
+        return np.where(self._positives > 0, oversample, 1.0).astype("float64")
 
 
 def build_tiles(transitions: list[Transition], origins: list[tuple[int, int]], *,
-                size: int) -> TileSet:
-    """Cut every transition at every origin into one tile set."""
-    xs, ys, ms, og, pe = [], [], [], [], []
-    for tr in transitions:
-        for r, c in origins:
-            xs.append(tr.stack.data[:, :, r:r + size, c:c + size])
-            ys.append(tr.label[r:r + size, c:c + size])
-            ms.append(tr.eligible[r:r + size, c:c + size])
-            og.append((r, c))
-            pe.append(tr.period)
-    if not xs:
+                size: int) -> Tiles:
+    """Index every transition at every origin, without copying any data yet."""
+    if not transitions or not origins:
         raise ValueError("no tiles selected; loosen the tile size or the block split")
-    return TileSet(np.stack(xs).astype("float32"), np.stack(ys).astype("uint8"),
-                   np.stack(ms), og, pe)
+    return Tiles(transitions, list(origins), int(size))
+
+
+def symmetry(arrays: list[np.ndarray], k: int) -> list[np.ndarray]:
+    """Apply one of the eight square symmetries to several arrays at once.
+
+    Used when a frozen encoder's features are cached: the rotation is applied
+    to every scale of the feature map and to the labels together, so they stay
+    aligned.
+    """
+    rot, flip = k % 4, k >= 4
+    out = []
+    for a in arrays:
+        if rot:
+            a = np.rot90(a, rot, axes=(-2, -1))
+        if flip:
+            a = a[..., ::-1]
+        out.append(np.ascontiguousarray(a))
+    return out
 
 
 def dihedral(x: np.ndarray, y: np.ndarray, m: np.ndarray,

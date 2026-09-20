@@ -15,6 +15,52 @@ from urbanintel.data import gee, ghsl  # noqa: E402
 
 log = logging.getLogger("landsat_stack")
 
+
+def resume_download(url: str, dest: Path, *, attempts: int = 8,
+                    timeout: int = 180) -> Path:
+    """Fetch a large file, continuing where an interrupted attempt stopped.
+
+    The JRC open-data server delivers these 40 MB tiles at a few hundred
+    kilobytes a second and drops the connection often. The shared
+    downloader discards its partial file and starts again, which never
+    finishes; asking for the remaining byte range instead does.
+    """
+    import requests
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() and dest.stat().st_size > 10_000:
+        return dest
+    part = dest.with_suffix(dest.suffix + ".part")
+    for attempt in range(1, attempts + 1):
+        have = part.stat().st_size if part.exists() else 0
+        headers = {"User-Agent": "urbanintel-varanasi/0.1 (academic research)"}
+        if have:
+            headers["Range"] = f"bytes={have}-"
+        try:
+            with requests.get(url, headers=headers, stream=True,
+                              timeout=timeout) as r:
+                if r.status_code not in (200, 206):
+                    r.raise_for_status()
+                if r.status_code == 200 and have:
+                    have, mode = 0, "wb"      # the server ignored the range
+                else:
+                    mode = "ab" if have else "wb"
+                total = int(r.headers.get("Content-Length", 0)) + have
+                with part.open(mode) as fh:
+                    for chunk in r.iter_content(1 << 20):
+                        if chunk:
+                            fh.write(chunk)
+                            have += len(chunk)
+            if total and have < total:
+                raise OSError(f"short read {have}/{total}")
+            part.replace(dest)
+            log.info("  %s: %.1f MB", dest.name, dest.stat().st_size / 1e6)
+            return dest
+        except Exception as exc:                          # noqa: BLE001
+            log.warning("  %s: attempt %d/%d stopped at %.1f MB (%s)", dest.name,
+                        attempt, attempts, have / 1e6, type(exc).__name__)
+    raise OSError(f"could not download {url} in {attempts} attempts")
+
 # Roy et al. (2016), Table 2, ordinary-least-squares coefficients that put
 # Landsat TM and ETM+ surface reflectance onto the OLI scale, in the band
 # order blue, green, red, near infrared, shortwave infrared 1 and 2.
@@ -84,7 +130,13 @@ def composite(cfg, aoi: AOI, year: int, *, months: tuple[int, int] = (10, 3)):
         cfg, merged, f"Landsat {year}",
         floor=int(cfg.get("sources.gee.min_composite_dates_landsat", 4)))
     log.info("  %d: %d clear acquisition dates in %s to %s", year, depth, start, end)
-    return merged.median().rename(OUT_BANDS).clip(geom)
+    # Earth Engine refuses a direct download over 50 MB, and six float32
+    # bands at 30 m over this area come to about 72 MB. Surface reflectance
+    # is published as scaled integers anyway, and the pretrained model's
+    # own band statistics are quoted in those units, so the composite is
+    # written the same way and divided back on read.
+    return (merged.median().rename(OUT_BANDS).multiply(10_000).toInt16()
+            .clip(geom))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -113,14 +165,31 @@ def main(argv: list[str] | None = None) -> int:
         # GHS-BUILT-S and GHS-POP publish observed epochs every five years back
         # to 1975. Every extra epoch is another labelled transition, which is
         # the cheapest way to enlarge a training set of about 1,400 positives.
+        import rasterio
+
+        fine, _ = aoi.frame_pair(cfg.get("sources.ghsl.resolution_m"), cfg.cell_size_m)
+        rdir = cfg.processed_dir / "rasters"
+        rdir.mkdir(parents=True, exist_ok=True)
         for epoch in [y for y in args.years if y <= 2020]:
-            for product in ("built_surface", "population"):
+            for kind, loader, stem in (
+                ("built_surface", ghsl.load_builtup, "builtup_m2"),
+                ("population", ghsl.load_population, "population"),
+            ):
+                dest = rdir / f"{stem}_{epoch}.tif"
+                if dest.exists() and not args.force:
+                    log.info("GHSL %s %d: already on the frame (%s)", kind, epoch, dest.name)
+                    continue
                 try:
-                    paths = ghsl.download_product(cfg, product, epoch, force=args.force)
-                    log.info("GHSL %s %d -> %s", product, epoch,
-                             ", ".join(p.name for p in paths))
+                    for tile in ghsl.tiles_for_bbox(cfg.bbox):
+                        prod = cfg.get(f"sources.ghsl.products.{kind}")
+                        url = ghsl.build_url(cfg, prod, epoch, tile)
+                        resume_download(url, cfg.raw_dir / "ghsl" / url.rsplit("/", 1)[-1])
+                    arr = loader(cfg, aoi, epoch, fine)
+                    with rasterio.open(dest, "w", **fine.profile("float32")) as ds:
+                        ds.write(arr.astype("float32"), 1)
+                    log.info("GHSL %s %d -> %s", kind, epoch, dest.name)
                 except Exception as exc:                      # noqa: BLE001
-                    log.warning("GHSL %s %d unavailable: %s", product, epoch, exc)
+                    log.warning("GHSL %s %d unavailable: %s", kind, epoch, exc)
 
     failed = []
     for year in args.years:

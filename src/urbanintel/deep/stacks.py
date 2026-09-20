@@ -90,19 +90,20 @@ def driver_stack(
 
 
 def landsat_maps(path: Path, frame: AnalysisFrame, *, scale: bool = True) -> np.ndarray:
-    """Read a six-band Landsat export onto the analysis frame.
+    """Read a six-band Landsat export onto the analysis frame, as reflectance.
 
-    Collection 2 Level 2 surface reflectance is stored as scaled integers:
-    reflectance = 0.0000275 x DN - 0.2. The export written by
-    `scripts/export_landsat_stack.py` already applies that, so `scale` only
-    matters for files exported elsewhere.
+    `scripts/export_landsat_stack.py` writes surface reflectance multiplied
+    by 10,000 as signed integers, the same convention the Landsat and
+    Harmonized Landsat and Sentinel-2 products use, which also keeps the
+    export under Earth Engine's download limit. Dividing it back out here
+    means every model sees plain reflectance.
     """
     from ..data import gee
 
     bands = [gee.to_frame(path, frame, band=i + 1) for i in range(len(LANDSAT_BANDS))]
     arr = np.stack(bands).astype("float32")
-    if scale and np.nanmax(arr) > 10.0:            # still in raw digital numbers
-        arr = arr * 0.0000275 - 0.2
+    if scale and np.nanmax(arr) > 10.0:
+        arr = arr / 10_000.0
     return np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
 
 
