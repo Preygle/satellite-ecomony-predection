@@ -51,6 +51,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--cache-encoder", action="store_true",
                     help="run a frozen encoder once and reuse its features "
                          "(minutes instead of hours for the 300M transformer)")
+    ap.add_argument("--prithvi-checkpoint",
+                    default="data/raw/models/prithvi/Prithvi_EO_V2_300M_TL.pt",
+                    help="local copy of the published weights; downloaded from "
+                         "Hugging Face if this path does not exist")
     ap.add_argument("--pixel-m", type=float, default=30.0,
                     help="working resolution for the Landsat source")
     ap.add_argument("--epochs", type=int, default=40)
@@ -189,7 +193,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.encoder == "prithvi":
         from urbanintel.deep import prithvi as PR
 
-        _, pcfg = PR.fetch()
+        local = Path(args.prithvi_checkpoint)
+        if local.exists() and (local.parent / "config.json").exists():
+            import json as _json
+
+            pcfg = _json.loads((local.parent / "config.json").read_text(encoding="utf-8"))
+            log.info("pretrained weights: %s (%.0f MB)", local,
+                     local.stat().st_size / 1e6)
+        else:
+            local, pcfg = PR.fetch()
+            log.info("pretrained weights downloaded to %s", local)
         mean, std = PR.band_statistics(pcfg)
         normaliser = ST.Normaliser(mean, std, ST.LANDSAT_BANDS)
         log.info("normalising with the pretrained model's own band statistics")
@@ -216,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     # ---- spatial blocks ---------------------------------------------------
     ids = TL.block_ids(mframe.shape, mframe, block_m=args.block_km * 1000.0)
     val_mask, val_blocks = TL.block_split(ids, val_fraction=args.val_fraction,
-                                          seed=args.seed)
+                                          seed=args.seed, min_span=args.tile)
     origins = TL.tile_origins(mframe.shape, args.tile, args.stride)
     tr_origins = TL.select_origins(origins, args.tile, val_mask, want="train")
     va_origins = TL.select_origins(origins, args.tile, val_mask, want="val")
@@ -242,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
         encoder=args.encoder, monitor=args.monitor,
         freeze_encoder=not args.finetune,
         cache_encoder=args.cache_encoder and not args.finetune,
+        encoder_checkpoint=(str(local) if args.encoder == "prithvi" else None),
         widths=tuple(args.widths) if args.widths
         else ((16, 32, 64) if args.quick else (32, 64, 128)),
     )

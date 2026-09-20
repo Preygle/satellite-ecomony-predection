@@ -35,6 +35,7 @@ class TrainConfig:
     widths: tuple[int, ...] = (32, 64, 128)
     decoder_width: int = 64
     freeze_encoder: bool = True
+    encoder_checkpoint: str | None = None
 
     def as_dict(self) -> dict:
         d = asdict(self)
@@ -118,7 +119,8 @@ class ImageModel:
         net = GrowthNet(n_channels=len(blob["channels"]), n_dates=blob["n_dates"],
                         encoder=cfg.encoder, widths=cfg.widths,
                         decoder_width=cfg.decoder_width, dropout=cfg.dropout,
-                        freeze_encoder=cfg.freeze_encoder)
+                        freeze_encoder=cfg.freeze_encoder,
+                        encoder_checkpoint=cfg.encoder_checkpoint)
         net.load_state_dict(blob["state_dict"])
         net.eval()
         return cls(net=net, normaliser=Normaliser.from_dict(blob["normaliser"]),
@@ -198,7 +200,8 @@ def fit_image_model(
 
     net = GrowthNet(n_channels=len(channels), n_dates=n_dates, encoder=cfg.encoder,
                     widths=cfg.widths, decoder_width=cfg.decoder_width,
-                    dropout=cfg.dropout, freeze_encoder=cfg.freeze_encoder).to(device)
+                    dropout=cfg.dropout, freeze_encoder=cfg.freeze_encoder,
+                    encoder_checkpoint=cfg.encoder_checkpoint).to(device)
 
     enc_lr = cfg.lr if cfg.lr_encoder is None else cfg.lr_encoder
     groups = [
