@@ -1,145 +1,190 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 660" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd" role="img" aria-label="Detailed architecture of the image model as implemented: eight driver maps at 100 metres are cut into 32 by 32 tiles, passed through a three-stage convolutional encoder and a UNet decoder with skip connections to one logit per cell, trained with focal and Dice loss on eligible cells, and the resulting suitability surface is allocated by the cellular automaton and scored on the held-out period.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd" role="img" aria-label="Detailed architecture of the complete image model: two dates of six-band Landsat surface reflectance at 30 metres are cut into 224 pixel tiles, passed through a convolutional encoder and a UNet decoder to one logit per pixel, trained with focal and Dice loss on eligible pixels, then averaged from 30 metre pixels onto the 100 metre analysis cells and allocated by the cellular automaton.">
   <defs>
-    <marker id="ahC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="ahE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
     </marker>
   </defs>
-  <rect width="1180" height="660" style="fill:var(--ground)"></rect>
+  <rect width="1200" height="700" style="fill:var(--ground)"></rect>
 
-  <text x="30" y="34" font-size="13" font-weight="700" fill="currentColor">Model A as implemented</text>
-  <text x="30" y="52" style="fill:var(--muted)">src/urbanintel/deep · trained by scripts/train_image_model.py · 500,481 parameters, all trainable</text>
+  <text x="30" y="34" font-size="13" font-weight="700" fill="currentColor">Model A as implemented &#8212; the complete run</text>
+  <text x="30" y="52" style="fill:var(--muted)">src/urbanintel/deep &#183; python scripts/train_image_model.py --source landsat &#183; 501,633 parameters, all trainable</text>
 
   <!-- INPUT -->
-  <text x="30" y="88" font-size="10" letter-spacing="1" style="fill:var(--muted)">INPUT · ONE DATE · EIGHT DRIVER MAPS AT 100 M</text>
-  <rect x="30" y="100" width="188" height="176" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="124" y="120" text-anchor="middle" font-weight="700" fill="currentColor">driver maps, t = 2010</text>
-  <text x="42" y="140" fill="currentColor">distance to centre</text>
-  <text x="42" y="156" fill="currentColor">neighbourhood built 500 m</text>
-  <text x="42" y="172" fill="currentColor">neighbourhood built 1500 m</text>
-  <text x="42" y="188" fill="currentColor">distance to urban edge</text>
-  <text x="42" y="204" fill="currentColor">road density</text>
-  <text x="42" y="220" fill="currentColor">population density</text>
-  <text x="42" y="236" fill="currentColor">built-up fraction</text>
-  <text x="42" y="252" fill="currentColor">slope</text>
-  <text x="124" y="270" text-anchor="middle" style="fill:var(--muted)">(8, 345, 365) float32</text>
+  <text x="30" y="88" font-size="10" letter-spacing="1" style="fill:var(--muted)">INPUT &#183; TWO DATES &#183; SIX LANDSAT BANDS &#183; 30 M</text>
+  <rect x="30" y="100" width="186" height="150" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="42" y="118" font-size="10" fill="currentColor">t &#8722; 5</text>
+  <rect x="46" y="116" width="186" height="150" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="139" y="140" text-anchor="middle" font-weight="700" fill="currentColor">Landsat, date t</text>
+  <text x="58" y="160" fill="currentColor">blue &#183; green &#183; red</text>
+  <text x="58" y="176" fill="currentColor">near infrared</text>
+  <text x="58" y="192" fill="currentColor">shortwave infrared 1 and 2</text>
+  <text x="58" y="214" style="fill:var(--muted)">surface reflectance, scaled</text>
+  <text x="58" y="230" style="fill:var(--muted)">integers &#215; 10,000</text>
+  <text x="58" y="252" style="fill:var(--muted)">(2, 6, 1127, 1192)</text>
 
-  <text x="124" y="300" text-anchor="middle" style="fill:var(--accent)">same eight columns the</text>
-  <text x="124" y="315" text-anchor="middle" style="fill:var(--accent)">random forest is given,</text>
-  <text x="124" y="330" text-anchor="middle" style="fill:var(--accent)">kept as maps</text>
+  <text x="120" y="288" text-anchor="middle" style="fill:var(--accent)">Landsat 5 harmonised onto the</text>
+  <text x="120" y="303" text-anchor="middle" style="fill:var(--accent)">Landsat 8 scale, Roy et al. (2016)</text>
+  <text x="120" y="318" text-anchor="middle" style="fill:var(--muted)">97.1 % valid pixels per epoch</text>
 
-  <line x1="218" y1="188" x2="256" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <line x1="232" y1="180" x2="270" y2="180" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- TILING -->
-  <rect x="258" y="130" width="150" height="116" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="333" y="150" text-anchor="middle" font-weight="700" fill="currentColor">tile + normalise</text>
-  <text x="333" y="168" text-anchor="middle" fill="currentColor">32 x 32 cells, stride 8</text>
-  <text x="333" y="184" text-anchor="middle" fill="currentColor">mean 0, sd 1 per channel</text>
-  <text x="333" y="200" text-anchor="middle" fill="currentColor">8 flips and rotations</text>
-  <text x="333" y="216" text-anchor="middle" fill="currentColor">tiles with growth drawn 4x</text>
-  <text x="333" y="236" text-anchor="middle" style="fill:var(--muted)">batch (16, 1, 8, 32, 32)</text>
-  <line x1="408" y1="188" x2="446" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <rect x="272" y="120" width="158" height="120" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="351" y="140" text-anchor="middle" font-weight="700" fill="currentColor">tile + normalise</text>
+  <text x="351" y="160" text-anchor="middle" fill="currentColor">224 &#215; 224 px = 6.7 km</text>
+  <text x="351" y="176" text-anchor="middle" fill="currentColor">stride 56</text>
+  <text x="351" y="192" text-anchor="middle" fill="currentColor">8 flips and rotations</text>
+  <text x="351" y="208" text-anchor="middle" fill="currentColor">tiles with growth drawn 4&#215;</text>
+  <text x="351" y="230" text-anchor="middle" style="fill:var(--muted)">batch (8, 2, 6, 224, 224)</text>
+  <line x1="430" y1="180" x2="468" y2="180" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- ENCODER -->
-  <rect x="448" y="96" width="250" height="184" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
-  <text x="573" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">encoder</text>
-  <text x="573" y="132" text-anchor="middle" style="fill:var(--muted)">LocalEncoder · swap for Prithvi-EO-2.0</text>
+  <rect x="470" y="96" width="248" height="180" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="594" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">encoder</text>
+  <text x="594" y="132" text-anchor="middle" style="fill:var(--muted)">12 input channels = 2 dates &#215; 6 bands</text>
 
-  <rect x="462" y="142" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="472" y="157" fill="currentColor">stem: conv 3x3 x2 + BN + ReLU</text>
-  <text x="472" y="171" style="fill:var(--muted)">(16, 32, 32, 32)   stride 1</text>
+  <rect x="484" y="142" width="220" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="494" y="157" fill="currentColor">stem: conv 3&#215;3 &#215;2 + BN + ReLU</text>
+  <text x="494" y="170" style="fill:var(--muted)">(8, 32, 224, 224)</text>
 
-  <rect x="462" y="184" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="472" y="199" fill="currentColor">stage 2: stride 2 + dropout 0.1</text>
-  <text x="472" y="213" style="fill:var(--muted)">(16, 64, 16, 16)</text>
+  <rect x="484" y="182" width="220" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="494" y="197" fill="currentColor">stage 2: stride 2 + dropout 0.1</text>
+  <text x="494" y="210" style="fill:var(--muted)">(8, 64, 112, 112)</text>
 
-  <rect x="462" y="226" width="222" height="36" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="472" y="241" fill="currentColor">stage 3: stride 2 + dropout 0.1</text>
-  <text x="472" y="255" style="fill:var(--muted)">(16, 128, 8, 8)</text>
+  <rect x="484" y="222" width="220" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="494" y="237" fill="currentColor">stage 3: stride 2 + dropout 0.1</text>
+  <text x="494" y="250" style="fill:var(--muted)">(8, 128, 56, 56)</text>
 
-  <line x1="698" y1="188" x2="736" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <text x="594" y="270" text-anchor="middle" font-size="10" style="fill:var(--warm)">swap for Prithvi-EO-2.0-300M with --encoder prithvi</text>
+
+  <line x1="718" y1="180" x2="756" y2="180" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- DECODER -->
-  <rect x="738" y="96" width="210" height="184" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="843" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">UNet decoder</text>
-  <text x="843" y="132" text-anchor="middle" style="fill:var(--muted)">upsample, concatenate, convolve</text>
-  <rect x="750" y="142" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
-  <text x="760" y="161" fill="currentColor">1x1 project 128 &#8594; 64</text>
-  <rect x="750" y="178" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
-  <text x="760" y="197" fill="currentColor">up x2 + skip 64 &#8594; 64</text>
-  <rect x="750" y="214" width="186" height="30" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
-  <text x="760" y="233" fill="currentColor">up x2 + skip 32 &#8594; 64</text>
-  <rect x="750" y="250" width="186" height="24" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
-  <text x="760" y="266" fill="currentColor">1x1 head &#8594; (16, 1, 32, 32)</text>
+  <rect x="758" y="110" width="196" height="150" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="856" y="130" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">UNet decoder</text>
+  <rect x="770" y="142" width="172" height="28" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="780" y="160" fill="currentColor">1&#215;1 project 128 &#8594; 64</text>
+  <rect x="770" y="176" width="172" height="28" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="780" y="194" fill="currentColor">up &#215;2 + skip 64 &#8594; 64</text>
+  <rect x="770" y="210" width="172" height="28" rx="2" stroke="currentColor" style="fill:var(--ground)"></rect>
+  <text x="780" y="228" fill="currentColor">up &#215;2 + skip 32 &#8594; 64</text>
+  <text x="856" y="252" text-anchor="middle" style="fill:var(--muted)">1&#215;1 head &#8594; (8, 1, 224, 224)</text>
 
-  <!-- skip connections -->
-  <path d="M684,160 C716,160 716,193 748,193" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahC)"></path>
-  <path d="M684,202 C706,202 706,229 748,229" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahC)"></path>
-  <text x="700" y="150" font-size="9.5" style="fill:var(--muted)">skip</text>
+  <path d="M704,160 C732,160 732,190 756,190" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahE)"></path>
+  <path d="M704,200 C724,200 724,224 756,224" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ahE)"></path>
+  <text x="718" y="150" font-size="9.5" style="fill:var(--muted)">skip</text>
 
-  <line x1="948" y1="188" x2="986" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <line x1="954" y1="180" x2="992" y2="180" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- LOSS -->
-  <rect x="988" y="120" width="162" height="136" rx="3" stroke-width="1.5" style="fill:var(--warm-soft);stroke:var(--warm)"></rect>
-  <text x="1069" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">loss</text>
-  <text x="1069" y="158" text-anchor="middle" fill="currentColor">focal(&#945;=0.25, &#947;=2)</text>
-  <text x="1069" y="174" text-anchor="middle" fill="currentColor">+ 0.5 x soft Dice</text>
-  <text x="1069" y="194" text-anchor="middle" fill="currentColor">masked to cells not</text>
-  <text x="1069" y="208" text-anchor="middle" fill="currentColor">urban at t</text>
-  <text x="1069" y="228" text-anchor="middle" style="fill:var(--muted)">label: built-up &#8805; 0.20</text>
-  <text x="1069" y="242" text-anchor="middle" style="fill:var(--muted)">at t + 5</text>
+  <rect x="994" y="118" width="176" height="136" rx="3" stroke-width="1.5" style="fill:var(--warm-soft);stroke:var(--warm)"></rect>
+  <text x="1082" y="138" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">loss</text>
+  <text x="1082" y="156" text-anchor="middle" fill="currentColor">focal(&#945;=0.25, &#947;=2)</text>
+  <text x="1082" y="172" text-anchor="middle" fill="currentColor">+ 0.5 &#215; soft Dice</text>
+  <text x="1082" y="192" text-anchor="middle" fill="currentColor">masked to pixels whose</text>
+  <text x="1082" y="206" text-anchor="middle" fill="currentColor">cell is not urban at t</text>
+  <text x="1082" y="226" text-anchor="middle" style="fill:var(--muted)">label painted from the</text>
+  <text x="1082" y="240" text-anchor="middle" style="fill:var(--muted)">100 m cell that contains it</text>
 
-  <path d="M1069,256 C1069,296 573,296 573,282" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ahC)"></path>
-  <text x="820" y="318" text-anchor="middle" font-size="10" style="fill:var(--muted)">gradients &#183; AdamW, lr 1e-3, cosine decay, gradient clip 5.0</text>
+  <path d="M1082,254 C1082,296 594,296 594,278" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ahE)"></path>
+  <text x="840" y="316" text-anchor="middle" font-size="10" style="fill:var(--muted)">gradients &#183; AdamW, lr 1e-3, cosine decay, gradient clip 5.0, early stopping on average precision</text>
 
-  <!-- SPLIT -->
-  <text x="30" y="372" font-size="10" letter-spacing="1" style="fill:var(--muted)">SPLIT · WHOLE 8 KM BLOCKS, NEVER SINGLE CELLS</text>
-  <rect x="30" y="384" width="378" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="44" y="404" font-weight="700" fill="currentColor">25 blocks &#8594; 6 held out (seed 0)</text>
-  <text x="44" y="424" fill="currentColor">919 training tiles &#183; 357 validation tiles</text>
-  <text x="44" y="440" fill="currentColor">487 tiles dropped: they straddle a boundary</text>
-  <text x="44" y="456" style="fill:var(--accent)">that gap is the buffer &#8212; no training tile</text>
-  <text x="44" y="470" style="fill:var(--accent)">shares a single cell with a validation tile</text>
-  <text x="44" y="492" style="fill:var(--muted)">early stopping watches average precision, not AUC:</text>
-  <text x="44" y="506" style="fill:var(--muted)">the automaton only ever uses the top of the ranking</text>
+  <!-- ROW 2 -->
+  <text x="30" y="368" font-size="10" letter-spacing="1" style="fill:var(--muted)">SPLIT &#183; WHOLE 16 KM BLOCKS ON THE 30 M GRID</text>
+  <rect x="30" y="380" width="400" height="140" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="44" y="400" font-weight="700" fill="currentColor">9 blocks &#8594; 1 held out for validation</text>
+  <text x="44" y="420" fill="currentColor">186 training tile positions &#183; 36 validation</text>
+  <text x="44" y="436" fill="currentColor">120 dropped: they straddle a boundary</text>
+  <text x="44" y="456" style="fill:var(--accent)">a block too small to hold a 224 px tile cannot be</text>
+  <text x="44" y="470" style="fill:var(--accent)">chosen &#8212; the edge blocks are slivers, and picking</text>
+  <text x="44" y="484" style="fill:var(--accent)">one left an earlier run with no validation at all</text>
+  <text x="44" y="506" style="fill:var(--muted)">&#215; 2 transitions = 372 training tiles, 230,601 converted pixels</text>
 
-  <line x1="408" y1="448" x2="446" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <line x1="430" y1="450" x2="468" y2="450" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- PREDICT -->
-  <rect x="448" y="384" width="250" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="573" y="404" text-anchor="middle" font-weight="700" fill="currentColor">predict the whole frame</text>
-  <text x="462" y="424" fill="currentColor">sliding window, stride 8</text>
-  <text x="462" y="440" fill="currentColor">logits averaged where windows overlap,</text>
-  <text x="462" y="454" fill="currentColor">then one sigmoid &#8212; so no tile seams</text>
-  <text x="462" y="476" fill="currentColor">suitability s: (345, 365) in [0, 1]</text>
-  <text x="462" y="498" style="fill:var(--muted)">18 draws (3 seeds x 6 dropout) for uncertainty</text>
+  <rect x="470" y="380" width="248" height="140" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="594" y="400" text-anchor="middle" font-weight="700" fill="currentColor">predict, then come back to 100 m</text>
+  <text x="484" y="420" fill="currentColor">sliding window, stride 56</text>
+  <text x="484" y="436" fill="currentColor">logits averaged where windows overlap,</text>
+  <text x="484" y="450" fill="currentColor">then one sigmoid &#8212; no tile seams</text>
+  <text x="484" y="472" fill="currentColor">1,343,384 pixels &#8594; 125,925 cells</text>
+  <text x="484" y="488" style="fill:var(--accent)">each pixel joins the cell holding its centre,</text>
+  <text x="484" y="502" style="fill:var(--accent)">so nothing is double counted or dropped</text>
 
-  <line x1="698" y1="448" x2="736" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <line x1="718" y1="450" x2="756" y2="450" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- CA -->
-  <rect x="738" y="384" width="210" height="128" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="843" y="404" text-anchor="middle" font-weight="700" fill="currentColor">cellular automaton</text>
-  <text x="752" y="424" fill="currentColor">score = 0.65 s + 0.35 n&#8323;&#8320;&#8320;</text>
-  <text x="752" y="440" fill="currentColor">8 rounds, demand = 1,214 cells</text>
-  <text x="752" y="456" fill="currentColor">(the count really observed)</text>
-  <text x="752" y="478" style="fill:var(--warm)">the 0.35 is swept, not assumed:</text>
-  <text x="752" y="492" style="fill:var(--warm)">see docs/figures/dl/DL11</text>
+  <rect x="758" y="380" width="196" height="140" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="856" y="400" text-anchor="middle" font-weight="700" fill="currentColor">cellular automaton</text>
+  <text x="770" y="420" fill="currentColor">score = 0.65 s + 0.35 n&#8323;&#8320;&#8320;</text>
+  <text x="770" y="436" fill="currentColor">8 rounds</text>
+  <text x="770" y="452" fill="currentColor">demand 1,214 cells, the count</text>
+  <text x="770" y="466" fill="currentColor">really observed</text>
+  <text x="770" y="490" style="fill:var(--warm)">the 0.35 is swept, not assumed;</text>
+  <text x="770" y="504" style="fill:var(--warm)">0.1 scores better here</text>
 
-  <line x1="948" y1="448" x2="986" y2="448" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahC)"></line>
+  <line x1="954" y1="450" x2="992" y2="450" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahE)"></line>
 
   <!-- SCORE -->
-  <rect x="988" y="384" width="162" height="128" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
-  <text x="1069" y="404" text-anchor="middle" font-weight="700" fill="currentColor">scored once</text>
-  <text x="1069" y="422" text-anchor="middle" fill="currentColor">2015 &#8594; 2020</text>
-  <text x="1002" y="444" fill="currentColor">FoM   0.1067</text>
-  <text x="1002" y="460" fill="currentColor">AUC   0.6807</text>
-  <text x="1002" y="476" fill="currentColor">AP      0.0969</text>
-  <text x="1002" y="492" fill="currentColor">hits    234 / 1,214</text>
+  <rect x="994" y="380" width="176" height="140" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="1082" y="400" text-anchor="middle" font-weight="700" fill="currentColor">scored once</text>
+  <text x="1082" y="418" text-anchor="middle" fill="currentColor">2015 &#8594; 2020, held out</text>
+  <text x="1008" y="442" fill="currentColor">AUC          0.8603</text>
+  <text x="1008" y="458" fill="currentColor">avg. prec.   0.0761</text>
+  <text x="1008" y="474" fill="currentColor">FoM          0.0635</text>
+  <text x="1008" y="490" fill="currentColor">hits         145 / 1,214</text>
+  <text x="1082" y="510" text-anchor="middle" font-size="9.5" style="fill:var(--muted)">15-epoch run; longer run pending</text>
 
-  <!-- footer facts -->
-  <line x1="30" y1="546" x2="1150" y2="546" stroke="currentColor" opacity="0.25"></line>
-  <text x="30" y="568" font-size="10" letter-spacing="1" style="fill:var(--muted)">MEASURED, NOT ASSUMED</text>
-  <text x="30" y="590" fill="currentColor">Training: 37 epochs x 5.5 s on 16 CPU cores, no GPU. Best epoch 27 by validation average precision.</text>
-  <text x="30" y="608" fill="currentColor">Across three seeds the Figure of Merit is 0.1041 &#177; 0.0018, and the test AUC swings from 0.679 to 0.835 &#8212; the ranking is far less stable than the allocation.</text>
-  <text x="30" y="626" fill="currentColor">Eligible cells 111,700 &#183; conversions 1,214 (1.09%) &#183; random allocation reaches a Figure of Merit of 0.0055.</text>
-  <text x="30" y="644" style="fill:var(--muted)">Two input dates and 30 m Landsat bands are supported by the same code; only one GHSL date is on disk today, so the model runs on one.</text>
+  <!-- TIMELINE -->
+  <text x="30" y="560" font-size="10" letter-spacing="1" style="fill:var(--muted)">TRANSITIONS &#183; INPUT = LANDSAT AT T &#8722; 5 AND T &#183; LABEL = GHSL BUILT-UP CHANGE T &#8594; T + 5</text>
+  <rect x="742" y="572" width="132" height="76" fill="currentColor" opacity="0.07"></rect>
+
+  <line x1="80" y1="620" x2="1140" y2="620" stroke="currentColor" stroke-width="1"></line>
+  <text x="80" y="640" text-anchor="middle" fill="currentColor">1990</text>
+  <text x="212" y="640" text-anchor="middle" fill="currentColor">1995</text>
+  <text x="345" y="640" text-anchor="middle" fill="currentColor">2000</text>
+  <text x="478" y="640" text-anchor="middle" fill="currentColor">2005</text>
+  <text x="610" y="640" text-anchor="middle" fill="currentColor">2010</text>
+  <text x="742" y="640" text-anchor="middle" fill="currentColor">2015</text>
+  <text x="875" y="640" text-anchor="middle" fill="currentColor">2020</text>
+  <text x="1008" y="640" text-anchor="middle" fill="currentColor">2025</text>
+  <text x="1140" y="640" text-anchor="middle" fill="currentColor">2030</text>
+  <g stroke="currentColor">
+    <line x1="80" y1="616" x2="80" y2="624"></line>
+    <line x1="212" y1="616" x2="212" y2="624"></line>
+    <line x1="345" y1="616" x2="345" y2="624"></line>
+    <line x1="478" y1="616" x2="478" y2="624"></line>
+    <line x1="610" y1="616" x2="610" y2="624"></line>
+    <line x1="742" y1="616" x2="742" y2="624"></line>
+    <line x1="875" y1="616" x2="875" y2="624"></line>
+    <line x1="1008" y1="616" x2="1008" y2="624"></line>
+    <line x1="1140" y1="616" x2="1140" y2="624"></line>
+  </g>
+
+  <path d="M216,602 v6 H341 v-6" fill="none" stroke="currentColor"></path>
+  <text x="278" y="596" text-anchor="middle" fill="currentColor">train</text>
+  <path d="M614,602 v6 H738 v-6" fill="none" stroke="currentColor"></path>
+  <text x="676" y="596" text-anchor="middle" fill="currentColor">train</text>
+  <path d="M746,602 v6 H871 v-6" fill="none" stroke-width="1.5" style="stroke:var(--accent)"></path>
+  <text x="808" y="596" text-anchor="middle" font-weight="700" style="fill:var(--accent)">TEST, touched once</text>
+  <path d="M349,602 v6 H474 v-6" fill="none" stroke="currentColor" stroke-dasharray="3 3" opacity="0.5"></path>
+  <path d="M482,602 v6 H606 v-6" fill="none" stroke="currentColor" stroke-dasharray="3 3" opacity="0.5"></path>
+  <text x="478" y="596" text-anchor="middle" style="fill:var(--muted)">available once GHSL 2005 downloads</text>
+
+  <text x="30" y="666" style="fill:var(--muted)">Landsat</text>
+  <text x="80" y="666" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="212" y="666" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="345" y="666" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="478" y="666" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="610" y="666" text-anchor="middle" fill="currentColor">L5</text>
+  <text x="742" y="666" text-anchor="middle" fill="currentColor">L8</text>
+  <text x="30" y="686" style="fill:var(--muted)">GHSL</text>
+  <circle cx="212" cy="682" r="4" fill="currentColor"></circle>
+  <circle cx="345" cy="682" r="4" fill="currentColor"></circle>
+  <circle cx="478" cy="682" r="4" fill="none" stroke="currentColor" stroke-dasharray="2 2"></circle>
+  <circle cx="610" cy="682" r="4" fill="currentColor"></circle>
+  <circle cx="742" cy="682" r="4" fill="currentColor"></circle>
+  <circle cx="875" cy="682" r="4" fill="currentColor"></circle>
+  <text x="900" y="686" font-size="10" style="fill:var(--muted)">&#9679; label on disk    &#9675; not yet downloaded</text>
 </svg>
