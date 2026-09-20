@@ -179,6 +179,7 @@ def fit_image_model(
     normaliser: Normaliser,
     config: TrainConfig | None = None,
     progress: Callable[[dict], None] | None = None,
+    checkpoint: Path | None = None,
 ) -> ImageModel:
     """Train the conversion network, stopping on a spatially held-out score.
 
@@ -337,6 +338,14 @@ def fit_image_model(
             best_score, best_epoch, stale = watched, epoch, 0
             best_val = dict(val)
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
+            if checkpoint is not None:
+                # A long run should never be one crash away from nothing. The
+                # best weights so far are written the moment they improve, so
+                # an interrupted run still leaves a usable model behind.
+                tmp = Path(checkpoint).with_suffix(".partial.pt")
+                torch.save({"state_dict": best_state, "epoch": epoch,
+                            "score": float(best_score), "metric": cfg.monitor,
+                            "history": history}, tmp)
         else:
             stale += 1
             if stale >= cfg.patience:
