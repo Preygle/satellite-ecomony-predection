@@ -90,6 +90,8 @@ src/urbanintel/
 scripts/                      one job per script — see §6
 dashboard/app.py              Streamlit dashboard (7 tabs):  run_dashboard.bat
 tests/test_core.py            41 tests:  python tests/test_core.py
+tests/test_deep.py            12 tests for src/urbanintel/deep (pure numpy)
+src/urbanintel/deep/          the Review 4 models — see docs/DEEP_MODELS.md
 docs/                         reports, method docs, figures/, diagrams/ (see DIAGRAMS.md), decks, PDFs
 dataset_viewer/               static Leaflet viewer of the raw layers (Review 2 demo)
 mentor_task/                  Sentinel/Landsat date-window extraction app + papers list
@@ -159,6 +161,9 @@ downloads cap at ~50 MB; the export scripts step down the scale automatically.
 | Tests | `python tests/test_core.py` | ~3 s |
 | Pipeline | `python -m urbanintel.pipeline` | ~60 s |
 | Growth models | `python scripts/run_growth_model.py` | ~25 s |
+| Image model (Model A) | `python scripts/train_image_model.py` | ~4 min, CPU |
+| Deep system (Model B) | `python scripts/run_deep_system.py` | ~55 s |
+| Deep-model figures | `python scripts/make_dl_figures.py` | ~20 s |
 | Typology hold-out test | `python scripts/validate_typology.py` | ~3 s |
 | Satellite cross-checks | `python scripts/cross_checks.py` | ~3 s |
 | Population vs Census | `python scripts/validate_population.py` | ~35 s (Earth Engine) |

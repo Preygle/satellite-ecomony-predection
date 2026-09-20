@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd" role="img" aria-label="Detailed system architecture as implemented: driver rasters feed both an image model and gradient-boosted trees, the encoder also supplies sixteen image components, a logistic blend combines them, the cellular automaton allocates demand, an eighteen-draw ensemble gives a conversion probability, an autoencoder gives a label-free ghost check, and an analytics module writes eleven figures and one results file.">
+  <defs>
+    <marker id="ahD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+    </marker>
+  </defs>
+  <rect width="1180" height="720" style="fill:var(--ground)"></rect>
+
+  <text x="30" y="34" font-size="13" font-weight="700" fill="currentColor">Model B as implemented</text>
+  <text x="30" y="52" style="fill:var(--muted)">one command: python scripts/run_deep_system.py &#183; 54 s end to end on CPU &#183; every model scored on the same held-out period</text>
+
+  <!-- DATA -->
+  <text x="30" y="88" font-size="10" letter-spacing="1" style="fill:var(--muted)">DATA ON DISK</text>
+  <rect x="30" y="100" width="174" height="150" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="117" y="120" text-anchor="middle" font-weight="700" fill="currentColor">rasters, 100 m</text>
+  <text x="42" y="140" fill="currentColor">GHS-BUILT-S 2010 / 2015 / 2020</text>
+  <text x="42" y="156" fill="currentColor">GHS-POP 2010 / 2015 / 2020</text>
+  <text x="42" y="172" fill="currentColor">OpenStreetMap road density</text>
+  <text x="42" y="188" fill="currentColor">SRTM slope, distances</text>
+  <text x="42" y="210" style="fill:var(--muted)">345 x 365 cells</text>
+  <text x="42" y="226" style="fill:var(--muted)">111,700 eligible</text>
+  <text x="42" y="242" style="fill:var(--muted)">1,214 conversions (1.09%)</text>
+
+  <line x1="204" y1="150" x2="242" y2="150" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+  <line x1="204" y1="205" x2="242" y2="300" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+
+  <!-- IMAGE MODEL -->
+  <rect x="244" y="100" width="216" height="118" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="352" y="120" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">image model (Model A)</text>
+  <text x="256" y="140" fill="currentColor">convolutional encoder + UNet decoder</text>
+  <text x="256" y="156" fill="currentColor">500,481 parameters</text>
+  <text x="256" y="172" fill="currentColor">3 seeds trained, 18 prediction draws</text>
+  <text x="256" y="192" style="fill:var(--muted)">s_img: (345, 365)</text>
+  <text x="256" y="208" style="fill:var(--muted)">AUC 0.681 &#183; AP 0.097 &#183; FoM 0.107</text>
+
+  <!-- XGBOOST -->
+  <rect x="244" y="252" width="216" height="118" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="352" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">gradient-boosted trees</text>
+  <text x="256" y="292" fill="currentColor">8 drivers + 16 image components</text>
+  <text x="256" y="308" fill="currentColor">scale_pos_weight 91, depth 5</text>
+  <text x="256" y="324" fill="currentColor">116 rounds kept by block early stopping</text>
+  <text x="256" y="344" style="fill:var(--muted)">s_tab: (345, 365) &#183; exact TreeSHAP</text>
+  <text x="256" y="360" style="fill:var(--muted)">AUC 0.902 &#183; AP 0.141 &#183; FoM 0.090</text>
+
+  <!-- components arrow -->
+  <path d="M352,218 C352,232 352,238 352,250" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#ahD)"></path>
+  <text x="352" y="238" text-anchor="middle" font-size="9.5" style="fill:var(--muted)">encoder features &#8594; 16 components</text>
+
+  <line x1="460" y1="150" x2="498" y2="185" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+  <line x1="460" y1="300" x2="498" y2="250" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+
+  <!-- STACKER -->
+  <rect x="500" y="176" width="190" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="595" y="196" text-anchor="middle" font-weight="700" fill="currentColor">logistic blend</text>
+  <text x="512" y="216" fill="currentColor">fitted on the validation blocks,</text>
+  <text x="512" y="230" fill="currentColor">where neither member trained</text>
+  <text x="512" y="250" style="fill:var(--muted)">weights: image 0.09, tabular 0.75</text>
+
+  <line x1="690" y1="219" x2="728" y2="219" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+
+  <!-- CA -->
+  <rect x="730" y="176" width="200" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="830" y="196" text-anchor="middle" font-weight="700" fill="currentColor">cellular automaton</text>
+  <text x="742" y="216" fill="currentColor">0.65 s + 0.35 n&#8323;&#8320;&#8320;, 8 rounds</text>
+  <text x="742" y="232" fill="currentColor">demand 1,214 cells</text>
+  <text x="742" y="252" style="fill:var(--warm)">weight swept 0 &#8594; 0.5 for every model</text>
+
+  <line x1="930" y1="219" x2="968" y2="219" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+
+  <!-- ENSEMBLE -->
+  <rect x="970" y="176" width="180" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="1060" y="196" text-anchor="middle" font-weight="700" fill="currentColor">18-draw ensemble</text>
+  <text x="982" y="216" fill="currentColor">one allocation per draw</text>
+  <text x="982" y="232" fill="currentColor">1,113 cells chosen every time</text>
+  <text x="982" y="248" fill="currentColor">183 chosen only sometimes</text>
+
+  <!-- GHOST -->
+  <rect x="500" y="290" width="430" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="715" y="310" text-anchor="middle" font-weight="700" fill="currentColor">ghost growth, without a single hand label</text>
+  <text x="512" y="330" fill="currentColor">autoencoder (8-3-8) trained only on built-up cells whose activity is at or above expected</text>
+  <text x="512" y="346" fill="currentColor">cells it reconstructs worst are unlike normal development: 772 above the 95th percentile</text>
+  <text x="512" y="366" style="fill:var(--warm)">it finds 34 of the rule&#8217;s 144 cells &#8212; corroboration, not accuracy: neither has ground truth</text>
+
+  <!-- ANALYTICS -->
+  <line x1="595" y1="376" x2="595" y2="410" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+  <line x1="1060" y1="262" x2="1060" y2="410" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+  <line x1="352" y1="370" x2="352" y2="410" stroke="currentColor" stroke-width="1.2" marker-end="url(#ahD)"></line>
+
+  <rect x="30" y="412" width="1120" height="150" rx="3" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="44" y="434" font-size="12" font-weight="700" fill="currentColor">analytics &#8212; the same suite for every model</text>
+  <text x="44" y="456" fill="currentColor">ranking</text>
+  <text x="44" y="472" style="fill:var(--muted)">AUC &#183; average precision</text>
+  <text x="44" y="486" style="fill:var(--muted)">precision and recall at the</text>
+  <text x="44" y="500" style="fill:var(--muted)">top 1, 2, 5 and 10 percent</text>
+  <text x="44" y="514" style="fill:var(--muted)">TOC curve</text>
+
+  <text x="260" y="456" fill="currentColor">allocation</text>
+  <text x="260" y="472" style="fill:var(--muted)">Figure of Merit, with and</text>
+  <text x="260" y="486" style="fill:var(--muted)">without the automaton</text>
+  <text x="260" y="500" style="fill:var(--muted)">producer&#8217;s accuracy, kappa</text>
+  <text x="260" y="514" style="fill:var(--muted)">hits / misses / false alarms</text>
+  <text x="260" y="528" style="fill:var(--muted)">ratio to random placement</text>
+
+  <text x="480" y="456" fill="currentColor">honesty</text>
+  <text x="480" y="472" style="fill:var(--muted)">reliability curve, Brier score</text>
+  <text x="480" y="486" style="fill:var(--muted)">expected calibration error</text>
+  <text x="480" y="500" style="fill:var(--muted)">seed spread over 3 runs</text>
+  <text x="480" y="514" style="fill:var(--muted)">library versions recorded</text>
+
+  <text x="700" y="456" fill="currentColor">where it fails</text>
+  <text x="700" y="472" style="fill:var(--muted)">AUC per fifth of the city</text>
+  <text x="700" y="486" style="fill:var(--muted)">Figure of Merit by distance</text>
+  <text x="700" y="500" style="fill:var(--muted)">to the centre and to the edge</text>
+  <text x="700" y="514" style="fill:var(--muted)">neighbourhood-weight sweep</text>
+
+  <text x="920" y="456" fill="currentColor">written out</text>
+  <text x="920" y="472" style="fill:var(--muted)">outputs/varanasi_deep_system.json</text>
+  <text x="920" y="486" style="fill:var(--muted)">outputs/varanasi_image_model.json</text>
+  <text x="920" y="500" style="fill:var(--muted)">docs/figures/dl &#8212; 11 figures</text>
+  <text x="920" y="514" style="fill:var(--muted)">4 new rasters</text>
+
+  <!-- RESULTS -->
+  <text x="30" y="596" font-size="10" letter-spacing="1" style="fill:var(--muted)">HELD-OUT 2015&#8211;2020, SCORED ONCE &#183; FIGURE OF MERIT BY HOW MUCH THE ALLOCATION LEANS ON CONTIGUITY</text>
+  <text x="44" y="620" font-weight="700" fill="currentColor">model</text>
+  <text x="330" y="620" text-anchor="end" font-weight="700" fill="currentColor">AUC</text>
+  <text x="410" y="620" text-anchor="end" font-weight="700" fill="currentColor">AP</text>
+  <text x="520" y="620" text-anchor="end" font-weight="700" fill="currentColor">weight 0</text>
+  <text x="640" y="620" text-anchor="end" font-weight="700" fill="currentColor">weight 0.35 (in use)</text>
+  <text x="740" y="620" text-anchor="end" font-weight="700" fill="currentColor">hits</text>
+
+  <text x="44" y="640" fill="currentColor">gradient-boosted trees</text>
+  <text x="330" y="640" text-anchor="end" fill="currentColor">0.905</text>
+  <text x="410" y="640" text-anchor="end" fill="currentColor">0.148</text>
+  <text x="520" y="640" text-anchor="end" font-weight="700" style="fill:var(--accent)">0.1262</text>
+  <text x="640" y="640" text-anchor="end" fill="currentColor">0.0864</text>
+  <text x="740" y="640" text-anchor="end" fill="currentColor">193</text>
+
+  <text x="44" y="658" fill="currentColor">random forest (Review 3)</text>
+  <text x="330" y="658" text-anchor="end" fill="currentColor">0.833</text>
+  <text x="410" y="658" text-anchor="end" fill="currentColor">0.127</text>
+  <text x="520" y="658" text-anchor="end" fill="currentColor">0.1087</text>
+  <text x="640" y="658" text-anchor="end" fill="currentColor">0.1016</text>
+  <text x="740" y="658" text-anchor="end" fill="currentColor">224</text>
+
+  <text x="44" y="676" fill="currentColor">image model</text>
+  <text x="330" y="676" text-anchor="end" fill="currentColor">0.681</text>
+  <text x="410" y="676" text-anchor="end" fill="currentColor">0.097</text>
+  <text x="520" y="676" text-anchor="end" fill="currentColor">0.1036</text>
+  <text x="640" y="676" text-anchor="end" font-weight="700" style="fill:var(--accent)">0.1067</text>
+  <text x="740" y="676" text-anchor="end" fill="currentColor">234</text>
+
+  <text x="44" y="694" fill="currentColor">random allocation</text>
+  <text x="330" y="694" text-anchor="end" fill="currentColor">0.500</text>
+  <text x="410" y="694" text-anchor="end" style="fill:var(--muted)">&#8212;</text>
+  <text x="520" y="694" text-anchor="end" fill="currentColor">0.0055</text>
+  <text x="640" y="694" text-anchor="end" fill="currentColor">0.0055</text>
+  <text x="740" y="694" text-anchor="end" fill="currentColor">13</text>
+
+  <text x="790" y="640" style="fill:var(--warm)">The automaton helps only the image model, whose</text>
+  <text x="790" y="656" style="fill:var(--warm)">surface is already smooth. For every other model,</text>
+  <text x="790" y="672" style="fill:var(--warm)">leaning on contiguity moves predictions away from</text>
+  <text x="790" y="688" style="fill:var(--warm)">where this city actually grew.</text>
+</svg>
