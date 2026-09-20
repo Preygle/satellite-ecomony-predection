@@ -270,11 +270,16 @@ def main(argv: list[str] | None = None) -> int:
               f"val AP {row['val_average_precision'] or float('nan'):.4f}   "
               f"{row['seconds']:.1f}s", flush=True)
 
+    mdir = cfg.processed_dir / "models"
+    mdir.mkdir(parents=True, exist_ok=True)
+    tag = f"_{args.tag}" if args.tag else ""
+    ckpt = Path(args.out) if args.out else mdir / f"image_model_{args.source}{tag}.pt"
+
     print(f"\nTRAINING - {args.encoder} encoder, {args.source} at {int(mframe.res)} m, "
           f"{len(train_tiles)} tiles of {args.tile}x{args.tile}")
     model = fit_image_model(train_tiles, val_tiles, channels=raw[needed[0]].names,
                             n_dates=n_dates, source=args.source, normaliser=normaliser,
-                            config=conf, progress=show)
+                            config=conf, progress=show, checkpoint=ckpt)
     log.info("network: %s parameters (%s trainable), best epoch %d, "
              "validation AUC %.4f / AP %.4f", f"{model.n_parameters:,}",
              f"{model.n_trainable:,}", model.best_epoch, model.val_auc,
@@ -307,11 +312,8 @@ def main(argv: list[str] | None = None) -> int:
         if baseline["mean_figure_of_merit"] else None)
 
     # ---- write ------------------------------------------------------------
-    mdir = cfg.processed_dir / "models"
-    mdir.mkdir(parents=True, exist_ok=True)
-    tag = f"_{args.tag}" if args.tag else ""
-    ckpt = Path(args.out) if args.out else mdir / f"image_model_{args.source}{tag}.pt"
     model.save(ckpt)
+    Path(ckpt).with_suffix(".partial.pt").unlink(missing_ok=True)
     with rasterio.open(rdir / f"growth_suitability_image{tag}.tif", "w",
                        **fine.profile("float32")) as ds:
         ds.write(surface.astype("float32"), 1)
