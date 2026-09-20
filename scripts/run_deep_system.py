@@ -130,11 +130,20 @@ def main(argv: list[str] | None = None) -> int:
     if not use_image:
         log.warning("no image model checkpoint; running the tabular half only")
 
-    ids = TL.block_ids(fine.shape, fine, block_m=block_km * 1000.0)
+    # Two block sizes, deliberately. The image model's blocks have to be big
+    # enough to hold one of its tiles, which at 30 m means 16 km squares and
+    # only nine of them; early stopping a boosted tree model on two such
+    # blocks is far too coarse a signal -- it stopped after two rounds. The
+    # tabular models get their own finer split, and only the blend is fitted
+    # on the image model's blocks, because that is the one thing that has to
+    # match what the image model never saw.
+    tab_block_km = float(cfg.get("deep.tabular_block_km", 8.0))
+    ids = TL.block_ids(fine.shape, fine, block_m=tab_block_km * 1000.0)
     val_mask, val_blocks = TL.block_split(ids, val_fraction=val_fraction, seed=seed)
     folds = TL.block_folds(ids, n_folds=5, seed=seed)
-    log.info("spatial blocks: %d km, %d of %d held out (seed %d)", int(block_km),
-             len(val_blocks), len(np.unique(ids)), seed)
+    log.info("blocks: %d km for the tabular models (%d of %d held out), %d km for "
+             "the image model", int(tab_block_km), len(val_blocks),
+             len(np.unique(ids)), int(block_km))
 
     def drivers(year: int):
         return GM.build_drivers(built[year], fine, distance_km=dist, road_density=roads,
@@ -160,27 +169,76 @@ def main(argv: list[str] | None = None) -> int:
                  model.config.encoder, f"{model.n_parameters:,}", model.n_dates,
                  model.source)
 
+        # The image model may work on a finer grid than the analysis grid: a
+        # Landsat model reads 30 m pixels and its output has to come back to
+        # the 100 m cells before anything else can use it.
+        if model.source == "landsat":
+            mframe = aoi.frame(30.0)
+            lut = TL.cell_lookup(mframe, fine)
+            lpaths = {y: cfg.raw_dir / "gee" / f"landsat_{y}.tif"
+                      for y in range(1975, 2031, 5)}
+            log.info("image model works at %d m (%s); predictions are averaged back "
+                     "onto the %d m grid", int(mframe.res), mframe.shape, int(fine.res))
+        else:
+            mframe, lut, lpaths = fine, None, {}
+            blend_mask = val_mask
+
         def stack_for(year: int) -> ST.TemporalStack:
             years = [year - 5, year] if model.n_dates == 2 else [year]
-            return ST.driver_stack(built, fine, years=years, distance_km=dist,
+            if model.source == "landsat":
+                return ST.landsat_stack(lpaths, mframe, years=years)
+            return ST.driver_stack(built, mframe, years=years, distance_km=dist,
                                    road_density=roads, population=pop, slope=slope,
                                    urban_threshold=thr)
 
+        def to_cells(arr: np.ndarray) -> np.ndarray:
+            if lut is None:
+                return arr
+            return np.nan_to_num(TL.aggregate_to_cells(arr, lut, fine), nan=0.0)
+
+        # The blend has to be fitted where the image model did not train. Its
+        # split is deterministic, so it is reproduced here on the model's own
+        # grid and projected down, rather than guessed at 100 m — a mismatch
+        # would fit the blend on cells the image model had already seen.
+        if lut is not None:
+            m_ids = TL.block_ids(mframe.shape, mframe, block_m=block_km * 1000.0)
+            m_val, _ = TL.block_split(m_ids, val_fraction=val_fraction, seed=seed,
+                                      min_span=model.tile_size)
+            blend_mask = to_cells(m_val.astype("float32")) > 0.5
+            log.info("blend will be fitted on the image model's own held-out "
+                     "blocks: %d of %d cells", int(blend_mask.sum()), blend_mask.size)
+
         st_tr, st_te = stack_for(t0), stack_for(v0)
-        surfaces_train["image"] = predict_surface(model, st_tr, device=args.device)
-        surfaces_test["image"] = predict_surface(model, st_te, device=args.device)
+        surfaces_train["image"] = to_cells(predict_surface(model, st_tr,
+                                                           device=args.device))
+        surfaces_test["image"] = to_cells(predict_surface(model, st_te,
+                                                          device=args.device))
         image_info = model.as_dict()
 
-        feats = EM.encoder_surface(model, st_te, device=args.device)
-        comps_te, comps_info = EM.pca_components(feats, k=args.components, seed=seed)
-        comps_tr, _ = EM.pca_components(EM.encoder_surface(model, st_tr, device=args.device),
-                                        k=args.components, seed=seed)
+        # Reduce the encoder's features first and aggregate afterwards: sixteen
+        # components cost a fraction of what averaging 128 channels over 1.3
+        # million pixels would.
+        def components(stack: ST.TemporalStack, fit: bool):
+            feats = EM.encoder_surface(model, stack, device=args.device)
+            comps, info = EM.pca_components(feats, k=args.components, seed=seed)
+            return np.stack([to_cells(c) for c in comps]), info
+
+        if args.components > 0:
+            comps_te, comps_info = components(st_te, True)
+            comps_tr, _ = components(st_tr, False)
+        else:
+            # Extracting embeddings holds the whole feature map in memory --
+            # 128 channels over 1.3 million pixels is about 700 MB -- so the
+            # blend can be run without them when memory is short.
+            comps_te = comps_tr = None
+            log.info("image components skipped (--components 0)")
         log.info("image components: %d, holding %.1f%% of the feature variance",
                  comps_info["n_components"], 100 * comps_info["cumulative_variance"])
-        X_tr, feat_names = EM.append_components(X_tr_all, names, comps_tr,
-                                                np.ones(fine.shape, dtype=bool))
-        X_te, _ = EM.append_components(X_te_all, names, comps_te,
-                                       np.ones(fine.shape, dtype=bool))
+        if comps_tr is not None:
+            X_tr, feat_names = EM.append_components(X_tr_all, names, comps_tr,
+                                                    np.ones(fine.shape, dtype=bool))
+            X_te, _ = EM.append_components(X_te_all, names, comps_te,
+                                           np.ones(fine.shape, dtype=bool))
 
     # ---- tabular models ---------------------------------------------------
     models: dict[str, object] = {}
@@ -209,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
              xgb_plain.test_auc, xgb_plain.validation.figure_of_merit,
              xgb_plain.best_iteration + 1)
 
-    if use_image:
+    if use_image and comps_tr is not None:
         Xb2, yb2, blk2 = BO.eligible_rows(built[t0], built[t1], X_tr, ids,
                                           urban_threshold=thr)
         xgb_img = BO.fit_booster(Xb2, yb2, blk2, feature_names=feat_names,
@@ -228,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
     # ---- the blend, fitted where nothing trained --------------------------
     stacker = None
     if use_image:
-        fit_mask = val_mask & elig_tr
+        fit_mask = blend_mask & elig_tr
         stacker = BO.fit_stacker(surfaces_train, label_tr.astype(bool), fit_mask,
                                  fit_on=f"validation blocks, {t0}-{t1}", seed=seed)
         blend = stacker.blend(surfaces_test)
@@ -297,15 +355,15 @@ def main(argv: list[str] | None = None) -> int:
             # each of them fill in the rest.
             members = [ckpt] + siblings
             per = max(1, args.draws // len(members))
-            draws = np.stack([predict_surface(ImageModel.load(p), st_te,
-                                              device=args.device, mc_dropout=per > 1,
-                                              seed=i)
-                              for p in members for i in range(per)])
+            draws = np.stack([to_cells(predict_surface(
+                ImageModel.load(p), st_te, device=args.device,
+                mc_dropout=per > 1, seed=i))
+                for p in members for i in range(per)])
             how = (f"{len(members)} models trained from different seeds x {per} "
                    f"dropout draws each, one allocation per draw")
         else:
-            draws = dropout_ensemble(ImageModel.load(ckpt), st_te, n=args.draws,
-                                     device=args.device)
+            draws = np.stack([to_cells(d) for d in dropout_ensemble(
+                ImageModel.load(ckpt), st_te, n=args.draws, device=args.device)])
             how = ("dropout left on at prediction time, one allocation per draw")
         if stacker is not None:
             draws = np.stack([stacker.blend({"image": d, "tabular": surfaces_test["tabular"]})
