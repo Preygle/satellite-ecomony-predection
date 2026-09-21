@@ -75,6 +75,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                     help="what early stopping watches on the validation blocks")
     ap.add_argument("--widths", type=int, nargs="+", default=None,
                     help="encoder widths; narrower stages regularise harder")
+    ap.add_argument("--val-transition", action="store_true",
+                    help="stop on a whole held-out transition instead of spatial "
+                         "blocks, so the stopping signal measures transfer in time")
     ap.add_argument("--single-transition", action="store_true",
                     help="train on the latest transition only, as the first run did")
     ap.add_argument("--max-dates", type=int, default=2,
@@ -241,9 +244,25 @@ def main(argv: list[str] | None = None) -> int:
         log.error("no tile fits inside a held-out block; raise --block-km or lower --tile")
         return 2
 
-    train_list = [trs[p] for p in train_periods]
-    train_tiles = TL.build_tiles(train_list, tr_origins, size=args.tile)
-    val_tiles = TL.build_tiles(train_list, va_origins, size=args.tile)
+    if args.val_transition and len(train_periods) >= 2:
+        # Hold out a whole transition, not a set of blocks. Validation blocks
+        # are different places but the same years, and a network this size
+        # keeps improving on them by learning what those years looked like --
+        # which is exactly what does not transfer to the test period.
+        val_period = train_periods[-1]
+        fit_periods = train_periods[:-1]
+        train_tiles = TL.build_tiles([trs[p] for p in fit_periods], origins,
+                                     size=args.tile)
+        val_tiles = TL.build_tiles([trs[val_period]], origins, size=args.tile)
+        log.info("stopping on the %d-%d transition, training on %s",
+                 val_period[0], val_period[1],
+                 ", ".join(f"{a}-{b}" for a, b in fit_periods))
+        train_periods_used, val_design = fit_periods, f"{val_period[0]}-{val_period[1]}"
+    else:
+        train_list = [trs[p] for p in train_periods]
+        train_tiles = TL.build_tiles(train_list, tr_origins, size=args.tile)
+        val_tiles = TL.build_tiles(train_list, va_origins, size=args.tile)
+        train_periods_used, val_design = train_periods, f"{int(args.block_km)} km blocks"
     log.info("training on %d tiles (%d converted cells), validating on %d",
              len(train_tiles), train_tiles.n_positive, len(val_tiles))
 
@@ -325,7 +344,8 @@ def main(argv: list[str] | None = None) -> int:
                          "aggregated_to_m": fine.res if lut is not None else None},
         "transitions": {f"{a}-{b}": trs[(a, b)].as_dict()
                         for a, b in train_periods + [test_period]},
-        "training_transitions": [f"{a}-{b}" for a, b in train_periods],
+        "training_transitions": [f"{a}-{b}" for a, b in train_periods_used],
+        "validation_design": val_design,
         "spatial_blocks": {"block_km": args.block_km, "n_blocks": int(len(np.unique(ids))),
                            "validation_blocks": len(val_blocks),
                            "train_tiles": len(train_tiles),
