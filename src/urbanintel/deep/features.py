@@ -97,6 +97,7 @@ def extended_drivers(
     water: np.ndarray | None = None,
     nightlights: np.ndarray | None = None,
     poi_density: np.ndarray | None = None,
+    poi_detail: dict | None = None,
     urban_threshold: float = 0.20,
     momentum: bool = True,
 ) -> tuple[np.ndarray, list[str]]:
@@ -140,6 +141,8 @@ def extended_drivers(
     if poi_density is not None:
         extra["poi_density_500m"] = _smooth(np.nan_to_num(poi_density, nan=0.0),
                                             500.0, frame)
+    if poi_detail is not None:
+        extra.update(poi_layers(aoi, poi_detail, frame))
 
     # What happened here over the previous five years. A cell beside land that
     # just converted is a far better bet than one beside land that has been
@@ -157,3 +160,111 @@ def extended_drivers(
         return X, names
     cols = [np.nan_to_num(v, nan=0.0).reshape(-1, 1) for v in extra.values()]
     return np.hstack([X, np.hstack(cols).astype(X.dtype)]), names + list(extra)
+
+
+# Relative footfall weights. These are a documented PROXY for how many people
+# a place draws in a day, not measured visits: a railway station or a mall
+# pulls a whole district, a kiosk pulls the street. The ordering is what the
+# model uses, and it is the ordering a planner would agree with. Anything not
+# listed falls back to 2.
+FOOTFALL: dict[str, float] = {
+    "mall": 20.0, "department_store": 14.0, "marketplace": 15.0,
+    "supermarket": 10.0, "convenience": 5.0, "kiosk": 2.0, "clothes": 4.0,
+    "bakery": 4.0, "hardware": 3.0, "furniture": 3.0, "car": 3.0,
+    "station": 20.0, "halt": 10.0, "bus_station": 15.0, "fuel": 7.0,
+    "taxi": 5.0, "hospital": 12.0, "clinic": 5.0, "doctors": 4.0,
+    "pharmacy": 6.0, "university": 10.0, "college": 8.0, "school": 8.0,
+    "educational_institution": 8.0, "restaurant": 6.0, "fast_food": 6.0,
+    "cafe": 5.0, "bar": 4.0, "food_court": 8.0, "hotel": 4.0,
+    "guest_house": 3.0, "hostel": 3.0, "bank": 5.0, "atm": 3.0,
+    "bureau_de_change": 3.0, "industrial": 2.0, "works": 2.0,
+}
+POI_GROUP_NAMES = ["retail", "food_hospitality", "finance_office",
+                   "health_education", "industrial", "transport"]
+
+
+def poi_kind(tags: dict) -> str:
+    """The most specific label OpenStreetMap gives a place."""
+    for key in ("shop", "amenity", "railway", "public_transport", "office",
+                "tourism", "landuse", "industrial", "man_made"):
+        v = tags.get(key)
+        if v and v != "yes":
+            return str(v)
+    return "other"
+
+
+def _accessibility(weights: np.ndarray, frame: AnalysisFrame, *,
+                   reach_km: float = 3.0) -> np.ndarray:
+    """Sum of nearby weight discounted by distance, as 1 / (1 + d^2).
+
+    A gravity measure rather than a count in a circle: a hospital 400 m away
+    counts for much more than one 2.5 km away, and a plain density inside a
+    radius treats them identically.
+    """
+    r = max(1, int(round(reach_km * 1000.0 / frame.res)))
+    yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
+    d_km = np.hypot(xx, yy) * frame.res / 1000.0
+    kernel = np.where(d_km <= reach_km, 1.0 / (1.0 + d_km**2), 0.0).astype("float32")
+    return ndimage.convolve(weights.astype("float32"), kernel, mode="constant")
+
+
+def poi_layers(aoi: AOI, detailed: dict, frame: AnalysisFrame) -> dict[str, np.ndarray]:
+    """Everything the points of interest can say, not just how many there are.
+
+    Type matters as much as count. A district with a station, a hospital and a
+    market is a different proposition from one with the same number of kiosks,
+    and a mix of kinds is what marks a place that has become a centre rather
+    than a dormitory. These layers separate those cases: weighted footfall,
+    one density per kind of activity, how varied the mix is, and how far the
+    nearest of each kind actually is.
+
+    All of it comes from a present-day OpenStreetMap snapshot, so for a
+    back-test over 2015-2020 it carries information from after the outcome.
+    See `run_feature_model.py --no-poi` for the comparison that shows how much.
+    """
+    feats = detailed.get("features", [])
+    weight = np.zeros(frame.shape, dtype="float32")
+    counts = {g: np.zeros(frame.shape, dtype="float32") for g in POI_GROUP_NAMES}
+    kinds_here: dict[tuple[int, int], set[str]] = {}
+
+    for f in feats:
+        x, y = aoi.to_metres(f["lon"], f["lat"])
+        col = int((x - frame.minx) / frame.res)
+        row = int((frame.maxy - y) / frame.res)
+        if not (0 <= row < frame.height and 0 <= col < frame.width):
+            continue
+        kind = poi_kind(f.get("tags", {}))
+        weight[row, col] += FOOTFALL.get(kind, 2.0)
+        g = f.get("group")
+        if g in counts:
+            counts[g][row, col] += 1.0
+        kinds_here.setdefault((row, col), set()).add(kind)
+
+    out: dict[str, np.ndarray] = {}
+    out["poi_footfall_500m"] = _smooth(weight, 500.0, frame)
+    out["poi_footfall_1500m"] = _smooth(weight, 1500.0, frame)
+    out["poi_accessibility"] = _accessibility(weight, frame)
+
+    present = []
+    for g in POI_GROUP_NAMES:
+        layer = _smooth(counts[g], 1500.0, frame)
+        out[f"poi_{g}_1500m"] = layer
+        present.append(layer)
+
+    # How mixed the activity is. Six shops of one kind and six of six kinds
+    # give the same density; only the second is a centre.
+    stack = np.stack(present)
+    total = stack.sum(axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        share = np.where(total > 0, stack / np.maximum(total, 1e-6), 0.0)
+        ent = -(share * np.log(np.maximum(share, 1e-12))).sum(axis=0)
+    out["poi_mix_entropy_1500m"] = np.where(total > 0, ent, 0.0).astype("float32")
+
+    variety = np.zeros(frame.shape, dtype="float32")
+    for (row, col), ks in kinds_here.items():
+        variety[row, col] = float(len(ks))
+    out["poi_variety_1500m"] = _smooth(variety, 1500.0, frame)
+
+    for g in ("retail", "health_education", "transport", "industrial"):
+        out[f"distance_to_{g}_km"] = _distance_km(counts[g] > 0, frame)
+    return out

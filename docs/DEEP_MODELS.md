@@ -47,6 +47,57 @@ here. Training on three transitions instead of one gives 0.1529, slightly worse 
 older periods dilute rather than help, which is the same effect seen in the image
 model.
 
+## 0a. Points of interest, used properly, do not help
+
+The obvious next lever was to stop treating a point of interest as a dot on a map
+and use what it is: a supermarket is not a kiosk, a railway station is not an
+office. Sixteen features were built to do that, from a freshly fetched
+OpenStreetMap snapshot carrying tags -- 2,001 places across 113 distinct kinds.
+
+- **footfall-weighted density** at 500 m and 1,500 m, each place weighted by a
+  documented proxy for how many people it draws in a day (a mall 20, a station 20,
+  a hospital 12, a school 8, a kiosk 2);
+- **gravity accessibility**, weight discounted by 1 / (1 + d squared) out to 3 km, so a
+  hospital 400 m away counts for more than one 2.5 km away;
+- **one density per kind of activity** -- retail, food and hospitality, finance and
+  offices, health and education, industry, transport;
+- **mix entropy** over those six, because six shops of one kind and six of six kinds
+  give the same density and only the second is a centre;
+- **variety**, the number of distinct kinds nearby;
+- **distance to the nearest** retail, health or education, transport and industry.
+
+It changes nothing.
+
+| Feature set | Features | Figure of Merit (best weight) | Hits |
+|---|---|---|---|
+| No points of interest at all | 15 | 0.1573 | 299 |
+| One aggregate count | 16 | **0.1589** | 304 |
+| The full sixteen above | 31 | 0.1584 | 303 |
+
+The spread is 0.0016, which is noise. The sixteen POI features together account for
+**3.9 percent** of the model's total contribution; the strongest of them, distance to
+the nearest retail, scores 0.074 against built-up fraction's 3.02 -- forty times
+smaller.
+
+**Why, and it is structural rather than a modelling failure.** There are 2,001 places
+over 1,206 square kilometres, about 1.7 per square kilometre, and a cell is one
+hundredth of a square kilometre. More decisively, points of interest are dense where
+the city already is, and this model only ever ranks cells that are *not* yet urban.
+At the growth frontier the density layers are flat zero, which is why the only POI
+features that register at all are the distance ones -- a distance still varies out
+there, a count does not. What the POIs do encode is already carried by population
+density and built-up fraction, both far stronger, because shops follow people.
+
+The Varanasi snapshot also has a tourism signature rather than a growth one: 292
+hospitals, 117 hotels, 91 hostels, 66 guest houses. That describes the old city and
+the pilgrimage economy, not the periphery where the new development went.
+
+**What would be needed to make this work.** Historical points of interest, so the
+layer describes the city at the start of each transition instead of today; or a
+commercial dataset with real coverage of the periphery. Both were already on the
+Review 4 list. Until then this is a dead end, and it is worth knowing it is a dead
+end before spending a week on it.
+
 ## 1. The complete image model
 
 | | First run (7 Sep) | Complete run |
