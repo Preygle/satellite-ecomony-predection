@@ -47,6 +47,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                     help="drop points of interest, which are a present-day snapshot")
     ap.add_argument("--no-roads", action="store_true",
                     help="drop everything derived from OpenStreetMap roads")
+    ap.add_argument("--plain-poi", action="store_true",
+                    help="use only the aggregate point-of-interest count, not the "
+                         "typed and footfall-weighted layers")
     ap.add_argument("--all-transitions", action="store_true",
                     help="train on every labelled transition before the test "
                          "period, not just the configured one")
@@ -86,6 +89,13 @@ def main(argv: list[str] | None = None) -> int:
     roads = None if args.no_roads else osm.fetch_roads(cfg)
     water = read(rdir, "dw_water_2024")
     poi = None if args.no_poi else read(rdir, "poi_density")
+    poi_detail = None
+    detail_path = cfg.raw_dir / "osm" / "pois_detailed.json"
+    if not args.no_poi and not args.plain_poi and detail_path.exists():
+        poi_detail = json.loads(detail_path.read_text(encoding="utf-8"))
+        log.info("points of interest: %d with tags, %d distinct kinds",
+                 len(poi_detail["features"]),
+                 len({FE.poi_kind(f.get("tags", {})) for f in poi_detail["features"]}))
 
     def ntl(year: int) -> np.ndarray | None:
         p = cfg.raw_dir / "gee" / f"ntl_{year}.tif"
@@ -96,7 +106,8 @@ def main(argv: list[str] | None = None) -> int:
             built, fine, year=year, aoi=aoi, distance_km=dist,
             road_density=roads_r if not args.no_roads else None,
             population=pop, slope=slope, roads=roads, water=water,
-            nightlights=ntl(year), poi_density=poi, urban_threshold=thr)
+            nightlights=ntl(year), poi_density=poi, poi_detail=poi_detail,
+            urban_threshold=thr)
 
     ids = TL.block_ids(fine.shape, fine, block_m=args.block_km * 1000.0)
     log.info("building features for %d and %d ...", t0, v0)
