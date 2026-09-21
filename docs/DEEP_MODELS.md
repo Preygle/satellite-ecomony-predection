@@ -37,10 +37,50 @@ The second thing to say is that its Figure of Merit is the lowest in the table
 of Merit only looks at the top. Both facts are true at once and both belong in the
 report.
 
-**It is also undertrained.** The run was capped at 15 epochs to fit a time budget,
-and validation average precision was still climbing when it stopped (0.6119 at epoch
-5, 0.6444 at epoch 14). The earlier 100 m model peaked at epoch 27. A longer run is
-the obvious next step and may well move the Figure of Merit.
+It was capped at 15 epochs to fit a time budget, and validation average precision
+was still climbing when it stopped. That looked like undertraining. Section 1a shows
+it was not: training to convergence made the held-out result worse.
+
+## 1a. Training longer makes it worse, and that is the finding
+
+The 15-epoch cap was called out as a limitation, so the model was retrained with a
+1000-epoch cap and patience 25. It ran 50 epochs in 68.6 minutes and early stopping
+kept epoch 25.
+
+| | 15-epoch cap | 1000-epoch cap |
+|---|---|---|
+| Epochs run | 15 | 50 |
+| Best epoch kept | 14 | 25 |
+| Validation AUC | 0.8691 | 0.8715 |
+| **Validation average precision** | 0.6444 | **0.6714** |
+| **Test AUC** | **0.8603** | 0.8318 |
+| **Test average precision** | **0.0761** | 0.0596 |
+| **Test Figure of Merit** | **0.0617** | 0.0466 |
+| Test hits of 1,214 | **141** | 108 |
+
+Both models were chosen the same way: the epoch with the best validation average
+precision. The longer run found an epoch that scores **higher on validation** and
+**24 percent lower on the held-out period**. More training did not help; it moved
+the model further from what the test period wanted.
+
+**Why.** The validation blocks are different *places* but the same *years* -- the
+1995-2000 and 2010-2015 transitions the model trains on. A network with half a
+million parameters and 372 tiles can keep improving on those blocks by learning what
+those particular years looked like, and none of that transfers to 2015-2020. A
+spatial hold-out inside the training period does not protect against overfitting in
+time, and this run is the clean demonstration: the two signals point in opposite
+directions.
+
+**What to do about it.** Early stopping should watch something that reflects
+temporal transfer. The cheapest honest version, now that several labelled
+transitions exist, is to hold out a whole *transition* rather than a set of blocks:
+train on 1995-2000, watch 2010-2015, and still test once on 2015-2020. That costs
+one transition of training data and makes the stopping signal answer the question
+the model is actually judged on.
+
+Until that is done, the shorter run is the one to quote, and the reason has to be
+quoted with it -- not because 15 epochs is principled, but because the stopping rule
+is not yet measuring the right thing.
 
 ## 2. Where the imagery actually pays: as features
 
