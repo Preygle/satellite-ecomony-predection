@@ -167,8 +167,11 @@ def main(argv: list[str] | None = None) -> int:
     input_years = {t0: ([t0 - 5, t0] if n_dates == 2 else [t0]) for t0 in needed}
 
     log.info("labels available: %s", have_labels)
-    log.info("train on %s | test on %d-%d (held out)",
-             ", ".join(f"{a}-{b}" for a, b in train_periods), *test_period)
+    # These are the candidates. With --val-transition one of them becomes the
+    # stopping set instead, and the line below says which.
+    log.info("labelled transitions available for training: %s | test on %d-%d "
+             "(held out)", ", ".join(f"{a}-{b}" for a, b in train_periods),
+             *test_period)
     log.info("channel source %s at %d m on a %s grid | %d input date(s) per sample",
              args.source, int(mframe.res), mframe.shape, n_dates)
 
