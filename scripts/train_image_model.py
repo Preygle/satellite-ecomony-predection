@@ -78,6 +78,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--val-transition", action="store_true",
                     help="stop on a whole held-out transition instead of spatial "
                          "blocks, so the stopping signal measures transfer in time")
+    ap.add_argument("--val-on", choices=["last", "first"], default="last",
+                    help="which transition to stop on: the most recent (closest to "
+                         "the test period) or the oldest")
     ap.add_argument("--single-transition", action="store_true",
                     help="train on the latest transition only, as the first run did")
     ap.add_argument("--max-dates", type=int, default=2,
@@ -249,8 +252,13 @@ def main(argv: list[str] | None = None) -> int:
         # are different places but the same years, and a network this size
         # keeps improving on them by learning what those years looked like --
         # which is exactly what does not transfer to the test period.
-        val_period = train_periods[-1]
-        fit_periods = train_periods[:-1]
+        # Which transition to give up matters: holding out the most recent one
+        # takes away the data closest to the test period, while holding out the
+        # oldest keeps it for training and stops on the more distant years.
+        if args.val_on == "first":
+            val_period, fit_periods = train_periods[0], train_periods[1:]
+        else:
+            val_period, fit_periods = train_periods[-1], train_periods[:-1]
         train_tiles = TL.build_tiles([trs[p] for p in fit_periods], origins,
                                      size=args.tile)
         val_tiles = TL.build_tiles([trs[val_period]], origins, size=args.tile)
