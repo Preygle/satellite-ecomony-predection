@@ -8,6 +8,45 @@ Every number below comes from `outputs/varanasi_deep_system.json` and
 
 ---
 
+## 0. The headline: Figure of Merit 0.1016 to 0.1589
+
+| | Review 3 | Best now |
+|---|---|---|
+| Model | random forest, 8 drivers | XGBoost, 16 features |
+| Figure of Merit | 0.1016 | **0.1589** |
+| Hits of 1,214 | 224 | **304** |
+| AUC | 0.8331 | **0.9492** |
+| Average precision | 0.1270 | **0.2072** |
+| Allocation | automaton, weight 0.35 | ranking alone |
+
+A 56 percent improvement, and it came from two things, neither of which is a
+bigger network.
+
+**Growth momentum.** How much built-up surface and population appeared in a cell
+over the *previous* five years. It is the third strongest feature by TreeSHAP, well
+ahead of roads or slope, and it says something none of the published eight drivers
+carry: land beside a plot that converted last period is a far better bet than land
+beside a plot that has been static for twenty years. It could not be computed until
+the GHSL 2005 epoch was on disk, which had never downloaded because the JRC server
+drops these tiles part-way through -- see section 7.
+
+**Dropping the neighbourhood term from the allocation.** Worth another 0.0158 on top,
+and consistent with every sweep run here.
+
+The other new features earn their place more modestly. Road *junction* density is the
+useful one among them: it measures connection where road density only measures
+presence, and a bypass raises density without creating anywhere to turn off. It ranks
+above distance to water and distance to a major road.
+
+**One honest caveat about how this number was reached.** The 2015-2020 period has now
+been scored once per configuration tried, so it is a fair measure of this design and
+not a clean hold-out for having *chosen* this design. The feature set was specified
+before it was scored; the choice to train on the most recent transition alone was
+made independently, from the image-model runs in section 1a, before it was applied
+here. Training on three transitions instead of one gives 0.1529, slightly worse -- the
+older periods dilute rather than help, which is the same effect seen in the image
+model.
+
 ## 1. The complete image model
 
 | | First run (7 Sep) | Complete run |
