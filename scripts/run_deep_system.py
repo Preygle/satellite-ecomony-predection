@@ -23,6 +23,7 @@ from urbanintel.deep import analytics as AN  # noqa: E402
 from urbanintel.deep import anomaly as AD  # noqa: E402
 from urbanintel.deep import boost as BO  # noqa: E402
 from urbanintel.deep import embed as EM  # noqa: E402
+from urbanintel.deep import features as FE  # noqa: E402
 from urbanintel.deep import ensemble as EN  # noqa: E402
 from urbanintel.deep import stacks as ST  # noqa: E402
 from urbanintel.deep import tiles as TL  # noqa: E402
@@ -78,6 +79,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--ensemble", choices=["auto", "seeds", "dropout"], default="auto",
                     help="where the uncertainty comes from: separately trained "
                          "models, or dropout left on at prediction time")
+    ap.add_argument("--no-extended", action="store_true",
+                    help="leave out the extended feature set")
     ap.add_argument("--no-image", action="store_true",
                     help="run the tabular half only, without the image model")
     ap.add_argument("--seed", type=int, default=0)
@@ -242,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- tabular models ---------------------------------------------------
     models: dict[str, object] = {}
+    design_for: dict[str, np.ndarray] = {}
 
     lr = GM.fit(built[t0], built[t1], X_tr_all, names, fine, period=train_period,
                 urban_threshold=thr)
@@ -283,6 +287,61 @@ def main(argv: list[str] | None = None) -> int:
         surfaces_train["tabular"] = xgb_plain.suitability(X_tr_all, fine.shape)
         surfaces_test["tabular"] = xgb_plain.suitability(X_te_all, fine.shape)
 
+    # ---- the extended feature set -----------------------------------------
+    # Points of interest are deliberately left out: they contribute about four
+    # percent of the model and carry the worst leakage risk of any layer, since
+    # a shop appears after the development it would be used to predict. Leaving
+    # them out costs 0.0016 of Figure of Merit, which is noise.
+    extended_info = None
+    if not args.no_extended:
+        from urbanintel.data import osm
+
+        roads_osm = osm.fetch_roads(cfg)
+        water = read(rdir, "dw_water_2024")
+        epochs_all = [y for y in range(1975, 2026, 5)
+                      if (rdir / f"builtup_m2_{y}.tif").exists()]
+        built_all = {y: read(rdir, f"builtup_m2_{y}") / cell for y in epochs_all}
+        pop_all = {y: read(rdir, f"population_{y}") for y in epochs_all
+                   if (rdir / f"population_{y}.tif").exists()}
+
+        def ext(year: int):
+            return FE.extended_drivers(
+                built_all, fine, year=year, aoi=aoi, distance_km=dist,
+                road_density=roads, population=pop_all, slope=slope,
+                roads=roads_osm, water=water, urban_threshold=thr)
+
+        Xe_tr, ext_names = ext(t0)
+        Xe_te, ext_names_te = ext(v0)
+        keep = [n for n in ext_names if n in set(ext_names_te)]
+        Xe_tr = Xe_tr[:, [ext_names.index(n) for n in keep]]
+        Xe_te = Xe_te[:, [ext_names_te.index(n) for n in keep]]
+        log.info("extended features: %d (%d beyond the published eight)",
+                 len(keep), len([n for n in keep if n not in GM.DRIVER_NAMES]))
+
+        rf_e = GM.fit_forest(built[t0], built[t1], Xe_tr, keep, fine,
+                             period=train_period, urban_threshold=thr,
+                             n_estimators=300, min_samples_leaf=20)
+        GM.validate(rf_e, built, Xe_te, fine, test=test_period, urban_threshold=thr)
+        models["random_forest_extended"] = rf_e
+        log.info("random forest extended   test AUC %.4f  FoM %.4f", rf_e.test_auc,
+                 rf_e.validation.figure_of_merit)
+
+        Xe_rows, ye_rows, blk_e = BO.eligible_rows(built[t0], built[t1], Xe_tr, ids,
+                                                   urban_threshold=thr)
+        xgb_e = BO.fit_booster(Xe_rows, ye_rows, blk_e, feature_names=keep,
+                               val_blocks=val_blocks, period=train_period, seed=seed)
+        GM.validate(xgb_e, built, Xe_te, fine, test=test_period, urban_threshold=thr)
+        xgb_e.importance = BO.mean_absolute_shap(xgb_e, Xe_rows, seed=seed)
+        models["xgboost_extended"] = xgb_e
+        design_for["xgboost_extended"] = Xe_te
+        design_for["random_forest_extended"] = Xe_te
+        extended_info = {"features": keep,
+                         "new_features": [n for n in keep if n not in GM.DRIVER_NAMES],
+                         "points_of_interest": False,
+                         "mean_absolute_shap": xgb_e.importance}
+        log.info("xgboost extended         test AUC %.4f  FoM %.4f", xgb_e.test_auc,
+                 xgb_e.validation.figure_of_merit)
+
     # ---- the blend, fitted where nothing trained --------------------------
     stacker = None
     if use_image:
@@ -315,9 +374,15 @@ def main(argv: list[str] | None = None) -> int:
 
     reports: dict[str, dict] = {}
     for name, m in models.items():
-        surf = m.suitability(X_te if "image" in name and use_image else X_te_all,
-                             fine.shape) if not isinstance(m, BO.SurfaceModel) \
-            else m.surface
+        if isinstance(m, BO.SurfaceModel):
+            surf = m.surface
+        else:
+            # Each model is scored with the columns it was fitted on: the
+            # published eight, those plus the image components, or the
+            # extended set.
+            surf = m.suitability(design_for.get(
+                name, X_te if "image" in name and use_image else X_te_all),
+                fine.shape)
         pred = GM.allocate(surf, built[v0], demand, fine, urban_threshold=thr, seed=seed)
         rep = AN.summarise(name, score=surf, predicted=pred, observed=observed,
                            eligible=elig_te, folds=folds, bands=bands, seed=seed)
@@ -333,8 +398,9 @@ def main(argv: list[str] | None = None) -> int:
     best_name = table[0]["model"]
     best = models[best_name]
     best_surface = best.surface if isinstance(best, BO.SurfaceModel) else \
-        best.suitability(X_te if best_name.endswith("image_components") else X_te_all,
-                         fine.shape)
+        best.suitability(design_for.get(
+            best_name, X_te if best_name.endswith("image_components") else X_te_all),
+            fine.shape)
     log.info("best on the held-out period: %s (FoM %.4f)", best_name,
              table[0]["figure_of_merit"])
 
@@ -446,6 +512,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "image_model": image_info or None,
         "image_components": comps_info or None,
+        "extended_features": extended_info,
         "stacker": stacker.as_dict() if stacker else None,
         "models": {k: (m.as_dict() if hasattr(m, "as_dict") else {}) for k, m in models.items()},
         "analytics": reports,

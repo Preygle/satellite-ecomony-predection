@@ -8,44 +8,58 @@ Every number below comes from `outputs/varanasi_deep_system.json` and
 
 ---
 
-## 0. The headline: Figure of Merit 0.1016 to 0.1589
+## 0. The headline: Figure of Merit 0.1016 to 0.1404
 
-| | Review 3 | Best now |
-|---|---|---|
-| Model | random forest, 8 drivers | XGBoost, 16 features |
-| Figure of Merit | 0.1016 | **0.1589** |
-| Hits of 1,214 | 224 | **304** |
-| AUC | 0.8331 | **0.9492** |
-| Average precision | 0.1270 | **0.2072** |
-| Allocation | automaton, weight 0.35 | ranking alone |
+One command, `python scripts/run_deep_system.py`, now scores every model the same
+way on the same held-out period.
 
-A 56 percent improvement, and it came from two things, neither of which is a
-bigger network.
+| Model | AUC | Avg. precision | FoM | FoM, ranking alone | Kappa | Hits of 1,214 |
+|---|---|---|---|---|---|---|
+| **XGBoost, 15 features** | 0.9418 | **0.2026** | **0.1404** | **0.1551** | **0.238** | **299** |
+| Random forest, 15 features | **0.9504** | 0.1977 | 0.1340 | 0.1447 | 0.228 | 287 |
+| Random forest, 8 drivers (Review 3) | 0.8331 | 0.1270 | 0.1016 | 0.1087 | 0.176 | 224 |
+| XGBoost + image components | 0.9080 | 0.1295 | 0.0981 | 0.1204 | 0.170 | 217 |
+| Blend of image and tabular | 0.8759 | 0.1096 | 0.0903 | 0.1122 | 0.156 | 201 |
+| XGBoost, 8 drivers | 0.9048 | 0.1476 | 0.0864 | 0.1262 | 0.150 | 193 |
+| Logistic regression | 0.9096 | 0.1092 | 0.0687 | 0.1051 | 0.119 | 156 |
+| Image model, 30 m Landsat | 0.8597 | 0.0752 | 0.0635 | 0.0673 | 0.110 | 145 |
+| Random allocation | 0.5000 | - | 0.0055 | 0.0055 | - | 13 |
 
-**Growth momentum.** How much built-up surface and population appeared in a cell
-over the *previous* five years. It is the third strongest feature by TreeSHAP, well
-ahead of roads or slope, and it says something none of the published eight drivers
-carry: land beside a plot that converted last period is a far better bet than land
-beside a plot that has been static for twenty years. It could not be computed until
-the GHSL 2005 epoch was on disk, which had never downloaded because the JRC server
-drops these tiles part-way through -- see section 7.
+**Figure of Merit 0.1016 to 0.1404, a 38 percent improvement, and 0.1573 if the
+allocation ranks cells instead of running the automaton.** Kappa rises from 0.176 to
+0.238 and the model finds 299 of the 1,214 conversions instead of 224 -- 25.5 times
+what random placement manages.
 
-**Dropping the neighbourhood term from the allocation.** Worth another 0.0158 on top,
+It came from two things, neither of which is a bigger network.
+
+**Growth momentum.** How much built-up surface and population appeared in a cell over
+the *previous* five years. It is the third strongest feature by TreeSHAP, well ahead
+of roads or slope, and it says something none of the published eight drivers carry:
+land beside a plot that converted last period is a far better bet than land beside a
+plot that has been static for twenty years. It could not be computed until the GHSL
+2005 epoch was on disk, which had never downloaded because the JRC server drops these
+tiles part-way through -- see section 7.
+
+**Dropping the neighbourhood term from the allocation.** Worth another 0.0169 on top,
 and consistent with every sweep run here.
 
 The other new features earn their place more modestly. Road *junction* density is the
 useful one among them: it measures connection where road density only measures
-presence, and a bypass raises density without creating anywhere to turn off. It ranks
-above distance to water and distance to a major road.
+presence, and a bypass raises density without creating anywhere to turn off.
+
+**Points of interest are deliberately not in the canonical model.** They contribute
+about four percent of it and carry the worst leakage risk of any layer, since a shop
+appears after the development it would be used to predict. Leaving them out costs
+0.0016 of Figure of Merit, which is noise. Section 0a has the full test.
 
 **One honest caveat about how this number was reached.** The 2015-2020 period has now
 been scored once per configuration tried, so it is a fair measure of this design and
 not a clean hold-out for having *chosen* this design. The feature set was specified
-before it was scored; the choice to train on the most recent transition alone was
-made independently, from the image-model runs in section 1a, before it was applied
-here. Training on three transitions instead of one gives 0.1529, slightly worse -- the
-older periods dilute rather than help, which is the same effect seen in the image
-model.
+before it was scored, and the choice to train on the most recent transition alone was
+made independently, from the image-model runs in section 1a. Training on three
+transitions instead of one gives a slightly worse result -- the older periods dilute
+rather than help, the same effect seen in the image model. A clean re-test becomes
+possible when GHSL publishes an observed 2025 epoch.
 
 ## 0a. Points of interest, used properly, do not help
 

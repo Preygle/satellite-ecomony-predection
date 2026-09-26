@@ -26,6 +26,8 @@ BLUE, NAVY, AMBER, RED, GREEN = "#2a78d6", "#104281", "#eda100", "#d03b3b", "#1b
 # One colour per model, fixed everywhere, so a reader can follow a model from
 # one figure to the next without re-reading the legend.
 COLOUR = {
+    "xgboost_extended": "#7b3fb8",
+    "random_forest_extended": "#0f8a6a",
     "image_model": GREEN,
     "random_forest": NAVY,
     "xgboost": BLUE,
@@ -34,6 +36,8 @@ COLOUR = {
     "logistic_regression": MUTED,
 }
 LABEL = {
+    "xgboost_extended": "XGBoost + 15 features",
+    "random_forest_extended": "forest + 15 features",
     "image_model": "image model",
     "random_forest": "random forest",
     "xgboost": "XGBoost",
@@ -79,8 +83,9 @@ def read(cfg, name: str) -> np.ndarray | None:
 
 
 def order(models: dict) -> list[str]:
-    return [k for k in ["image_model", "random_forest", "xgboost_with_image_components",
-                        "stacked", "xgboost", "logistic_regression"] if k in models]
+    return [k for k in ["xgboost_extended", "random_forest_extended", "image_model",
+                        "random_forest", "xgboost_with_image_components", "stacked",
+                        "xgboost", "logistic_regression"] if k in models]
 
 
 # --------------------------------------------------------------------------
