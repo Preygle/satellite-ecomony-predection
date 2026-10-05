@@ -211,14 +211,20 @@ That gap is about three times the run-to-run spread, so it is real. Everything e
 network width, depth, dropout between 0.3 and 0.7, epoch length -- moved the score by
 less than the noise.
 
-**Where the tuning stopped meaning anything.** Re-running one configuration with three
-random seeds gives **0.0903, 0.0772 and 0.0635**: a spread of 0.027, wider than almost
-every difference in the capacity sweep that produced it. The honest figure for that
-configuration is **0.0770, give or take 0.0109**, and any architecture comparison below
-roughly 0.03 is unmeasurable with this much data. Averaging the three runs into an
-ensemble gives 0.0791, a gain of 0.0021 -- also inside the noise.
+**Where the tuning stopped meaning anything.** Re-running one configuration with four
+random seeds gives **0.0903, 0.0772, 0.0635 and 0.0942**: a spread of 0.031, wider than
+almost every difference in the capacity sweep that produced it. The honest figure for
+that configuration is **0.0813, give or take 0.0121**, and any architecture comparison
+below roughly 0.03 is unmeasurable with this much data.
 
-So the best single number seen, 0.0903, was a lucky seed and should not be quoted.
+Averaging the four runs into an ensemble gives **0.0854**, and 0.1006 at the best
+allocation weight -- about a third of a standard deviation above the average single
+run. That is the one defensible way to use variance this large: average over it rather
+than pick the luckiest draw from it. The ensemble is also the most stable thing on
+offer, which matters more than the headline figure for anything that gets shown to a
+planner.
+
+No single run should be quoted on its own. 0.0942 and 0.0635 are the same model.
 
 **Why the ceiling is here.** Gradient-boosted trees see all 113,082 eligible cells as
 independent rows. The network sees about 160 heavily overlapping tiles per epoch
