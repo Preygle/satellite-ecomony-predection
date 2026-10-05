@@ -119,9 +119,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--widths", type=int, nargs="+", default=[32, 64, 128])
     ap.add_argument("--dropout", type=float, default=0.1)
     ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--all-transitions", action="store_true",
+                    help="train on every usable transition, not just the most recent; "
+                         "the network is sample-starved in a way the trees are not")
     ap.add_argument("--with-drivers", action="store_true",
                     help="append the tabular driver maps as extra channels, so the "
                          "network reads imagery and drivers together")
+    ap.add_argument("--no-skip", action="store_true",
+                    help="drop the per-cell path from input to head")
     ap.add_argument("--pixel-loss", action="store_true",
                     help="score the loss per pixel, as the first version did, "
                          "instead of per analysis cell")
@@ -170,10 +175,12 @@ def main(argv: list[str] | None = None) -> int:
     # its start and five years before it.
     usable = [(a, a + 5) for a in have_lab
               if a + 5 in built and a in have_img and (a - 5) in have_img]
-    train_period = max(p for p in usable if p[1] <= v0)       # the most recent
-    stop_period = min(p for p in usable if p[1] <= v0 and p != train_period)
-    log.info("train on %d-%d, stop on %d-%d, test on %d-%d (held out)",
-             *train_period, *stop_period, *test_period)
+    before = sorted(p for p in usable if p[1] <= v0)
+    stop_period = before[0]                                   # the oldest
+    train_periods = before[1:] if args.all_transitions else [before[-1]]
+    train_period = train_periods[-1]
+    log.info("train on %s, stop on %d-%d, test on %d-%d (held out)",
+             ", ".join(f"{a}-{b}" for a, b in train_periods), *stop_period, *test_period)
     log.info("grid: %s at %d m inside %s cells at %d m (%d x %d pixels per cell)",
              px.shape, int(px.res), cell_frame.shape, int(cell_frame.res), FACTOR, FACTOR)
 
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         pop = {y: read(rdir, f"population_{y}") for y in have_lab
                if (rdir / f"population_{y}.tif").exists()}
         common = None
-        for a, _ in (train_period, stop_period, test_period):
+        for a, _ in list(dict.fromkeys(train_periods + [stop_period, test_period])):
             X, nm = FE.extended_drivers(built, cell_frame, year=a, aoi=aoi,
                                         distance_km=dist, road_density=road_r,
                                         population=pop, slope=slope, roads=roads_osm,
@@ -210,7 +217,8 @@ def main(argv: list[str] | None = None) -> int:
                  ", ".join(order))
 
     stacks, names = {}, None
-    for a, _ in (train_period, stop_period, test_period):
+    wanted = list(dict.fromkeys(train_periods + [stop_period, test_period]))
+    for a, _ in wanted:
         stacks[a], names = channel_stack(paths, px, year=a)
         if args.with_drivers:
             stacks[a] = np.concatenate([stacks[a], driver_maps[a]])
@@ -246,7 +254,8 @@ def main(argv: list[str] | None = None) -> int:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = GrowthNet(n_channels=len(names), n_dates=1, encoder="local",
-                    widths=tuple(args.widths), dropout=args.dropout).to(device)
+                    widths=tuple(args.widths), dropout=args.dropout,
+                    input_skip=not args.no_skip).to(device)
     log.info("network: %s parameters", f"{net.n_parameters:,}")
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max(1, args.epochs))
@@ -279,13 +288,19 @@ def main(argv: list[str] | None = None) -> int:
              "stopping signal from the whole %d-%d frame", len(tr_origins),
              len(va_origins), *stop_period)
 
+    # One pool of (transition, origin) pairs. The network sees about a hundred
+    # and sixty heavily overlapping tiles per epoch, so every extra transition
+    # is a real increase in independent signal rather than more of the same.
+    pool = [(p, o) for p in train_periods for o in tr_origins]
     pos = np.array([
-        cell_label(*train_period)[0][r // FACTOR:r // FACTOR + cells,
-                                     c // FACTOR:c // FACTOR + cells].sum()
-        for r, c in tr_origins])
+        cell_label(*p)[0][r // FACTOR:r // FACTOR + cells,
+                          c // FACTOR:c // FACTOR + cells].sum()
+        for p, (r, c) in pool])
     weights = np.where(pos > 0, 4.0, 1.0)
     weights = weights / weights.sum()
-    steps = args.steps or max(1, int(np.ceil(len(tr_origins) / args.batch_size)))
+    log.info("%d tile draws across %d transition(s), %d of them holding a conversion",
+             len(pool), len(train_periods), int((pos > 0).sum()))
+    steps = args.steps or max(1, int(np.ceil(len(pool) / args.batch_size)))
     rng = np.random.default_rng(args.seed)
     torch.manual_seed(args.seed)
 
@@ -301,9 +316,13 @@ def main(argv: list[str] | None = None) -> int:
         net.train()
         run = 0.0
         for _ in range(steps):
-            idx = rng.choice(len(tr_origins), size=args.batch_size, replace=True,
-                             p=weights)
-            xb, yb, mb = batch(train_period, tr_origins, idx)
+            idx = rng.choice(len(pool), size=args.batch_size, replace=True, p=weights)
+            xb, yb, mb = [], [], []
+            for i in idx:
+                period, origin = pool[i]
+                x1, y1, m1 = batch(period, [origin], [0])
+                xb.append(x1[0]), yb.append(y1[0]), mb.append(m1[0])
+            xb, yb, mb = np.stack(xb), np.stack(yb), np.stack(mb)
             k = int(rng.integers(0, 8))
             xb = TL.symmetry(list(xb), k)
             yb, mb = TL.symmetry([yb, mb], k)

@@ -54,8 +54,19 @@ class UNetDecoder(nn.Module):
     """Upsamples encoder features back to the input grid, one logit per pixel."""
 
     def __init__(self, feat_channels: list[int], *, width: int = 64,
-                 out_channels: int = 1, dropout: float = 0.1, n_refine: int = 4):
+                 out_channels: int = 1, dropout: float = 0.1, n_refine: int = 4,
+                 input_channels: int = 0):
         super().__init__()
+        # A path from the input straight to the head, at full resolution and
+        # one cell wide. Everything else in the decoder has been downsampled
+        # and upsampled, so it can only produce a smooth surface; the Figure
+        # of Merit is decided by the top thousand cells, where smooth means
+        # wrong. This lets the network be as sharp as a per-cell model where
+        # that is what the data supports, and still use context where it helps.
+        self.input_skip = nn.Sequential(
+            nn.Conv2d(input_channels, width, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(width, width, 1), nn.ReLU(inplace=True),
+        ) if input_channels else None
         coarse_first = list(reversed(feat_channels))
         self.project = nn.Conv2d(coarse_first[0], width, 1)
         self.skips = nn.ModuleList([
@@ -66,9 +77,9 @@ class UNetDecoder(nn.Module):
         self.refine = nn.ModuleList([
             ConvBlock(width, width, dropout=dropout) for _ in range(n_refine)
         ]) if len(feat_channels) == 1 else nn.ModuleList()
-        self.head = nn.Conv2d(width, out_channels, 1)
+        self.head = nn.Conv2d(width * (2 if input_channels else 1), out_channels, 1)
 
-    def forward(self, feats, out_size):
+    def forward(self, feats, out_size, raw=None):
         f = list(reversed(feats))
         x = self.project(f[0])
         for block, skip in zip(self.skips, f[1:]):
@@ -78,6 +89,8 @@ class UNetDecoder(nn.Module):
             x = block(F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False))
         if x.shape[-2:] != tuple(out_size):
             x = F.interpolate(x, size=out_size, mode="bilinear", align_corners=False)
+        if self.input_skip is not None and raw is not None:
+            x = torch.cat([x, self.input_skip(raw)], dim=1)
         return self.head(x)
 
 
@@ -87,7 +100,7 @@ class GrowthNet(nn.Module):
     def __init__(self, *, n_channels: int, n_dates: int, encoder: str = "local",
                  widths: tuple[int, ...] = (32, 64, 128), decoder_width: int = 64,
                  dropout: float = 0.1, freeze_encoder: bool = True,
-                 encoder_checkpoint: str | None = None):
+                 encoder_checkpoint: str | None = None, input_skip: bool = False):
         super().__init__()
         self.encoder_kind = encoder
         if encoder == "local":
@@ -99,19 +112,22 @@ class GrowthNet(nn.Module):
                                           checkpoint=encoder_checkpoint)
         else:
             raise ValueError(f"unknown encoder {encoder!r}; use 'local' or 'prithvi'")
-        self.decoder = UNetDecoder(self.encoder.out_channels, width=decoder_width,
-                                   dropout=dropout)
+        self.decoder = UNetDecoder(
+            self.encoder.out_channels, width=decoder_width, dropout=dropout,
+            input_channels=(n_channels * n_dates) if input_skip else 0)
 
     def encode(self, x):                             # (B, T, C, H, W)
         b, t, c, h, w = x.shape
         z = x if self.encoder.expects_time_axis else x.reshape(b, t * c, h, w)
         return self.encoder(z)
 
-    def decode(self, feats, out_size):
-        return self.decoder(feats, out_size)
+    def decode(self, feats, out_size, raw=None):
+        return self.decoder(feats, out_size, raw)
 
     def forward(self, x):                            # (B, T, C, H, W)
-        return self.decoder(self.encode(x), (x.shape[-2], x.shape[-1]))
+        b, t, c, h, w = x.shape
+        flat = x.reshape(b, t * c, h, w)
+        return self.decoder(self.encode(x), (h, w), flat)
 
     @property
     def n_parameters(self) -> int:
