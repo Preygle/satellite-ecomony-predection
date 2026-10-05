@@ -239,6 +239,52 @@ encoder, which is implemented but whose weights never finished downloading; and
 higher-resolution imagery for the recent periods, which exists for 2018 onward but not
 for the historical transitions the model has to train on.
 
+## 1c. The image model reaches 0.1241, and why
+
+The image model was stuck around 0.08 through four stopping rules, three resolutions,
+a capacity sweep and several ensembles. What moved it was not more tuning but reading
+the failure mode.
+
+**The symptom.** Every image run had a high AUC and a low Figure of Merit -- it ranked
+the whole map well and the top of the map badly. That is the signature of a surface
+that is too smooth. The Figure of Merit is decided entirely by the top ~1,200 cells,
+and a smooth surface cannot be sharp there.
+
+**The cause.** The decoder reconstructs its output from features that have been
+downsampled to a quarter resolution and upsampled again, so every prediction is
+blurred over roughly twenty cells. The label varies cell to cell. The architecture was
+structurally incapable of the precision the metric asks for.
+
+**The fix.** A second path from the input straight to the head: two 1x1 convolutions at
+full resolution, concatenated with the upsampled features before the final layer. One
+cell wide, so it can be exactly as sharp as a per-cell model, while the convolutional
+path still contributes context where context helps. It costs 7,000 parameters.
+
+| | Before | After |
+|---|---|---|
+| AUC | 0.7964 | **0.9086** |
+| Average precision | 0.0968 | **0.1600** |
+| Figure of Merit, five-seed mean | 0.0813 | **0.1166** |
+| Figure of Merit, ensemble | 0.0854 | **0.1241** |
+| Hits of 1,214 | 201 | **268** |
+
+Five seeds give 0.1077, 0.1251, 0.1062, 0.1163 and 0.1277: mean **0.1166, give or take
+0.0088**, and every single one above 0.10. That matters more than the headline, because
+the previous configuration had a spread of 0.031 and its best number was luck. This one
+is reproducible.
+
+The five-seed ensemble scores **0.1241**, 22.5 times random placement, against 0.1016
+for the published random forest. The deep model is now ahead of the model it was
+meant to replace, on the metric the project reports, without seeing anything the
+tabular model does not see.
+
+**What is in the input, stated plainly.** Six Landsat bands and four indices at the
+transition date, the same ten five years earlier, the change in all twenty, and the
+fifteen tabular drivers -- 42 channels. It is a hybrid, not a pure image model: pure
+imagery on this grid scores 0.0452. The honest claim is that a deep model reading
+imagery *and* drivers beats gradient-boosted trees reading drivers alone, and that
+neither the imagery nor the network alone would have done it.
+
 ## 2. Where the imagery actually pays: as features
 
 | Model | AUC | Avg. precision | Figure of Merit | FoM, no automaton | Hits / 1,214 |
