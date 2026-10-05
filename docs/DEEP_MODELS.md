@@ -186,6 +186,53 @@ Until that is done, the shorter run is the one to quote, and the reason has to b
 quoted with it -- not because 15 epochs is principled, but because the stopping rule
 is not yet measuring the right thing.
 
+## 1b. Pushing the image model, and where it stops
+
+The image model was rebuilt to fix three measured weaknesses, and then tuned until
+the tuning stopped meaning anything.
+
+**What was changed.** The loss is now computed on the 100 m cells the model is scored
+on, by pooling the pixel logits, instead of on a 100 m label painted onto individual
+30 m pixels; the fine grid is nested exactly inside the analysis grid so the pooling
+is the same operation the scoring code performs. The network is handed NDVI, NDBI,
+NDWI and brightness at both dates and the change in every band and index between them
+-- difference channels being the imagery's version of growth momentum. And
+`--with-drivers` appends the tabular driver maps, so the network reads imagery and
+drivers together rather than inferring roads, population and distance from pixels.
+
+**What helped.** Only one thing clearly did:
+
+| Input | Figure of Merit |
+|---|---|
+| Imagery alone, on the 100 m grid | 0.0452 |
+| Imagery and drivers together | 0.064 to 0.090 across six runs |
+
+That gap is about three times the run-to-run spread, so it is real. Everything else --
+network width, depth, dropout between 0.3 and 0.7, epoch length -- moved the score by
+less than the noise.
+
+**Where the tuning stopped meaning anything.** Re-running one configuration with three
+random seeds gives **0.0903, 0.0772 and 0.0635**: a spread of 0.027, wider than almost
+every difference in the capacity sweep that produced it. The honest figure for that
+configuration is **0.0770, give or take 0.0109**, and any architecture comparison below
+roughly 0.03 is unmeasurable with this much data. Averaging the three runs into an
+ensemble gives 0.0791, a gain of 0.0021 -- also inside the noise.
+
+So the best single number seen, 0.0903, was a lucky seed and should not be quoted.
+
+**Why the ceiling is here.** Gradient-boosted trees see all 113,082 eligible cells as
+independent rows. The network sees about 160 heavily overlapping tiles per epoch
+drawn from the same map, and there are only about 1,380 positive cells in the training
+transition. The trees are not sample-starved and the network is. What the network can
+do that the trees cannot -- read spatial pattern straight from reflectance -- turns
+out to be worth less than growth momentum, which the trees are simply handed.
+
+**What would actually move it**, in order: more labelled transitions close to the test
+period, which needs GHSL epochs that exist but take hours to download; a pretrained
+encoder, which is implemented but whose weights never finished downloading; and
+higher-resolution imagery for the recent periods, which exists for 2018 onward but not
+for the historical transitions the model has to train on.
+
 ## 2. Where the imagery actually pays: as features
 
 | Model | AUC | Avg. precision | Figure of Merit | FoM, no automaton | Hits / 1,214 |
