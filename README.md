@@ -254,6 +254,7 @@ scripts/
 dashboard/app.py                Streamlit dashboard, 7 tabs
 tests/test_core.py              41 tests
 tests/test_deep.py              12 tests for the deep models (no PyTorch needed)
+docs/GUIDE_FINAL_PREVIEW.md     the whole workflow end to end, in plain English
 docs/                           reports, method documents, figures/, diagrams/, decks
 run_review3.bat                 the whole chain in one command
 run_demo.bat, demo/             live demo website (offline): trains and runs the model on request
