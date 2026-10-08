@@ -55,8 +55,14 @@ the held-out 2015→2020 period.
 
 **Figure 2 — `fig2_network`.** The dual-path network (115,345 parameters). Each block is
 a feature map: its height and depth show the grid size (32 × 32 or 16 × 16 cells) and
-its width the number of channels, given beneath it; hatching marks dropout. The context
-path (encoder and decoder) bases each output on a 17 × 17-cell window (1.7 km) but
+its width the number of channels, given beneath it; hatching marks dropout. Every arrow
+is a layer with its own trained weights. The stem, the stride-2 block and the merge block
+each apply two 3 × 3 convolutions in a row, which is why a channel count repeats
+(16 → 16, 32 → 32, 64 → 64): the second convolution keeps the number of channels but
+mixes each cell with its neighbours again, widening the area it sees. The merge block's
+first convolution takes the 80 concatenated channels (64 upsampled, 16 copied from the
+stem) down to 64. The context path (encoder and decoder) bases each output on a
+17 × 17-cell window (1.7 km) but
 rebuilds the map from a 16 × 16 grid, so its output is smooth. The per-cell path applies
 two 1 × 1 convolutions to each cell's 45 values alone and keeps full resolution. The two
 are concatenated and a 1 × 1 convolution gives one logit per cell. The input (true

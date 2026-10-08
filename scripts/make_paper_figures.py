@@ -288,9 +288,9 @@ def stacked_image(ax, img, x, y, s, *, layers=2, cmap=None, norm=None, step=(0.0
 
 
 def fig_network(d: Data) -> None:
-    W, H = TEXTWIDTH, 3.62
+    W, H = TEXTWIDTH, 3.77
     fig, ax = canvas(W, H)
-    YM, YL, YP = 1.62, 0.80, 2.60     # bottoms of the 32x32 row, 16x16 row, per-cell row
+    YM, YL, YP = 1.62, 0.80, 2.75     # bottoms of the 32x32 row, 16x16 row, per-cell row
     G = 0.15                          # gap between one tensor and the next
     ox32, oy32 = H32 * DEPTH[0], H32 * DEPTH[1]
     cw16, cw64 = chan_w(16), chan_w(64)
@@ -334,19 +334,20 @@ def fig_network(d: Data) -> None:
     for b, t in ((st1, "32"), (st2, "32"), (p, "64")):
         chan_label(ax, b, t)
 
-    # upsample into the foot of the concatenated tensor's side face, beside
-    # the copied stem output
+    # concatenation in the order the code uses, torch.cat([upsampled, skip]):
+    # the upsampled 64 rise into the front slab, the copied stem output drops
+    # into the back slab over the top
     xu = p.top_c[0]
-    cx = xu - cw16 - cw64 - ox32 / 2
-    cp = cuboid(ax, cx, YM, 16, 32, C_ENC)
-    u = cuboid(ax, cx + cw16, YM, 64, 32, C_DEC)
-    arrow(ax, [(xu, p.top_c[1]), (xu, YM + oy32 / 2)], A["up"])
-    arrow(ax, [(s2.right, s2.mid), (cp.x, s2.mid)], A["copy"])
-    ax.text(cp.x + (cw16 + cw64) / 2, YM - 0.035, "16+64", ha="center", va="top",
-            fontsize=6.5)
-    m1 = cuboid(ax, u.right + G, YM, 64, 32, C_DEC)
+    cx = xu - cw64 / 2
+    u = cuboid(ax, cx, YM, 64, 32, C_DEC)
+    cp = cuboid(ax, cx + cw64, YM, 16, 32, C_ENC)
+    arrow(ax, [(xu, p.top_c[1]), (xu, YM)], A["up"])
+    yk = YM + H32 + oy32 + 0.09
+    arrow(ax, [s2.top_c, (s2.top_c[0], yk), (cp.top_c[0], yk), cp.top_c], A["copy"])
+    ax.text(xu + 0.03, YM - 0.035, "64+16", ha="left", va="top", fontsize=6.5)
+    m1 = cuboid(ax, cp.right + G, YM, 64, 32, C_DEC)
     m2 = cuboid(ax, m1.right + G, YM, 64, 32, C_DEC, dropout=True)
-    arrow(ax, [(u.right, u.mid), (m1.x, u.mid)], A["conv3"])
+    arrow(ax, [(cp.right, cp.mid), (m1.x, cp.mid)], A["conv3"])
     arrow(ax, [(m1.right, m1.mid), (m2.x, m1.mid)], A["conv3"])
     chan_label(ax, m1, "64")
     chan_label(ax, m2, "64")
