@@ -8,7 +8,11 @@ Every number below comes from `outputs/varanasi_deep_system.json` and
 
 ---
 
-## 0. The headline: Figure of Merit 0.1016 to 0.1404
+## 0. The headline: Figure of Merit 0.1016 to 0.1507
+
+The best model is now the deep one: a convolutional network reading thirty channels of imagery and fifteen driver layers, scoring **0.1507** against the published forest's 0.1016 (section 1d). The best model without imagery is gradient-boosted trees at 0.1404, below.
+
+## 0b. The best tabular model: Figure of Merit 0.1404
 
 One command, `python scripts/run_deep_system.py`, now scores every model the same
 way on the same held-out period.
@@ -288,6 +292,46 @@ fifteen; section 1d has what that is worth. It is a hybrid, not a pure image mod
 imagery on this grid scores 0.0452. The honest claim is that a deep model reading
 imagery *and* drivers beats gradient-boosted trees reading drivers alone, and that
 neither the imagery nor the network alone would have done it.
+
+## 1d. Restoring growth momentum takes the image model to 0.1507
+
+Section 1c's model was missing its three strongest driver features, and not by choice.
+A feature has to exist at the training date, the stopping date and the test date;
+growth momentum at 1995 needs a 1990 built-up epoch that was never downloaded, so the
+whole family was dropped from the intersection. Stopping on the 2000-2005 transition
+instead of 1995-2000 keeps all fifteen drivers, because momentum at 2000 only needs
+1995, which is on disk.
+
+Nothing else changed -- same architecture, same 114,721 parameters, same training
+period, same test period.
+
+| | Twelve drivers | **Fifteen drivers** |
+|---|---|---|
+| Channels | 42 | **45** |
+| AUC | 0.9086 | **0.9351** |
+| Average precision | 0.1600 | **0.1930** |
+| Figure of Merit, five-seed mean | 0.1166 (sd 0.0088) | **0.1457 (sd 0.0063)** |
+| Figure of Merit, ensemble | 0.1241 | **0.1507** |
+| Kappa | 0.212 | **0.254** |
+| Hits of 1,214 | 268 | **318** |
+
+Five seeds give 0.1496, 0.1458, 0.1523, 0.1469 and 0.1340 -- a spread of 0.0063, the
+tightest of any configuration tried here and half what the previous one managed. The
+ensemble scores **0.1507**, 27.4 times random placement.
+
+For comparison on the same held-out period: the published random forest scores 0.1016
+with 224 hits, and gradient-boosted trees on the fifteen drivers alone score 0.1404
+with 299 hits. The deep model is ahead of both, and it is ahead because of the
+imagery: the same fifteen drivers without the thirty image channels are what the
+boosted trees already had.
+
+**The sequence that got here, since none of it was guesswork.** The symptom was a high
+AUC with a low Figure of Merit across every image run, which is a surface that is too
+smooth; the cause was a decoder that rebuilds its output from quarter-resolution
+features, blurring every prediction across about twenty cells; the fix was a per-cell
+path from input to head, worth 0.0813 to 0.1166. Then the feature audit done while
+writing the explanation of the pipeline found three missing columns, worth another
+0.1166 to 0.1457. Neither step was tuning.
 
 ## 2. Where the imagery actually pays: as features
 
