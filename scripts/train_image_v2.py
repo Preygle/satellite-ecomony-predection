@@ -119,6 +119,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--widths", type=int, nargs="+", default=[32, 64, 128])
     ap.add_argument("--dropout", type=float, default=0.1)
     ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--stop-on", type=int, default=None,
+                    help="start year of the transition used for early stopping; the "
+                         "oldest one by default, but an older transition can force "
+                         "features like growth momentum to be dropped")
     ap.add_argument("--all-transitions", action="store_true",
                     help="train on every usable transition, not just the most recent; "
                          "the network is sample-starved in a way the trees are not")
@@ -176,7 +180,15 @@ def main(argv: list[str] | None = None) -> int:
     usable = [(a, a + 5) for a in have_lab
               if a + 5 in built and a in have_img and (a - 5) in have_img]
     before = sorted(p for p in usable if p[1] <= v0)
-    stop_period = before[0]                                   # the oldest
+    if args.stop_on is not None:
+        match = [p for p in before if p[0] == args.stop_on]
+        if not match:
+            log.error("no usable transition starts in %d; available: %s", args.stop_on,
+                      [a for a, _ in before])
+            return 2
+        stop_period = match[0]
+    else:
+        stop_period = before[0]                               # the oldest
     train_periods = before[1:] if args.all_transitions else [before[-1]]
     train_period = train_periods[-1]
     log.info("train on %s, stop on %d-%d, test on %d-%d (held out)",

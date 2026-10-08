@@ -279,8 +279,12 @@ meant to replace, on the metric the project reports, without seeing anything the
 tabular model does not see.
 
 **What is in the input, stated plainly.** Six Landsat bands and four indices at the
-transition date, the same ten five years earlier, the change in all twenty, and the
-fifteen tabular drivers -- 42 channels. It is a hybrid, not a pure image model: pure
+transition date, the same ten five years earlier, the change in all twenty, and
+**twelve** of the fifteen tabular drivers -- 42 channels. The three growth-momentum
+features are missing, and not by choice: a feature has to exist at the training date,
+the stopping date and the test date, and momentum at 1995 needs a 1990 built-up epoch
+that was never downloaded. Stopping on 2000-2005 instead of 1995-2000 keeps all
+fifteen; section 1d has what that is worth. It is a hybrid, not a pure image model: pure
 imagery on this grid scores 0.0452. The honest claim is that a deep model reading
 imagery *and* drivers beats gradient-boosted trees reading drivers alone, and that
 neither the imagery nor the network alone would have done it.
