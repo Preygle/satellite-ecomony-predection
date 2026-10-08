@@ -8,6 +8,23 @@ Everything here is reproducible with the commands in section 12. Every number co
 from a file in `outputs/`, and the environment that produced them is recorded in
 section 13.
 
+![Overall framework](figures/paper/fig1_framework.png)
+
+**Figure 1.** Overall framework. (a) Input data, by official identifier. (b) Dry-season
+Landsat composites are cloud-masked, put on the OLI reflectance scale and resampled with
+the built-up labels to the 100 m analysis grid (the 2015 composite is shown). (c) Each
+training example is a 32 × 32-cell patch with 45 channels; three are shown for one
+patch: true colour, NDBI change, and built-up growth over the previous five years.
+(d) The network of Figure 2, averaged over five seeds and four rotations, gives a
+suitability surface *S* (grey: already urban). (e) A cellular automaton places exactly
+the observed number of new urban cells, ranking candidates by 0.65 *S* plus 0.35 times
+the built-up share within 300 m (*n*₃₀₀), over eight iterations. (f) The placement is
+compared with GHS-BUILT-S 2020 on the held-out 2015→2020 period.
+
+All four figures are in `docs/figures/paper/` as PDF, SVG and 600 dpi PNG, at IEEE
+column widths, and are drawn from the model's own outputs by
+`python scripts/make_paper_figures.py`.
+
 ---
 
 ## 1. What the system predicts
@@ -205,15 +222,17 @@ through the normalisation.
 
 ### 5b. Architecture
 
-![The urban-growth network](diagrams/dl5_network_detail.png)
+![The dual-path network](figures/paper/fig2_network.png)
 
-*Each bar is a tensor: its height shows the grid size (32 × 32 or 16 × 16 cells) and
-its width the number of channels, written above it. Blue is the encoder, green the
-decoder, orange the per-cell path; arrow colours give the operation. The patch on the
-left and the two maps on the right are real: the 32 × 32 window with the most
-conversions in the held-out 2015→2020 test period, the ensemble's predicted
-probability, and what actually converted. The exact shape and parameter count of every
-layer are in the table that follows. Regenerate with `python scripts/make_network_diagram.py`.*
+**Figure 2.** The dual-path network (115,345 parameters). Each block is a feature map:
+its height and depth show the grid size (32 × 32 or 16 × 16 cells) and its width the
+number of channels, given beneath it; hatching marks dropout. The context path (encoder
+and decoder) bases each output on a 17 × 17-cell window (1.7 km) but rebuilds the map
+from a 16 × 16 grid, so its output is smooth. The per-cell path applies two 1 × 1
+convolutions to each cell's 45 values alone and keeps full resolution. The two are
+concatenated and a 1 × 1 convolution gives one logit per cell. The input (true colour
+shown) and the output are a real patch from the 2015→2020 test period; grey cells were
+already urban.
 
 <details>
 <summary>Every layer, with its shape and parameter count (taken from the model itself)</summary>
@@ -259,7 +278,8 @@ Two paths that meet at the output. Total **115,345 parameters** — deliberately
 | Decoder | 1×1 projection, then upsample and merge the stem | 64 channels, 32×32 |
 
 Shrinking the grid lets each later unit see a wider area; expanding it returns to one
-value per cell.
+value per cell. Measured from the network's own gradients, each output of the context
+path depends on a **17 × 17-cell window (1.7 km)** around its cell.
 
 **The per-cell path**: two 1×1 convolutions straight from the 45 input channels to 64
 channels, at full resolution. A 1×1 convolution looks at one cell and nothing else, so
@@ -281,6 +301,14 @@ parameters.
 ### 5c. Training
 
 **Three separate time periods, and they never mix.**
+
+![Training, stopping and test periods](figures/paper/fig3_protocol.png)
+
+**Figure 3.** Three five-year transitions. Inputs are imagery at *t* − 5 and *t*, the
+change between them, and place features at *t*; the label is whether a cell that is not
+urban at *t* is urban at *t* + 5. The label windows never overlap. Weights are fitted on
+2010→2015, the stopping epoch is chosen by average precision on 2000→2005, and
+2015→2020 is scored once at the end.
 
 | Period | Role |
 |---|---|
@@ -450,6 +478,17 @@ Published urban-growth models typically land between 0.10 and 0.30.
 ## 9. Results
 
 Held-out 2015 → 2020, scored once, 1,214 conversions among 111,700 eligible cells.
+
+![Results on the held-out period](figures/paper/fig4_results.png)
+
+**Figure 4.** Results on the held-out 2015→2020 period. (a) Allocation outcome of the
+five-model ensemble over the study area: a hit is a conversion that was predicted and
+observed, a miss was observed but not predicted, a false alarm was predicted but not
+observed; Figure of Merit = hits / (hits + misses + false alarms). (b)–(e) The three
+4 × 4 km windows with the most observed conversions, chosen by the reference data and
+not by how well the model did: the 2015 Landsat composite, the NDBI change the model
+was given, its suitability *S* (square-root colour scale; grey: already urban), and the
+outcome with each window's own Figure of Merit.
 
 | Model | AUC | Avg. precision | **Figure of Merit** | Kappa | Hits | × random |
 |---|---|---|---|---|---|---|

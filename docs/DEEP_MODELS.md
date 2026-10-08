@@ -302,8 +302,9 @@ whole family was dropped from the intersection. Stopping on the 2000-2005 transi
 instead of 1995-2000 keeps all fifteen drivers, because momentum at 2000 only needs
 1995, which is on disk.
 
-Nothing else changed -- same architecture, same 114,721 parameters, same training
-period, same test period.
+Nothing else changed -- same architecture, same training period, same test period.
+The three extra input channels add 624 weights (3 x 16 x 9 in the first convolution,
+3 x 64 in the per-cell path), so the network goes from 114,721 to 115,345 parameters.
 
 | | Twelve drivers | **Fifteen drivers** |
 |---|---|---|
