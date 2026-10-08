@@ -205,6 +205,13 @@ through the normalisation.
 
 ### 5b. Architecture
 
+![The urban-growth network, layer by layer](diagrams/dl5_network_detail.png)
+
+*Every layer with its exact input and output shape and parameter count. The blue
+blocks are the context path, the orange block is the per-cell path, and the two meet
+at the head. Source: `docs/diagrams/dl5_network_detail.svg`.*
+
+
 Two paths that meet at the output. Total **115,345 parameters** — deliberately small.
 
 **The context path** (an encoder and decoder, the usual convolutional arrangement):

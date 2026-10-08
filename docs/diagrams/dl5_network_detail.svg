@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1020" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd;--cool:#2a5d9f;--cool-soft:#e4ecf7" role="img" aria-label="Layer by layer architecture of the urban growth network: 45 input channels enter a two-stage convolutional encoder and a decoder with a skip connection, and in parallel a per-cell path of two one-by-one convolutions; the two are concatenated and a final one-by-one convolution gives one conversion logit per cell. Total 115,345 parameters.">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+    </marker>
+  </defs>
+  <rect width="1500" height="1020" style="fill:var(--ground)"></rect>
+
+  <text x="30" y="36" font-size="15" font-weight="700" fill="currentColor">The urban-growth network, layer by layer</text>
+  <text x="30" y="56" style="fill:var(--muted)">115,345 parameters &#183; input one patch of 32 &#215; 32 cells (3.2 &#215; 3.2 km) with 45 channels &#183; output one conversion probability per cell</text>
+  <text x="30" y="74" style="fill:var(--muted)">scripts/train_image_v2.py &#183; src/urbanintel/deep/nets.py &#183; shapes written as (channels, height, width), batch omitted</text>
+
+  <!-- ================= INPUT ================= -->
+  <text x="30" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">INPUT &#183; 45 CHANNELS</text>
+  <rect x="30" y="124" width="250" height="300" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="155" y="146" text-anchor="middle" font-weight="700" fill="currentColor">x &#8212; (45, 32, 32)</text>
+
+  <rect x="44" y="158" width="222" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="54" y="174" font-weight="700" fill="currentColor">imagery now, 10</text>
+  <text x="54" y="190" style="fill:var(--muted)">blue green red NIR SWIR1 SWIR2</text>
+  <text x="54" y="205" style="fill:var(--muted)">NDVI NDBI NDWI brightness</text>
+  <text x="54" y="224" font-weight="700" fill="currentColor">imagery 5 years earlier, 10</text>
+  <text x="54" y="238" style="fill:var(--muted)">the same ten</text>
+
+  <rect x="44" y="250" width="222" height="48" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="54" y="266" font-weight="700" fill="currentColor">change, 10</text>
+  <text x="54" y="281" style="fill:var(--muted)">now &#8722; earlier, each band and index</text>
+
+  <rect x="44" y="304" width="222" height="104" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="54" y="320" font-weight="700" fill="currentColor">place features, 15</text>
+  <text x="54" y="335" style="fill:var(--muted)">built-up fraction &#183; neighbourhood</text>
+  <text x="54" y="349" style="fill:var(--muted)">built 500 / 1500 / 3000 m &#183; distance</text>
+  <text x="54" y="363" style="fill:var(--muted)">to edge, centre, major road, water</text>
+  <text x="54" y="377" style="fill:var(--muted)">road &amp; junction density &#183; population</text>
+  <text x="54" y="391" style="fill:var(--muted)">&#183; slope &#183; <tspan font-weight="700">growth momentum &#215;3</tspan></text>
+
+  <text x="155" y="442" text-anchor="middle" font-size="10" style="fill:var(--muted)">standardised to mean 0, sd 1,</text>
+  <text x="155" y="456" text-anchor="middle" font-size="10" style="fill:var(--muted)">using the training date only</text>
+
+  <!-- split arrows -->
+  <path d="M280,220 C320,220 320,210 352,210" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></path>
+  <path d="M280,330 C320,330 320,720 352,720" fill="none" stroke-width="1.4" marker-end="url(#arw)" style="fill:none;stroke:var(--warm)"></path>
+  <text x="300" y="200" font-size="10" style="fill:var(--muted)">context path</text>
+
+  <!-- ================= ENCODER ================= -->
+  <text x="356" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">CONTEXT PATH &#183; ENCODER</text>
+  <rect x="356" y="124" width="300" height="196" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
+  <text x="506" y="146" text-anchor="middle" font-weight="700" fill="currentColor">stem &#8212; ConvBlock(45 &#8594; 16)</text>
+
+  <rect x="370" y="158" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="173" fill="currentColor">Conv2d 3&#215;3, 45 &#8594; 16, pad 1</text>
+  <text x="380" y="187" style="fill:var(--muted)">(45,32,32) &#8594; (16,32,32)</text>
+  <text x="632" y="180" text-anchor="end" font-weight="700" style="fill:var(--cool)">6,480</text>
+
+  <rect x="370" y="196" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="213" fill="currentColor">BatchNorm2d(16) + ReLU</text>
+  <text x="632" y="213" text-anchor="end" style="fill:var(--cool)">32</text>
+
+  <rect x="370" y="226" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="241" fill="currentColor">Conv2d 3&#215;3, 16 &#8594; 16, pad 1</text>
+  <text x="380" y="255" style="fill:var(--muted)">(16,32,32) &#8594; (16,32,32)</text>
+  <text x="632" y="248" text-anchor="end" font-weight="700" style="fill:var(--cool)">2,304</text>
+
+  <rect x="370" y="264" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="281" fill="currentColor">BatchNorm2d(16) + ReLU</text>
+  <text x="632" y="281" text-anchor="end" style="fill:var(--cool)">32</text>
+  <text x="506" y="308" text-anchor="middle" font-size="10" style="fill:var(--muted)">each cell now sees a 5 &#215; 5 cell window (500 m)</text>
+
+  <line x1="506" y1="320" x2="506" y2="348" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></line>
+  <!-- skip connection: f1 from the stem straight across to the merge, at full resolution -->
+  <line x1="656" y1="250" x2="692" y2="250" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arw)"></line>
+  <text x="674" y="243" text-anchor="middle" font-size="10" style="fill:var(--muted)">f&#8321;</text>
+  <text x="514" y="338" font-size="10" style="fill:var(--muted)">f&#8321; (16,32,32)</text>
+
+  <rect x="356" y="350" width="300" height="186" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
+  <text x="506" y="372" text-anchor="middle" font-weight="700" fill="currentColor">stage 2 &#8212; ConvBlock(16 &#8594; 32, stride 2)</text>
+
+  <rect x="370" y="384" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="399" fill="currentColor">Conv2d 3&#215;3, 16 &#8594; 32, <tspan font-weight="700">stride 2</tspan></text>
+  <text x="380" y="413" style="fill:var(--muted)">(16,32,32) &#8594; (32,16,16)  grid halves</text>
+  <text x="632" y="406" text-anchor="end" font-weight="700" style="fill:var(--cool)">4,608</text>
+
+  <rect x="370" y="422" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="439" fill="currentColor">BatchNorm2d(32) + ReLU</text>
+  <text x="632" y="439" text-anchor="end" style="fill:var(--cool)">64</text>
+
+  <rect x="370" y="452" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="467" fill="currentColor">Conv2d 3&#215;3, 32 &#8594; 32, pad 1</text>
+  <text x="380" y="481" style="fill:var(--muted)">(32,16,16) &#8594; (32,16,16)</text>
+  <text x="632" y="474" text-anchor="end" font-weight="700" style="fill:var(--cool)">9,216</text>
+
+  <rect x="370" y="490" width="272" height="38" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="505" fill="currentColor">BatchNorm2d(32) + ReLU + Dropout2d(0.5)</text>
+  <text x="380" y="520" style="fill:var(--muted)">half the feature maps blanked each step</text>
+  <text x="632" y="505" text-anchor="end" style="fill:var(--cool)">64</text>
+
+  <line x1="656" y1="440" x2="690" y2="440" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></line>
+  <text x="674" y="432" text-anchor="middle" font-size="10" style="fill:var(--muted)">f&#8322;</text>
+
+  <!-- ================= DECODER ================= -->
+  <text x="694" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">CONTEXT PATH &#183; DECODER</text>
+  <rect x="694" y="380" width="300" height="120" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
+  <text x="844" y="402" text-anchor="middle" font-weight="700" fill="currentColor">project + upsample</text>
+  <rect x="708" y="414" width="272" height="32" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="718" y="428" fill="currentColor">Conv2d 1&#215;1, 32 &#8594; 64</text>
+  <text x="718" y="441" style="fill:var(--muted)">(32,16,16) &#8594; (64,16,16)</text>
+  <text x="970" y="435" text-anchor="end" font-weight="700" style="fill:var(--cool)">2,112</text>
+  <rect x="708" y="452" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="718" y="467" fill="currentColor">bilinear upsample &#215;2</text>
+  <text x="718" y="480" style="fill:var(--muted)">(64,16,16) &#8594; (64,32,32)   no parameters</text>
+
+  <rect x="694" y="140" width="300" height="156" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
+  <text x="844" y="162" text-anchor="middle" font-weight="700" fill="currentColor">merge &#8212; ConvBlock(80 &#8594; 64)</text>
+  <text x="844" y="178" text-anchor="middle" style="fill:var(--muted)">concatenate 64 upsampled + 16 from the stem</text>
+  <rect x="708" y="188" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="718" y="203" fill="currentColor">Conv2d 3&#215;3, 80 &#8594; 64, pad 1</text>
+  <text x="718" y="217" style="fill:var(--muted)">(80,32,32) &#8594; (64,32,32)</text>
+  <text x="970" y="210" text-anchor="end" font-weight="700" style="fill:var(--cool)">46,080</text>
+  <rect x="708" y="226" width="272" height="22" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="718" y="241" fill="currentColor">BatchNorm2d(64) + ReLU</text>
+  <text x="970" y="241" text-anchor="end" style="fill:var(--cool)">128</text>
+  <rect x="708" y="252" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="718" y="267" fill="currentColor">Conv2d 3&#215;3, 64 &#8594; 64 + BN + ReLU + Drop</text>
+  <text x="718" y="281" style="fill:var(--muted)">(64,32,32) &#8594; (64,32,32)</text>
+  <text x="970" y="274" text-anchor="end" font-weight="700" style="fill:var(--cool)">36,992</text>
+
+  <path d="M844,380 L844,300" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></path>
+  <polyline points="994,218 1200,218 1200,634" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></polyline>
+  <text x="1216" y="400" font-weight="700" fill="currentColor">context features (64, 32, 32)</text>
+  <text x="1216" y="418" style="fill:var(--muted)">smooth: every value here was</text>
+  <text x="1216" y="433" style="fill:var(--muted)">rebuilt from a 16 &#215; 16 grid, so</text>
+  <text x="1216" y="448" style="fill:var(--muted)">each prediction is blurred over</text>
+  <text x="1216" y="463" style="fill:var(--muted)">about twenty cells</text>
+
+  <!-- ================= PER-CELL PATH ================= -->
+  <text x="356" y="632" font-size="10" letter-spacing="1" style="fill:var(--warm)">PER-CELL PATH &#183; THE CHANGE THAT MATTERED MOST</text>
+  <rect x="356" y="644" width="300" height="152" rx="4" stroke-width="1.5" style="fill:var(--warm-soft);stroke:var(--warm)"></rect>
+  <text x="506" y="666" text-anchor="middle" font-weight="700" fill="currentColor">input &#8594; head, one cell wide</text>
+  <rect x="370" y="678" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="693" fill="currentColor">Conv2d <tspan font-weight="700">1&#215;1</tspan>, 45 &#8594; 64 + ReLU</text>
+  <text x="380" y="707" style="fill:var(--muted)">(45,32,32) &#8594; (64,32,32)</text>
+  <text x="632" y="700" text-anchor="end" font-weight="700" style="fill:var(--warm)">2,944</text>
+  <rect x="370" y="716" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="380" y="731" fill="currentColor">Conv2d <tspan font-weight="700">1&#215;1</tspan>, 64 &#8594; 64 + ReLU</text>
+  <text x="380" y="745" style="fill:var(--muted)">(64,32,32) &#8594; (64,32,32)</text>
+  <text x="632" y="738" text-anchor="end" font-weight="700" style="fill:var(--warm)">4,160</text>
+  <text x="506" y="770" text-anchor="middle" font-size="10" style="fill:var(--muted)">a 1&#215;1 convolution sees one cell and nothing else, so this</text>
+  <text x="506" y="784" text-anchor="middle" font-size="10" style="fill:var(--muted)">is a 45 &#8594; 64 &#8594; 64 neural network applied to every cell alone</text>
+
+  <path d="M656,720 L1096,720" fill="none" stroke-width="1.4" marker-end="url(#arw)" style="fill:none;stroke:var(--warm)"></path>
+  <text x="800" y="712" font-size="10" style="fill:var(--warm)">sharp: nothing here has been blurred &#183; (64, 32, 32)</text>
+
+  <!-- ================= HEAD ================= -->
+  <rect x="1100" y="640" width="330" height="170" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="1265" y="662" text-anchor="middle" font-weight="700" fill="currentColor">head</text>
+  <rect x="1114" y="674" width="302" height="30" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="1124" y="693" fill="currentColor">concatenate &#8594; (128, 32, 32)</text>
+  <rect x="1114" y="710" width="302" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="1124" y="725" fill="currentColor">Conv2d 1&#215;1, 128 &#8594; 1</text>
+  <text x="1124" y="739" style="fill:var(--muted)">(128,32,32) &#8594; (1,32,32)</text>
+  <text x="1406" y="732" text-anchor="end" font-weight="700" style="fill:var(--accent)">129</text>
+  <rect x="1114" y="750" width="302" height="30" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="1124" y="769" fill="currentColor">sigmoid &#8594; probability per cell, 0 to 1</text>
+  <text x="1265" y="798" text-anchor="middle" font-size="10" style="fill:var(--muted)">one number for each of the 1,024 cells in the patch</text>
+
+  <!-- ================= LOSS ================= -->
+  <text x="30" y="852" font-size="10" letter-spacing="1" style="fill:var(--muted)">TRAINING SIGNAL</text>
+  <rect x="30" y="864" width="420" height="130" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="44" y="884" font-weight="700" fill="currentColor">loss = focal(&#945;=0.25, &#947;=2) + 0.5 &#215; soft Dice</text>
+  <text x="44" y="902" style="fill:var(--muted)">computed only on cells that were not already urban</text>
+  <text x="44" y="922" fill="currentColor">focal: fades out the easy negatives, so the gradient keeps</text>
+  <text x="44" y="936" fill="currentColor">coming from the built-up edge where the decision is hard</text>
+  <text x="44" y="956" fill="currentColor">Dice: scores the predicted set against the observed set,</text>
+  <text x="44" y="970" fill="currentColor">which is closer to the Figure of Merit than per-cell error</text>
+  <text x="44" y="988" style="fill:var(--muted)">AdamW, lr 1e-3 cosine, weight decay 1e-4, clip 5.0</text>
+
+  <rect x="470" y="864" width="420" height="130" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="484" y="884" font-weight="700" fill="currentColor">three periods, never mixed</text>
+  <text x="484" y="904" fill="currentColor">train on 2010 &#8594; 2015</text>
+  <text x="484" y="920" fill="currentColor">stop on 2000 &#8594; 2005 &#8212; a different <tspan font-style="italic">period</tspan>, not a</text>
+  <text x="484" y="934" fill="currentColor">different place, because a network this size will keep</text>
+  <text x="484" y="948" fill="currentColor">improving on held-out blocks of the same years</text>
+  <text x="484" y="968" fill="currentColor">test on 2015 &#8594; 2020, touched once at the end</text>
+  <text x="484" y="988" style="fill:var(--muted)">batches of 8 patches, growth-bearing patches drawn 4&#215;</text>
+
+  <rect x="910" y="864" width="520" height="130" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
+  <text x="924" y="884" font-weight="700" fill="currentColor">why the per-cell path was added</text>
+  <text x="924" y="904" fill="currentColor">Every earlier version scored a high AUC and a poor Figure of Merit: it ranked</text>
+  <text x="924" y="918" fill="currentColor">the whole map well and the top of it badly. That is a surface that is too smooth,</text>
+  <text x="924" y="932" fill="currentColor">and the context path can only be smooth &#8212; it rebuilds everything from a grid</text>
+  <text x="924" y="946" fill="currentColor">halved and re-expanded, blurring each prediction over about twenty cells.</text>
+  <text x="924" y="966" font-weight="700" style="fill:var(--accent)">7,104 extra parameters moved the Figure of Merit from 0.0813 to 0.1166.</text>
+  <text x="924" y="986" style="fill:var(--muted)">Restoring the three growth-momentum features then took it to 0.1457 (ensemble 0.1507).</text>
+
+  <!-- parameter ledger -->
+  <text x="30" y="492" font-size="10" letter-spacing="1" style="fill:var(--muted)">PARAMETER LEDGER</text>
+  <rect x="30" y="502" width="250" height="196" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
+  <text x="44" y="524" fill="currentColor">encoder stem</text><text x="266" y="524" text-anchor="end" fill="currentColor">8,848</text>
+  <text x="44" y="544" fill="currentColor">encoder stage 2</text><text x="266" y="544" text-anchor="end" fill="currentColor">13,952</text>
+  <text x="44" y="564" fill="currentColor">decoder project</text><text x="266" y="564" text-anchor="end" fill="currentColor">2,112</text>
+  <text x="44" y="584" fill="currentColor">decoder merge</text><text x="266" y="584" text-anchor="end" fill="currentColor">83,200</text>
+  <text x="44" y="604" style="fill:var(--warm)">per-cell path</text><text x="266" y="604" text-anchor="end" style="fill:var(--warm)">7,104</text>
+  <text x="44" y="624" fill="currentColor">head</text><text x="266" y="624" text-anchor="end" fill="currentColor">129</text>
+  <line x1="44" y1="634" x2="266" y2="634" stroke="currentColor" opacity="0.4"></line>
+  <text x="44" y="652" font-weight="700" fill="currentColor">total</text><text x="266" y="652" text-anchor="end" font-weight="700" fill="currentColor">115,345</text>
+  <text x="44" y="672" font-size="10" style="fill:var(--muted)">small on purpose: about 1,380 cells</text>
+  <text x="44" y="686" font-size="10" style="fill:var(--muted)">convert in the training period</text>
+
+  <!-- prediction note -->
+  <rect x="30" y="712" width="250" height="88" rx="3" stroke="currentColor" stroke-dasharray="4 3" style="fill:var(--surface)"></rect>
+  <text x="44" y="732" font-weight="700" fill="currentColor">at prediction</text>
+  <text x="44" y="750" fill="currentColor">windows slide at half a patch;</text>
+  <text x="44" y="765" fill="currentColor">logits averaged before the sigmoid;</text>
+  <text x="44" y="780" fill="currentColor">4 rotations and 5 seeds averaged</text>
+</svg>
