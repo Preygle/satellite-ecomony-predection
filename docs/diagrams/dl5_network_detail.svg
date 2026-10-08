@@ -1,215 +1,1051 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1020" font-family="Source Sans 3, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" style="color:#1a211c;--ground:#ffffff;--surface:#ffffff;--accent:#10695a;--accent-soft:#e3efe9;--muted:#6b7870;--warm:#9a5b12;--warm-soft:#f6ecdd;--cool:#2a5d9f;--cool-soft:#e4ecf7" role="img" aria-label="Layer by layer architecture of the urban growth network: 45 input channels enter a two-stage convolutional encoder and a decoder with a skip connection, and in parallel a per-cell path of two one-by-one convolutions; the two are concatenated and a final one-by-one convolution gives one conversion logit per cell. Total 115,345 parameters.">
-  <defs>
-    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
-    </marker>
-  </defs>
-  <rect width="1500" height="1020" style="fill:var(--ground)"></rect>
-
-  <text x="30" y="36" font-size="15" font-weight="700" fill="currentColor">The urban-growth network, layer by layer</text>
-  <text x="30" y="56" style="fill:var(--muted)">115,345 parameters &#183; input one patch of 32 &#215; 32 cells (3.2 &#215; 3.2 km) with 45 channels &#183; output one conversion probability per cell</text>
-  <text x="30" y="74" style="fill:var(--muted)">scripts/train_image_v2.py &#183; src/urbanintel/deep/nets.py &#183; shapes written as (channels, height, width), batch omitted</text>
-
-  <!-- ================= INPUT ================= -->
-  <text x="30" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">INPUT &#183; 45 CHANNELS</text>
-  <rect x="30" y="124" width="250" height="300" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
-  <text x="155" y="146" text-anchor="middle" font-weight="700" fill="currentColor">x &#8212; (45, 32, 32)</text>
-
-  <rect x="44" y="158" width="222" height="86" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="54" y="174" font-weight="700" fill="currentColor">imagery now, 10</text>
-  <text x="54" y="190" style="fill:var(--muted)">blue green red NIR SWIR1 SWIR2</text>
-  <text x="54" y="205" style="fill:var(--muted)">NDVI NDBI NDWI brightness</text>
-  <text x="54" y="224" font-weight="700" fill="currentColor">imagery 5 years earlier, 10</text>
-  <text x="54" y="238" style="fill:var(--muted)">the same ten</text>
-
-  <rect x="44" y="250" width="222" height="48" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="54" y="266" font-weight="700" fill="currentColor">change, 10</text>
-  <text x="54" y="281" style="fill:var(--muted)">now &#8722; earlier, each band and index</text>
-
-  <rect x="44" y="304" width="222" height="104" rx="3" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="54" y="320" font-weight="700" fill="currentColor">place features, 15</text>
-  <text x="54" y="335" style="fill:var(--muted)">built-up fraction &#183; neighbourhood</text>
-  <text x="54" y="349" style="fill:var(--muted)">built 500 / 1500 / 3000 m &#183; distance</text>
-  <text x="54" y="363" style="fill:var(--muted)">to edge, centre, major road, water</text>
-  <text x="54" y="377" style="fill:var(--muted)">road &amp; junction density &#183; population</text>
-  <text x="54" y="391" style="fill:var(--muted)">&#183; slope &#183; <tspan font-weight="700">growth momentum &#215;3</tspan></text>
-
-  <text x="155" y="442" text-anchor="middle" font-size="10" style="fill:var(--muted)">standardised to mean 0, sd 1,</text>
-  <text x="155" y="456" text-anchor="middle" font-size="10" style="fill:var(--muted)">using the training date only</text>
-
-  <!-- split arrows -->
-  <path d="M280,220 C320,220 320,210 352,210" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></path>
-  <path d="M280,330 C320,330 320,720 352,720" fill="none" stroke-width="1.4" marker-end="url(#arw)" style="fill:none;stroke:var(--warm)"></path>
-  <text x="300" y="200" font-size="10" style="fill:var(--muted)">context path</text>
-
-  <!-- ================= ENCODER ================= -->
-  <text x="356" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">CONTEXT PATH &#183; ENCODER</text>
-  <rect x="356" y="124" width="300" height="196" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
-  <text x="506" y="146" text-anchor="middle" font-weight="700" fill="currentColor">stem &#8212; ConvBlock(45 &#8594; 16)</text>
-
-  <rect x="370" y="158" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="173" fill="currentColor">Conv2d 3&#215;3, 45 &#8594; 16, pad 1</text>
-  <text x="380" y="187" style="fill:var(--muted)">(45,32,32) &#8594; (16,32,32)</text>
-  <text x="632" y="180" text-anchor="end" font-weight="700" style="fill:var(--cool)">6,480</text>
-
-  <rect x="370" y="196" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="213" fill="currentColor">BatchNorm2d(16) + ReLU</text>
-  <text x="632" y="213" text-anchor="end" style="fill:var(--cool)">32</text>
-
-  <rect x="370" y="226" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="241" fill="currentColor">Conv2d 3&#215;3, 16 &#8594; 16, pad 1</text>
-  <text x="380" y="255" style="fill:var(--muted)">(16,32,32) &#8594; (16,32,32)</text>
-  <text x="632" y="248" text-anchor="end" font-weight="700" style="fill:var(--cool)">2,304</text>
-
-  <rect x="370" y="264" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="281" fill="currentColor">BatchNorm2d(16) + ReLU</text>
-  <text x="632" y="281" text-anchor="end" style="fill:var(--cool)">32</text>
-  <text x="506" y="308" text-anchor="middle" font-size="10" style="fill:var(--muted)">each cell now sees a 5 &#215; 5 cell window (500 m)</text>
-
-  <line x1="506" y1="320" x2="506" y2="348" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></line>
-  <!-- skip connection: f1 from the stem straight across to the merge, at full resolution -->
-  <line x1="656" y1="250" x2="692" y2="250" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arw)"></line>
-  <text x="674" y="243" text-anchor="middle" font-size="10" style="fill:var(--muted)">f&#8321;</text>
-  <text x="514" y="338" font-size="10" style="fill:var(--muted)">f&#8321; (16,32,32)</text>
-
-  <rect x="356" y="350" width="300" height="186" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
-  <text x="506" y="372" text-anchor="middle" font-weight="700" fill="currentColor">stage 2 &#8212; ConvBlock(16 &#8594; 32, stride 2)</text>
-
-  <rect x="370" y="384" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="399" fill="currentColor">Conv2d 3&#215;3, 16 &#8594; 32, <tspan font-weight="700">stride 2</tspan></text>
-  <text x="380" y="413" style="fill:var(--muted)">(16,32,32) &#8594; (32,16,16)  grid halves</text>
-  <text x="632" y="406" text-anchor="end" font-weight="700" style="fill:var(--cool)">4,608</text>
-
-  <rect x="370" y="422" width="272" height="26" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="439" fill="currentColor">BatchNorm2d(32) + ReLU</text>
-  <text x="632" y="439" text-anchor="end" style="fill:var(--cool)">64</text>
-
-  <rect x="370" y="452" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="467" fill="currentColor">Conv2d 3&#215;3, 32 &#8594; 32, pad 1</text>
-  <text x="380" y="481" style="fill:var(--muted)">(32,16,16) &#8594; (32,16,16)</text>
-  <text x="632" y="474" text-anchor="end" font-weight="700" style="fill:var(--cool)">9,216</text>
-
-  <rect x="370" y="490" width="272" height="38" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="505" fill="currentColor">BatchNorm2d(32) + ReLU + Dropout2d(0.5)</text>
-  <text x="380" y="520" style="fill:var(--muted)">half the feature maps blanked each step</text>
-  <text x="632" y="505" text-anchor="end" style="fill:var(--cool)">64</text>
-
-  <line x1="656" y1="440" x2="690" y2="440" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></line>
-  <text x="674" y="432" text-anchor="middle" font-size="10" style="fill:var(--muted)">f&#8322;</text>
-
-  <!-- ================= DECODER ================= -->
-  <text x="694" y="112" font-size="10" letter-spacing="1" style="fill:var(--muted)">CONTEXT PATH &#183; DECODER</text>
-  <rect x="694" y="380" width="300" height="120" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
-  <text x="844" y="402" text-anchor="middle" font-weight="700" fill="currentColor">project + upsample</text>
-  <rect x="708" y="414" width="272" height="32" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="718" y="428" fill="currentColor">Conv2d 1&#215;1, 32 &#8594; 64</text>
-  <text x="718" y="441" style="fill:var(--muted)">(32,16,16) &#8594; (64,16,16)</text>
-  <text x="970" y="435" text-anchor="end" font-weight="700" style="fill:var(--cool)">2,112</text>
-  <rect x="708" y="452" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="718" y="467" fill="currentColor">bilinear upsample &#215;2</text>
-  <text x="718" y="480" style="fill:var(--muted)">(64,16,16) &#8594; (64,32,32)   no parameters</text>
-
-  <rect x="694" y="140" width="300" height="156" rx="4" stroke-width="1.5" style="fill:var(--cool-soft);stroke:var(--cool)"></rect>
-  <text x="844" y="162" text-anchor="middle" font-weight="700" fill="currentColor">merge &#8212; ConvBlock(80 &#8594; 64)</text>
-  <text x="844" y="178" text-anchor="middle" style="fill:var(--muted)">concatenate 64 upsampled + 16 from the stem</text>
-  <rect x="708" y="188" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="718" y="203" fill="currentColor">Conv2d 3&#215;3, 80 &#8594; 64, pad 1</text>
-  <text x="718" y="217" style="fill:var(--muted)">(80,32,32) &#8594; (64,32,32)</text>
-  <text x="970" y="210" text-anchor="end" font-weight="700" style="fill:var(--cool)">46,080</text>
-  <rect x="708" y="226" width="272" height="22" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="718" y="241" fill="currentColor">BatchNorm2d(64) + ReLU</text>
-  <text x="970" y="241" text-anchor="end" style="fill:var(--cool)">128</text>
-  <rect x="708" y="252" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="718" y="267" fill="currentColor">Conv2d 3&#215;3, 64 &#8594; 64 + BN + ReLU + Drop</text>
-  <text x="718" y="281" style="fill:var(--muted)">(64,32,32) &#8594; (64,32,32)</text>
-  <text x="970" y="274" text-anchor="end" font-weight="700" style="fill:var(--cool)">36,992</text>
-
-  <path d="M844,380 L844,300" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></path>
-  <polyline points="994,218 1200,218 1200,634" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arw)"></polyline>
-  <text x="1216" y="400" font-weight="700" fill="currentColor">context features (64, 32, 32)</text>
-  <text x="1216" y="418" style="fill:var(--muted)">smooth: every value here was</text>
-  <text x="1216" y="433" style="fill:var(--muted)">rebuilt from a 16 &#215; 16 grid, so</text>
-  <text x="1216" y="448" style="fill:var(--muted)">each prediction is blurred over</text>
-  <text x="1216" y="463" style="fill:var(--muted)">about twenty cells</text>
-
-  <!-- ================= PER-CELL PATH ================= -->
-  <text x="356" y="632" font-size="10" letter-spacing="1" style="fill:var(--warm)">PER-CELL PATH &#183; THE CHANGE THAT MATTERED MOST</text>
-  <rect x="356" y="644" width="300" height="152" rx="4" stroke-width="1.5" style="fill:var(--warm-soft);stroke:var(--warm)"></rect>
-  <text x="506" y="666" text-anchor="middle" font-weight="700" fill="currentColor">input &#8594; head, one cell wide</text>
-  <rect x="370" y="678" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="693" fill="currentColor">Conv2d <tspan font-weight="700">1&#215;1</tspan>, 45 &#8594; 64 + ReLU</text>
-  <text x="380" y="707" style="fill:var(--muted)">(45,32,32) &#8594; (64,32,32)</text>
-  <text x="632" y="700" text-anchor="end" font-weight="700" style="fill:var(--warm)">2,944</text>
-  <rect x="370" y="716" width="272" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="380" y="731" fill="currentColor">Conv2d <tspan font-weight="700">1&#215;1</tspan>, 64 &#8594; 64 + ReLU</text>
-  <text x="380" y="745" style="fill:var(--muted)">(64,32,32) &#8594; (64,32,32)</text>
-  <text x="632" y="738" text-anchor="end" font-weight="700" style="fill:var(--warm)">4,160</text>
-  <text x="506" y="770" text-anchor="middle" font-size="10" style="fill:var(--muted)">a 1&#215;1 convolution sees one cell and nothing else, so this</text>
-  <text x="506" y="784" text-anchor="middle" font-size="10" style="fill:var(--muted)">is a 45 &#8594; 64 &#8594; 64 neural network applied to every cell alone</text>
-
-  <path d="M656,720 L1096,720" fill="none" stroke-width="1.4" marker-end="url(#arw)" style="fill:none;stroke:var(--warm)"></path>
-  <text x="800" y="712" font-size="10" style="fill:var(--warm)">sharp: nothing here has been blurred &#183; (64, 32, 32)</text>
-
-  <!-- ================= HEAD ================= -->
-  <rect x="1100" y="640" width="330" height="170" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
-  <text x="1265" y="662" text-anchor="middle" font-weight="700" fill="currentColor">head</text>
-  <rect x="1114" y="674" width="302" height="30" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="1124" y="693" fill="currentColor">concatenate &#8594; (128, 32, 32)</text>
-  <rect x="1114" y="710" width="302" height="34" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="1124" y="725" fill="currentColor">Conv2d 1&#215;1, 128 &#8594; 1</text>
-  <text x="1124" y="739" style="fill:var(--muted)">(128,32,32) &#8594; (1,32,32)</text>
-  <text x="1406" y="732" text-anchor="end" font-weight="700" style="fill:var(--accent)">129</text>
-  <rect x="1114" y="750" width="302" height="30" rx="2" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="1124" y="769" fill="currentColor">sigmoid &#8594; probability per cell, 0 to 1</text>
-  <text x="1265" y="798" text-anchor="middle" font-size="10" style="fill:var(--muted)">one number for each of the 1,024 cells in the patch</text>
-
-  <!-- ================= LOSS ================= -->
-  <text x="30" y="852" font-size="10" letter-spacing="1" style="fill:var(--muted)">TRAINING SIGNAL</text>
-  <rect x="30" y="864" width="420" height="130" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="44" y="884" font-weight="700" fill="currentColor">loss = focal(&#945;=0.25, &#947;=2) + 0.5 &#215; soft Dice</text>
-  <text x="44" y="902" style="fill:var(--muted)">computed only on cells that were not already urban</text>
-  <text x="44" y="922" fill="currentColor">focal: fades out the easy negatives, so the gradient keeps</text>
-  <text x="44" y="936" fill="currentColor">coming from the built-up edge where the decision is hard</text>
-  <text x="44" y="956" fill="currentColor">Dice: scores the predicted set against the observed set,</text>
-  <text x="44" y="970" fill="currentColor">which is closer to the Figure of Merit than per-cell error</text>
-  <text x="44" y="988" style="fill:var(--muted)">AdamW, lr 1e-3 cosine, weight decay 1e-4, clip 5.0</text>
-
-  <rect x="470" y="864" width="420" height="130" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="484" y="884" font-weight="700" fill="currentColor">three periods, never mixed</text>
-  <text x="484" y="904" fill="currentColor">train on 2010 &#8594; 2015</text>
-  <text x="484" y="920" fill="currentColor">stop on 2000 &#8594; 2005 &#8212; a different <tspan font-style="italic">period</tspan>, not a</text>
-  <text x="484" y="934" fill="currentColor">different place, because a network this size will keep</text>
-  <text x="484" y="948" fill="currentColor">improving on held-out blocks of the same years</text>
-  <text x="484" y="968" fill="currentColor">test on 2015 &#8594; 2020, touched once at the end</text>
-  <text x="484" y="988" style="fill:var(--muted)">batches of 8 patches, growth-bearing patches drawn 4&#215;</text>
-
-  <rect x="910" y="864" width="520" height="130" rx="4" stroke-width="1.5" style="fill:var(--accent-soft);stroke:var(--accent)"></rect>
-  <text x="924" y="884" font-weight="700" fill="currentColor">why the per-cell path was added</text>
-  <text x="924" y="904" fill="currentColor">Every earlier version scored a high AUC and a poor Figure of Merit: it ranked</text>
-  <text x="924" y="918" fill="currentColor">the whole map well and the top of it badly. That is a surface that is too smooth,</text>
-  <text x="924" y="932" fill="currentColor">and the context path can only be smooth &#8212; it rebuilds everything from a grid</text>
-  <text x="924" y="946" fill="currentColor">halved and re-expanded, blurring each prediction over about twenty cells.</text>
-  <text x="924" y="966" font-weight="700" style="fill:var(--accent)">7,104 extra parameters moved the Figure of Merit from 0.0813 to 0.1166.</text>
-  <text x="924" y="986" style="fill:var(--muted)">Restoring the three growth-momentum features then took it to 0.1457 (ensemble 0.1507).</text>
-
-  <!-- parameter ledger -->
-  <text x="30" y="492" font-size="10" letter-spacing="1" style="fill:var(--muted)">PARAMETER LEDGER</text>
-  <rect x="30" y="502" width="250" height="196" rx="4" stroke="currentColor" style="fill:var(--surface)"></rect>
-  <text x="44" y="524" fill="currentColor">encoder stem</text><text x="266" y="524" text-anchor="end" fill="currentColor">8,848</text>
-  <text x="44" y="544" fill="currentColor">encoder stage 2</text><text x="266" y="544" text-anchor="end" fill="currentColor">13,952</text>
-  <text x="44" y="564" fill="currentColor">decoder project</text><text x="266" y="564" text-anchor="end" fill="currentColor">2,112</text>
-  <text x="44" y="584" fill="currentColor">decoder merge</text><text x="266" y="584" text-anchor="end" fill="currentColor">83,200</text>
-  <text x="44" y="604" style="fill:var(--warm)">per-cell path</text><text x="266" y="604" text-anchor="end" style="fill:var(--warm)">7,104</text>
-  <text x="44" y="624" fill="currentColor">head</text><text x="266" y="624" text-anchor="end" fill="currentColor">129</text>
-  <line x1="44" y1="634" x2="266" y2="634" stroke="currentColor" opacity="0.4"></line>
-  <text x="44" y="652" font-weight="700" fill="currentColor">total</text><text x="266" y="652" text-anchor="end" font-weight="700" fill="currentColor">115,345</text>
-  <text x="44" y="672" font-size="10" style="fill:var(--muted)">small on purpose: about 1,380 cells</text>
-  <text x="44" y="686" font-size="10" style="fill:var(--muted)">convert in the training period</text>
-
-  <!-- prediction note -->
-  <rect x="30" y="712" width="250" height="88" rx="3" stroke="currentColor" stroke-dasharray="4 3" style="fill:var(--surface)"></rect>
-  <text x="44" y="732" font-weight="700" fill="currentColor">at prediction</text>
-  <text x="44" y="750" fill="currentColor">windows slide at half a patch;</text>
-  <text x="44" y="765" fill="currentColor">logits averaged before the sigmoid;</text>
-  <text x="44" y="780" fill="currentColor">4 rotations and 5 seeds averaged</text>
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1152pt" height="691.2pt" viewBox="0 0 1152 691.2" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-08T20:06:16.626399</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.3, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 691.2 
+L 1152 691.2 
+L 1152 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 812.52 675 
+L 1127.88 675 
+Q 1132.2 675 1132.2 670.68 
+L 1132.2 529.92 
+Q 1132.2 525.6 1127.88 525.6 
+L 812.52 525.6 
+Q 808.2 525.6 808.2 529.92 
+L 808.2 670.68 
+Q 808.2 675 812.52 675 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #f6f8fa; stroke: #d5dae1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 155.88 300.6 
+L 168.18729 300.6 
+Q 169.26729 300.6 169.26729 299.52 
+L 169.26729 157.68 
+Q 169.26729 156.6 168.18729 156.6 
+L 155.88 156.6 
+Q 154.8 156.6 154.8 157.68 
+L 154.8 299.52 
+Q 154.8 300.6 155.88 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 206.28 300.6 
+L 214.2 300.6 
+Q 215.28 300.6 215.28 299.52 
+L 215.28 157.68 
+Q 215.28 156.6 214.2 156.6 
+L 206.28 156.6 
+Q 205.2 156.6 205.2 157.68 
+L 205.2 299.52 
+Q 205.2 300.6 206.28 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 254.88 300.6 
+L 262.8 300.6 
+Q 263.88 300.6 263.88 299.52 
+L 263.88 157.68 
+Q 263.88 156.6 262.8 156.6 
+L 254.88 156.6 
+Q 253.8 156.6 253.8 157.68 
+L 253.8 299.52 
+Q 253.8 300.6 254.88 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 307.08 426.6 
+L 317.684104 426.6 
+Q 318.764104 426.6 318.764104 425.52 
+L 318.764104 355.68 
+Q 318.764104 354.6 317.684104 354.6 
+L 307.08 354.6 
+Q 306 354.6 306 355.68 
+L 306 425.52 
+Q 306 426.6 307.08 426.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 355.68 426.6 
+L 366.284104 426.6 
+Q 367.364104 426.6 367.364104 425.52 
+L 367.364104 355.68 
+Q 367.364104 354.6 366.284104 354.6 
+L 355.68 354.6 
+Q 354.6 354.6 354.6 355.68 
+L 354.6 425.52 
+Q 354.6 426.6 355.68 426.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 406.08 426.6 
+L 420.48 426.6 
+Q 421.56 426.6 421.56 425.52 
+L 421.56 355.68 
+Q 421.56 354.6 420.48 354.6 
+L 406.08 354.6 
+Q 405 354.6 405 355.68 
+L 405 425.52 
+Q 405 426.6 406.08 426.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 461.88 300.6 
+L 476.28 300.6 
+Q 477.36 300.6 477.36 299.52 
+L 477.36 157.68 
+Q 477.36 156.6 476.28 156.6 
+L 461.88 156.6 
+Q 460.8 156.6 460.8 157.68 
+L 460.8 299.52 
+Q 460.8 300.6 461.88 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 512.28 300.6 
+L 528.20972 300.6 
+Q 529.28972 300.6 529.28972 299.52 
+L 529.28972 157.68 
+Q 529.28972 156.6 528.20972 156.6 
+L 512.28 156.6 
+Q 511.2 156.6 511.2 157.68 
+L 511.2 299.52 
+Q 511.2 300.6 512.28 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 568.08 300.6 
+L 582.48 300.6 
+Q 583.56 300.6 583.56 299.52 
+L 583.56 157.68 
+Q 583.56 156.6 582.48 156.6 
+L 568.08 156.6 
+Q 567 156.6 567 157.68 
+L 567 299.52 
+Q 567 300.6 568.08 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 620.28 300.6 
+L 634.68 300.6 
+Q 635.76 300.6 635.76 299.52 
+L 635.76 157.68 
+Q 635.76 156.6 634.68 156.6 
+L 620.28 156.6 
+Q 619.2 156.6 619.2 157.68 
+L 619.2 299.52 
+Q 619.2 300.6 620.28 300.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 249.48 646.2 
+L 263.88 646.2 
+Q 264.96 646.2 264.96 645.12 
+L 264.96 503.28 
+Q 264.96 502.2 263.88 502.2 
+L 249.48 502.2 
+Q 248.4 502.2 248.4 503.28 
+L 248.4 645.12 
+Q 248.4 646.2 249.48 646.2 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 305.28 646.2 
+L 319.68 646.2 
+Q 320.76 646.2 320.76 645.12 
+L 320.76 503.28 
+Q 320.76 502.2 319.68 502.2 
+L 305.28 502.2 
+Q 304.2 502.2 304.2 503.28 
+L 304.2 645.12 
+Q 304.2 646.2 305.28 646.2 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 706.68 462.6 
+L 726.448208 462.6 
+Q 727.528208 462.6 727.528208 461.52 
+L 727.528208 319.68 
+Q 727.528208 318.6 726.448208 318.6 
+L 706.68 318.6 
+Q 705.6 318.6 705.6 319.68 
+L 705.6 461.52 
+Q 705.6 462.6 706.68 462.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="patch_16">
+    <path d="M 764.28 462.6 
+L 767.34 462.6 
+Q 768.42 462.6 768.42 461.52 
+L 768.42 319.68 
+Q 768.42 318.6 767.34 318.6 
+L 764.28 318.6 
+Q 763.2 318.6 763.2 319.68 
+L 763.2 461.52 
+Q 763.2 462.6 764.28 462.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="opacity: 0.06"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 20px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="21.6" y="31.00625" transform="rotate(-0 21.6 31.00625)">Urban-growth network</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 11px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #4a5563" x="21.6" y="56.860312" transform="rotate(-0 21.6 56.860312)">A 32 × 32-cell patch (3.2 km) with 45 layers goes in; a probability of becoming urban comes out for every cell.  115,345 parameters.</text>
+   </g>
+   <g clip-path="url(#pa3b5f8274f)">
+    <image xlink:href="data:image/png;base64,
+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" id="imagec5d7dd097c" transform="scale(1 -1) translate(0 -117.36)" x="20" y="-164.84" width="113.76" height="117.36"/>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="88.2" y="303.366687" transform="rotate(-0 88.2 303.366687)">real patch, Varanasi 2015</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="88.2" y="317.766687" transform="rotate(-0 88.2 317.766687)">Landsat colour, NDBI change,</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="88.2" y="330.366687" transform="rotate(-0 88.2 330.366687)">growth momentum … 45 layers</text>
+   </g>
+   <g id="patch_17">
+    <path d="M 153 298.8 
+L 167.46729 298.8 
+L 167.46729 154.8 
+L 153 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #eceff3; stroke: #5b6573; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_18">
+    <path d="M 203.4 298.8 
+L 213.48 298.8 
+L 213.48 154.8 
+L 203.4 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_19">
+    <path d="M 252 298.8 
+L 262.08 298.8 
+L 262.08 154.8 
+L 252 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_20">
+    <path d="M 304.2 424.8 
+L 316.964104 424.8 
+L 316.964104 352.8 
+L 304.2 352.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_21">
+    <path d="M 352.8 424.8 
+L 365.564104 424.8 
+L 365.564104 352.8 
+L 352.8 352.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_22">
+    <path d="M 403.2 424.8 
+L 419.76 424.8 
+L 419.76 352.8 
+L 403.2 352.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_23">
+    <path d="M 459 298.8 
+L 475.56 298.8 
+L 475.56 154.8 
+L 459 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_24">
+    <path d="M 509.4 298.8 
+L 523.871776 298.8 
+L 523.871776 154.8 
+L 509.4 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_25">
+    <path d="M 523.871776 298.8 
+L 527.48972 298.8 
+L 527.48972 154.8 
+L 523.871776 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_26">
+    <path d="M 565.2 298.8 
+L 581.76 298.8 
+L 581.76 154.8 
+L 565.2 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_27">
+    <path d="M 617.4 298.8 
+L 633.96 298.8 
+L 633.96 154.8 
+L 617.4 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="391.360374" y="99.542" transform="rotate(-0 391.360374 99.542)">skip: the stem's full-resolution features</text>
+   </g>
+   <g id="patch_28">
+    <path d="M 246.6 644.4 
+L 263.16 644.4 
+L 263.16 500.4 
+L 246.6 500.4 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #fbe5cb; stroke: #b8651b; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_29">
+    <path d="M 302.4 644.4 
+L 318.96 644.4 
+L 318.96 500.4 
+L 302.4 500.4 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #fbe5cb; stroke: #b8651b; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_30">
+    <path d="M 703.8 460.8 
+L 714.764104 460.8 
+L 714.764104 316.8 
+L 703.8 316.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_31">
+    <path d="M 714.764104 460.8 
+L 725.728208 460.8 
+L 725.728208 316.8 
+L 714.764104 316.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #fbe5cb; stroke: #b8651b; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_32">
+    <path d="M 761.4 460.8 
+L 766.62 460.8 
+L 766.62 316.8 
+L 761.4 316.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #fdf1d6; stroke: #c77c0e; stroke-width: 1.1; stroke-linejoin: miter"/>
+   </g>
+   <g clip-path="url(#pa3b5f8274f)">
+    <image xlink:href="data:image/png;base64,
+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" id="image6aa67501d6" transform="scale(1 -1) translate(0 -144.72)" x="808" y="-316.48" width="313.2" height="144.72"/>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="880.2" y="299.444531" transform="rotate(-0 880.2 299.444531)">predicted probability</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="880.2" y="310.456312" transform="rotate(-0 880.2 310.456312)">from the 2015 layers</text>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="1049.4" y="299.444531" transform="rotate(-0 1049.4 299.444531)">what really converted</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="1049.4" y="310.456312" transform="rotate(-0 1049.4 310.456312)">by 2020 — 65 cells</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="964.8" y="476.166687" transform="rotate(-0 964.8 476.166687)">grey: already urban in 2015  ·  held-out test period, never seen in training</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #2a5d9f" x="230.4" y="71.73" transform="rotate(-0 230.4 71.73)">ENCODER</text>
+   </g>
+   <g id="text_13">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1d7a5f" x="540" y="71.73" transform="rotate(-0 540 71.73)">DECODER</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #b8651b" x="336.96" y="562.41" transform="rotate(-0 336.96 562.41)">PER-CELL PATH</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #4a5563" x="336.96" y="585.338062" transform="rotate(-0 336.96 585.338062)">skips the encoder entirely: every cell is judged on its own 45 numbers, at full resolution</text>
+   </g>
+   <g id="text_16">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #4a5563" x="808.2" y="66.062812" transform="rotate(-0 808.2 66.062812)">OPERATIONS</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="84.016406" transform="rotate(-0 847.8 84.016406)">3 × 3 convolution → batch norm → ReLU</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="101.9925" transform="rotate(-0 847.8 101.9925)">3 × 3 convolution, stride 2 — halves the grid</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="120.016406" transform="rotate(-0 847.8 120.016406)">1 × 1 convolution → ReLU — one cell at a time</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="137.9925" transform="rotate(-0 847.8 137.9925)">bilinear upsampling × 2 — doubles the grid</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="155.9925" transform="rotate(-0 847.8 155.9925)">copy and concatenate  (dashed: the skip connection)</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="174.040312" transform="rotate(-0 847.8 174.040312)">sigmoid → probability of becoming urban</text>
+   </g>
+   <g id="patch_33">
+    <path d="M 815.4 195.84 
+L 831.6 195.84 
+L 831.6 183.6 
+L 815.4 183.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d6efe6; stroke: #1d7a5f; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="192.064219" transform="rotate(-0 847.8 192.064219)">dropout 0.5 after this block</text>
+   </g>
+   <g id="patch_34">
+    <path d="M 820.08 216.36 
+L 827.28 216.36 
+L 827.28 199.08 
+L 820.08 199.08 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: #d9e6f7; stroke: #2a5d9f; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 9px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="847.8" y="209.9925" transform="rotate(-0 847.8 209.9925)">a tensor: height = grid size, width = channels</text>
+   </g>
+   <g id="text_25">
+    <text style="font-weight: 600; font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="819" y="545.010875" transform="rotate(-0 819 545.010875)">Why two paths</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="819" y="560.850875" transform="rotate(-0 819 560.850875)">The context path shrinks the patch to 16 × 16 and grows it</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="819" y="576.690875" transform="rotate(-0 819 576.690875)">back, so it sees the neighbourhood but every value is blurred.</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="819" y="592.530875" transform="rotate(-0 819 592.530875)">The per-cell path never shrinks anything, so it stays sharp.</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="819" y="608.468625" transform="rotate(-0 819 608.468625)">The score is decided by the top ~1,200 cells, where blur fails.</text>
+   </g>
+   <g id="text_30">
+    <text style="font-weight: 600; font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #b8651b" x="819" y="640.152937" transform="rotate(-0 819 640.152937)">Figure of Merit 0.0813 → 0.1166 with the per-cell path,</text>
+   </g>
+   <g id="text_31">
+    <text style="font-weight: 600; font-size: 9.2px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #b8651b" x="819" y="655.890875" transform="rotate(-0 819 655.890875)">→ 0.1507 with growth momentum (5-model ensemble).</text>
+   </g>
+   <g id="patch_35">
+    <path d="M 19.8 257.4 
+L 111.6 257.4 
+L 111.6 165.6 
+L 19.8 165.6 
+L 19.8 257.4 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #4a5563; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_36">
+    <path d="M 30.6 270 
+L 122.4 270 
+L 122.4 178.2 
+L 30.6 178.2 
+L 30.6 270 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #4a5563; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_37">
+    <path d="M 41.4 282.6 
+L 133.2 282.6 
+L 133.2 190.8 
+L 41.4 190.8 
+L 41.4 282.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #4a5563; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_38">
+    <path d="M 352.8 424.8 
+L 365.564104 424.8 
+L 365.564104 352.8 
+L 352.8 352.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: url(#h851ec734ef); opacity: 0.35"/>
+   </g>
+   <g id="patch_39">
+    <path d="M 617.4 298.8 
+L 633.96 298.8 
+L 633.96 154.8 
+L 617.4 154.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: url(#hea0f488b9e); opacity: 0.35"/>
+   </g>
+   <g id="patch_40">
+    <path d="M 808.2 460.8 
+L 952.2 460.8 
+L 952.2 316.8 
+L 808.2 316.8 
+L 808.2 460.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #4a5563; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_41">
+    <path d="M 977.4 460.8 
+L 1121.4 460.8 
+L 1121.4 316.8 
+L 977.4 316.8 
+L 977.4 460.8 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #4a5563; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_42">
+    <path d="M 815.4 195.84 
+L 831.6 195.84 
+L 831.6 183.6 
+L 815.4 183.6 
+z
+" clip-path="url(#pa3b5f8274f)" style="fill: url(#h715885c747); opacity: 0.4"/>
+   </g>
+   <g id="patch_43">
+    <path d="M 134.64 226.8 
+Q 143.46 226.8 150.379342 226.8 
+" style="fill: none; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 145.179342 224.2 
+L 150.379342 226.8 
+L 145.179342 229.4 
+z
+" style="fill: #7d8794; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_44">
+    <path d="M 167.46729 226.8 
+Q 185.433645 226.8 201.499342 226.8 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 196.299342 224.2 
+L 201.499342 226.8 
+L 196.299342 229.4 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_45">
+    <path d="M 213.48 226.8 
+Q 232.74 226.8 250.099342 226.8 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 244.899342 224.2 
+L 250.099342 226.8 
+L 244.899342 229.4 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 257.04 298.8 
+L 257.04 388.8 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #c0392b; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_46">
+    <path d="M 257.04 388.8 
+Q 280.62 388.8 302.299342 388.8 
+" style="fill: none; stroke: #c0392b; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 297.099342 386.2 
+L 302.299342 388.8 
+L 297.099342 391.4 
+z
+" style="fill: #c0392b; stroke: #c0392b; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_47">
+    <path d="M 316.964104 388.8 
+Q 334.882052 388.8 350.899342 388.8 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 345.699342 386.2 
+L 350.899342 388.8 
+L 345.699342 391.4 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_48">
+    <path d="M 365.564104 388.8 
+Q 384.382052 388.8 401.299342 388.8 
+" style="fill: none; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 396.099342 386.2 
+L 401.299342 388.8 
+L 396.099342 391.4 
+z
+" style="fill: #12856f; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 419.76 388.8 
+L 467.28 388.8 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #2e7d32; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_49">
+    <path d="M 467.28 388.8 
+Q 467.28 343.8 467.28 300.700658 
+" style="fill: none; stroke: #2e7d32; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 464.68 305.900658 
+L 467.28 300.700658 
+L 469.88 305.900658 
+z
+" style="fill: #2e7d32; stroke: #2e7d32; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_50">
+    <path d="M 475.56 226.8 
+Q 492.48 226.8 507.499342 226.8 
+" style="fill: none; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 502.299342 224.2 
+L 507.499342 226.8 
+L 502.299342 229.4 
+z
+" style="fill: #7d8794; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 257.04 154.8 
+L 257.04 106.2 
+L 525.680748 106.2 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke-dasharray: 6.8,5.1; stroke-dashoffset: 0; stroke: #7d8794; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_51">
+    <path d="M 525.680748 106.2 
+Q 525.680748 130.14 525.680748 152.179342 
+" style="fill: none; stroke-dasharray: 6.8,5.1; stroke-dashoffset: 0; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 528.280748 146.979342 
+L 525.680748 152.179342 
+L 523.080748 146.979342 
+z
+" style="fill: #7d8794; stroke-dasharray: 6.8,5.1; stroke-dashoffset: 0; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_52">
+    <path d="M 527.48972 226.8 
+Q 546.34486 226.8 563.299342 226.8 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 558.099342 224.2 
+L 563.299342 226.8 
+L 558.099342 229.4 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_53">
+    <path d="M 581.76 226.8 
+Q 599.58 226.8 615.499342 226.8 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 610.299342 224.2 
+L 615.499342 226.8 
+L 610.299342 229.4 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_4">
+    <path d="M 160.233645 298.8 
+L 160.233645 572.4 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #12856f; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_54">
+    <path d="M 160.233645 572.4 
+Q 203.416823 572.4 244.699342 572.4 
+" style="fill: none; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 239.499342 569.8 
+L 244.699342 572.4 
+L 239.499342 575 
+z
+" style="fill: #12856f; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_55">
+    <path d="M 263.16 572.4 
+Q 282.78 572.4 300.499342 572.4 
+" style="fill: none; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 295.299342 569.8 
+L 300.499342 572.4 
+L 295.299342 575 
+z
+" style="fill: #12856f; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_5">
+    <path d="M 633.96 226.8 
+L 709.282052 226.8 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #7d8794; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_56">
+    <path d="M 709.282052 226.8 
+Q 709.282052 271.44 709.282052 314.179342 
+" style="fill: none; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 711.882052 308.979342 
+L 709.282052 314.179342 
+L 706.682052 308.979342 
+z
+" style="fill: #7d8794; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_6">
+    <path d="M 318.96 572.4 
+L 720.246156 572.4 
+" clip-path="url(#pa3b5f8274f)" style="fill: none; stroke: #7d8794; stroke-width: 1.7"/>
+   </g>
+   <g id="patch_57">
+    <path d="M 720.246156 572.4 
+Q 720.246156 516.96 720.246156 463.420658 
+" style="fill: none; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 717.646156 468.620658 
+L 720.246156 463.420658 
+L 722.846156 468.620658 
+z
+" style="fill: #7d8794; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_58">
+    <path d="M 725.728208 388.8 
+Q 743.564104 388.8 759.499342 388.8 
+" style="fill: none; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 754.299342 386.2 
+L 759.499342 388.8 
+L 754.299342 391.4 
+z
+" style="fill: #12856f; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_59">
+    <path d="M 766.62 388.8 
+Q 786.87 388.8 805.219342 388.8 
+" style="fill: none; stroke: #c77c0e; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 800.019342 386.2 
+L 805.219342 388.8 
+L 800.019342 391.4 
+z
+" style="fill: #c77c0e; stroke: #c77c0e; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_60">
+    <path d="M 808.2 81.72 
+Q 823.5 81.72 836.899342 81.72 
+" style="fill: none; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 79.12 
+L 836.899342 81.72 
+L 831.699342 84.32 
+z
+" style="fill: #1f3b73; stroke: #1f3b73; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_61">
+    <path d="M 808.2 99.72 
+Q 823.5 99.72 836.899342 99.72 
+" style="fill: none; stroke: #c0392b; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 97.12 
+L 836.899342 99.72 
+L 831.699342 102.32 
+z
+" style="fill: #c0392b; stroke: #c0392b; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_62">
+    <path d="M 808.2 117.72 
+Q 823.5 117.72 836.899342 117.72 
+" style="fill: none; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 115.12 
+L 836.899342 117.72 
+L 831.699342 120.32 
+z
+" style="fill: #12856f; stroke: #12856f; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_63">
+    <path d="M 808.2 135.72 
+Q 823.5 135.72 836.899342 135.72 
+" style="fill: none; stroke: #2e7d32; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 133.12 
+L 836.899342 135.72 
+L 831.699342 138.32 
+z
+" style="fill: #2e7d32; stroke: #2e7d32; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_64">
+    <path d="M 808.2 153.72 
+Q 823.5 153.72 836.899342 153.72 
+" style="fill: none; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 151.12 
+L 836.899342 153.72 
+L 831.699342 156.32 
+z
+" style="fill: #7d8794; stroke: #7d8794; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="patch_65">
+    <path d="M 808.2 171.72 
+Q 823.5 171.72 836.899342 171.72 
+" style="fill: none; stroke: #c77c0e; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 831.699342 169.12 
+L 836.899342 171.72 
+L 831.699342 174.32 
+z
+" style="fill: #c77c0e; stroke: #c77c0e; stroke-width: 1.7; stroke-linecap: round"/>
+   </g>
+   <g id="text_32">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="160.233645" y="147.575" transform="rotate(-0 160.233645 147.575)">45</text>
+   </g>
+   <g id="text_33">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="208.44" y="147.575" transform="rotate(-0 208.44 147.575)">16</text>
+   </g>
+   <g id="text_34">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: end; fill: #1b2430" x="249.84" y="147.575" transform="rotate(-0 249.84 147.575)">16</text>
+   </g>
+   <g id="text_35">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="310.582052" y="345.575" transform="rotate(-0 310.582052 345.575)">32</text>
+   </g>
+   <g id="text_36">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="359.182052" y="345.575" transform="rotate(-0 359.182052 345.575)">32</text>
+   </g>
+   <g id="text_37">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="411.48" y="345.575" transform="rotate(-0 411.48 345.575)">64</text>
+   </g>
+   <g id="text_38">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="467.28" y="147.575" transform="rotate(-0 467.28 147.575)">64</text>
+   </g>
+   <g id="text_39">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: end; fill: #1b2430" x="507.24" y="147.575" transform="rotate(-0 507.24 147.575)">80</text>
+   </g>
+   <g id="text_40">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="573.48" y="147.575" transform="rotate(-0 573.48 147.575)">64</text>
+   </g>
+   <g id="text_41">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="625.68" y="147.575" transform="rotate(-0 625.68 147.575)">64</text>
+   </g>
+   <g id="text_42">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="254.88" y="493.175" transform="rotate(-0 254.88 493.175)">64</text>
+   </g>
+   <g id="text_43">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="310.68" y="493.175" transform="rotate(-0 310.68 493.175)">64</text>
+   </g>
+   <g id="text_44">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: start; fill: #1b2430" x="727.888208" y="309.575" transform="rotate(-0 727.888208 309.575)">128</text>
+   </g>
+   <g id="text_45">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="764.01" y="309.575" transform="rotate(-0 764.01 309.575)">1</text>
+   </g>
+   <g id="text_46">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="208.44" y="318.432969" transform="rotate(-0 208.44 318.432969)">stem</text>
+   </g>
+   <g id="text_47">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="208.44" y="332.886687" transform="rotate(-0 208.44 332.886687)">8,848 params</text>
+   </g>
+   <g id="text_48">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="334.882052" y="442.632969" transform="rotate(-0 334.882052 442.632969)">downsample</text>
+   </g>
+   <g id="text_49">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="334.882052" y="457.086687" transform="rotate(-0 334.882052 457.086687)">16 × 16 · 13,952</text>
+   </g>
+   <g id="text_50">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="411.48" y="442.5825" transform="rotate(-0 411.48 442.5825)">project</text>
+   </g>
+   <g id="text_51">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="411.48" y="457.086687" transform="rotate(-0 411.48 457.086687)">2,112</text>
+   </g>
+   <g id="text_52">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #1b2430" x="571.68" y="318.3825" transform="rotate(-0 571.68 318.3825)">merge</text>
+   </g>
+   <g id="text_53">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="571.68" y="332.886687" transform="rotate(-0 571.68 332.886687)">83,200 params</text>
+   </g>
+   <g id="text_54">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #b8651b" x="282.78" y="662.232969" transform="rotate(-0 282.78 662.232969)">per-cell path</text>
+   </g>
+   <g id="text_55">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: middle; fill: #4a5563" x="282.78" y="676.686687" transform="rotate(-0 282.78 676.686687)">7,104 params</text>
+   </g>
+   <g id="text_56">
+    <text style="font-weight: 600; font-size: 9.5px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: end; fill: #1b2430" x="709.446156" y="480.432969" transform="rotate(-0 709.446156 480.432969)">head</text>
+   </g>
+   <g id="text_57">
+    <text style="font-size: 8.6px; font-family: 'Segoe UI', 'DejaVu Sans'; text-anchor: end; fill: #4a5563" x="709.446156" y="494.886687" transform="rotate(-0 709.446156 494.886687)">concatenate · 1 × 1 · 129</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pa3b5f8274f">
+   <rect x="0" y="0" width="1152" height="691.2"/>
+  </clipPath>
+ </defs>
+ <defs>
+  <pattern id="h851ec734ef" patternUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+   <rect x="0" y="0" width="73" height="73" fill="none"/>
+   <path d="M -36 36 
+L 36 -36 
+M -33 39 
+L 39 -33 
+M -30 42 
+L 42 -30 
+M -27 45 
+L 45 -27 
+M -24 48 
+L 48 -24 
+M -21 51 
+L 51 -21 
+M -18 54 
+L 54 -18 
+M -15 57 
+L 57 -15 
+M -12 60 
+L 60 -12 
+M -9 63 
+L 63 -9 
+M -6 66 
+L 66 -6 
+M -3 69 
+L 69 -3 
+M 0 72 
+L 72 0 
+M 3 75 
+L 75 3 
+M 6 78 
+L 78 6 
+M 9 81 
+L 81 9 
+M 12 84 
+L 84 12 
+M 15 87 
+L 87 15 
+M 18 90 
+L 90 18 
+M 21 93 
+L 93 21 
+M 24 96 
+L 96 24 
+M 27 99 
+L 99 27 
+M 30 102 
+L 102 30 
+M 33 105 
+L 105 33 
+M 36 108 
+L 108 36 
+" style="fill: #2a5d9f; stroke: #2a5d9f; stroke-width: 1.0; stroke-linecap: butt; stroke-linejoin: miter; stroke-opacity: 0.35"/>
+  </pattern>
+  <pattern id="hea0f488b9e" patternUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+   <rect x="0" y="0" width="73" height="73" fill="none"/>
+   <path d="M -36 36 
+L 36 -36 
+M -33 39 
+L 39 -33 
+M -30 42 
+L 42 -30 
+M -27 45 
+L 45 -27 
+M -24 48 
+L 48 -24 
+M -21 51 
+L 51 -21 
+M -18 54 
+L 54 -18 
+M -15 57 
+L 57 -15 
+M -12 60 
+L 60 -12 
+M -9 63 
+L 63 -9 
+M -6 66 
+L 66 -6 
+M -3 69 
+L 69 -3 
+M 0 72 
+L 72 0 
+M 3 75 
+L 75 3 
+M 6 78 
+L 78 6 
+M 9 81 
+L 81 9 
+M 12 84 
+L 84 12 
+M 15 87 
+L 87 15 
+M 18 90 
+L 90 18 
+M 21 93 
+L 93 21 
+M 24 96 
+L 96 24 
+M 27 99 
+L 99 27 
+M 30 102 
+L 102 30 
+M 33 105 
+L 105 33 
+M 36 108 
+L 108 36 
+" style="fill: #1d7a5f; stroke: #1d7a5f; stroke-width: 1.0; stroke-linecap: butt; stroke-linejoin: miter; stroke-opacity: 0.35"/>
+  </pattern>
+  <pattern id="h715885c747" patternUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+   <rect x="0" y="0" width="73" height="73" fill="none"/>
+   <path d="M -36 36 
+L 36 -36 
+M -33 39 
+L 39 -33 
+M -30 42 
+L 42 -30 
+M -27 45 
+L 45 -27 
+M -24 48 
+L 48 -24 
+M -21 51 
+L 51 -21 
+M -18 54 
+L 54 -18 
+M -15 57 
+L 57 -15 
+M -12 60 
+L 60 -12 
+M -9 63 
+L 63 -9 
+M -6 66 
+L 66 -6 
+M -3 69 
+L 69 -3 
+M 0 72 
+L 72 0 
+M 3 75 
+L 75 3 
+M 6 78 
+L 78 6 
+M 9 81 
+L 81 9 
+M 12 84 
+L 84 12 
+M 15 87 
+L 87 15 
+M 18 90 
+L 90 18 
+M 21 93 
+L 93 21 
+M 24 96 
+L 96 24 
+M 27 99 
+L 99 27 
+M 30 102 
+L 102 30 
+M 33 105 
+L 105 33 
+M 36 108 
+L 108 36 
+" style="fill: #1d7a5f; stroke: #1d7a5f; stroke-width: 1.0; stroke-linecap: butt; stroke-linejoin: miter; stroke-opacity: 0.4"/>
+  </pattern>
+ </defs>
 </svg>

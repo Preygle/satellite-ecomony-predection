@@ -205,11 +205,47 @@ through the normalisation.
 
 ### 5b. Architecture
 
-![The urban-growth network, layer by layer](diagrams/dl5_network_detail.png)
+![The urban-growth network](diagrams/dl5_network_detail.png)
 
-*Every layer with its exact input and output shape and parameter count. The blue
-blocks are the context path, the orange block is the per-cell path, and the two meet
-at the head. Source: `docs/diagrams/dl5_network_detail.svg`.*
+*Each bar is a tensor: its height shows the grid size (32 × 32 or 16 × 16 cells) and
+its width the number of channels, written above it. Blue is the encoder, green the
+decoder, orange the per-cell path; arrow colours give the operation. The patch on the
+left and the two maps on the right are real: the 32 × 32 window with the most
+conversions in the held-out 2015→2020 test period, the ensemble's predicted
+probability, and what actually converted. The exact shape and parameter count of every
+layer are in the table that follows. Regenerate with `python scripts/make_network_diagram.py`.*
+
+<details>
+<summary>Every layer, with its shape and parameter count (taken from the model itself)</summary>
+
+Shapes are (channels, height, width); the batch dimension is left out. Every 3×3
+convolution uses padding 1 and no bias, because batch normalisation follows it.
+
+| Block | Layer | Input → output | Parameters |
+|---|---|---|---:|
+| Encoder stem | Conv2d 3×3, 45 → 16 | (45,32,32) → (16,32,32) | 6,480 |
+| | BatchNorm2d + ReLU | (16,32,32) | 32 |
+| | Conv2d 3×3, 16 → 16 | (16,32,32) → (16,32,32) | 2,304 |
+| | BatchNorm2d + ReLU | (16,32,32) | 32 |
+| Encoder stage 2 | Conv2d 3×3, 16 → 32, stride 2 | (16,32,32) → (32,16,16) | 4,608 |
+| | BatchNorm2d + ReLU | (32,16,16) | 64 |
+| | Conv2d 3×3, 32 → 32 | (32,16,16) → (32,16,16) | 9,216 |
+| | BatchNorm2d + ReLU + Dropout2d(0.5) | (32,16,16) | 64 |
+| Decoder project | Conv2d 1×1, 32 → 64 | (32,16,16) → (64,16,16) | 2,112 |
+| | bilinear upsample ×2 | (64,16,16) → (64,32,32) | 0 |
+| | concatenate the stem output | (64+16,32,32) = (80,32,32) | 0 |
+| Decoder merge | Conv2d 3×3, 80 → 64 | (80,32,32) → (64,32,32) | 46,080 |
+| | BatchNorm2d + ReLU | (64,32,32) | 128 |
+| | Conv2d 3×3, 64 → 64 | (64,32,32) → (64,32,32) | 36,864 |
+| | BatchNorm2d + ReLU + Dropout2d(0.5) | (64,32,32) | 128 |
+| Per-cell path | Conv2d 1×1, 45 → 64 + ReLU | (45,32,32) → (64,32,32) | 2,944 |
+| | Conv2d 1×1, 64 → 64 + ReLU | (64,32,32) → (64,32,32) | 4,160 |
+| Head | concatenate both paths | (64+64,32,32) = (128,32,32) | 0 |
+| | Conv2d 1×1, 128 → 1 | (128,32,32) → (1,32,32) | 129 |
+| | sigmoid | (1,32,32), a probability per cell | 0 |
+| **Total** | | | **115,345** |
+
+</details>
 
 
 Two paths that meet at the output. Total **115,345 parameters** — deliberately small.
