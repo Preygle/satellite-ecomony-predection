@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from urbanintel.aoi import AOI  # noqa: E402
 from urbanintel.config import load_config  # noqa: E402
 from urbanintel.data import gee, ghsl  # noqa: E402
+from urbanintel.data.landsat import composite  # noqa: E402
 
 log = logging.getLogger("landsat_stack")
 
@@ -61,82 +62,9 @@ def resume_download(url: str, dest: Path, *, attempts: int = 8,
                         attempt, attempts, have / 1e6, type(exc).__name__)
     raise OSError(f"could not download {url} in {attempts} attempts")
 
-# Roy et al. (2016), Table 2, ordinary-least-squares coefficients that put
-# Landsat TM and ETM+ surface reflectance onto the OLI scale, in the band
-# order blue, green, red, near infrared, shortwave infrared 1 and 2.
-# Without this the model would read the sensor change of 2013 as a change on
-# the ground, exactly in the middle of the record it is trained on.
-ROY_SLOPE = [0.8474, 0.8483, 0.9047, 0.8462, 0.8937, 0.9071]
-ROY_INTERCEPT = [0.0003, 0.0088, 0.0061, 0.0412, 0.0254, 0.0172]
-
-TM_BANDS = ["SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"]
-OLI_BANDS = ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"]
-OUT_BANDS = ["blue", "green", "red", "nir", "swir1", "swir2"]
-
-
 def usage() -> str:
     return ("Export six-band dry-season Landsat composites at 30 m, one per epoch, "
             "harmonised across sensors.")
-
-
-def collections(cfg, year: int) -> list[tuple[str, list[str], bool]]:
-    """(asset, band names, needs harmonising) for the sensors flying in `year`."""
-    a = cfg.get("sources.gee.assets")
-    if year <= 2011:
-        out = [(a.get("landsat5", "LANDSAT/LT05/C02/T1_L2"), TM_BANDS, True)]
-        if year >= 1999:
-            # Landsat 7 fills gaps, but its scan-line corrector failed in May
-            # 2003, leaving wedge-shaped holes. A median over a whole season
-            # fills them; a single scene would not.
-            out.append((a.get("landsat7", "LANDSAT/LE07/C02/T1_L2"), TM_BANDS, True))
-        return out
-    out = [(a.get("landsat8", "LANDSAT/LC08/C02/T1_L2"), OLI_BANDS, False)]
-    if year >= 2022:
-        out.append((a.get("landsat9", "LANDSAT/LC09/C02/T1_L2"), OLI_BANDS, False))
-    return out
-
-
-def composite(cfg, aoi: AOI, year: int, *, months: tuple[int, int] = (10, 3)):
-    """Dry-season median surface reflectance for one epoch, six bands, on the OLI scale.
-
-    October to March is the same window the project already uses for
-    Sentinel-2: the monsoon is over, skies are clearest, and the ground is not
-    hidden by flood water or peak vegetation. The window straddles the new
-    year, so it starts in `year - 1`.
-    """
-    ee = gee.ee_init(cfg.get("sources.gee.project", None))
-    geom = gee.aoi_geometry(aoi)
-    start, end = f"{year - 1}-{months[0]:02d}-01", f"{year}-{months[1]:02d}-31"
-
-    parts = []
-    for asset, bands, harmonise in collections(cfg, year):
-        col = (ee.ImageCollection(asset).filterDate(start, end).filterBounds(geom))
-
-        def prep(img, bands=bands, harmonise=harmonise):
-            sr = img.select(bands).multiply(0.0000275).add(-0.2)
-            if harmonise:
-                sr = sr.multiply(ee.Image.constant(ROY_SLOPE)) \
-                       .add(ee.Image.constant(ROY_INTERCEPT))
-            return (sr.rename(OUT_BANDS)
-                    .updateMask(gee.landsat_clear_mask(img))
-                    .copyProperties(img, ["system:time_start"]))
-
-        parts.append(col.map(prep))
-
-    merged = parts[0]
-    for p in parts[1:]:
-        merged = merged.merge(p)
-    depth = gee.require_composite_depth(
-        cfg, merged, f"Landsat {year}",
-        floor=int(cfg.get("sources.gee.min_composite_dates_landsat", 4)))
-    log.info("  %d: %d clear acquisition dates in %s to %s", year, depth, start, end)
-    # Earth Engine refuses a direct download over 50 MB, and six float32
-    # bands at 30 m over this area come to about 72 MB. Surface reflectance
-    # is published as scaled integers anyway, and the pretrained model's
-    # own band statistics are quoted in those units, so the composite is
-    # written the same way and divided back on read.
-    return (merged.median().rename(OUT_BANDS).multiply(10_000).toInt16()
-            .clip(geom))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

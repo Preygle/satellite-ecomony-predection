@@ -137,6 +137,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--no-tta", action="store_true",
                     help="predict once instead of averaging over the eight symmetries")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--forecast-from", type=int, default=None,
+                    help="also predict the next five years from this epoch's inputs")
     ap.add_argument("--tag", default="v2")
     args = ap.parse_args(argv)
     if args.tile is None:
@@ -213,7 +215,10 @@ def main(argv: list[str] | None = None) -> int:
         pop = {y: read(rdir, f"population_{y}") for y in have_lab
                if (rdir / f"population_{y}.tif").exists()}
         common = None
-        for a, _ in list(dict.fromkeys(train_periods + [stop_period, test_period])):
+        starts = [a for a, _ in dict.fromkeys(train_periods + [stop_period, test_period])]
+        if args.forecast_from is not None:
+            starts.append(args.forecast_from)
+        for a in dict.fromkeys(starts):
             X, nm = FE.extended_drivers(built, cell_frame, year=a, aoi=aoi,
                                         distance_km=dist, road_density=road_r,
                                         population=pop, slope=slope, roads=roads_osm,
@@ -229,8 +234,14 @@ def main(argv: list[str] | None = None) -> int:
                  ", ".join(order))
 
     stacks, names = {}, None
-    wanted = list(dict.fromkeys(train_periods + [stop_period, test_period]))
-    for a, _ in wanted:
+    wanted = [a for a, _ in dict.fromkeys(train_periods + [stop_period, test_period])]
+    if args.forecast_from is not None:
+        if args.forecast_from not in have_img or (args.forecast_from - 5) not in have_img:
+            log.error("--forecast-from %d needs imagery for %d and %d", args.forecast_from,
+                      args.forecast_from - 5, args.forecast_from)
+            return 2
+        wanted.append(args.forecast_from)
+    for a in dict.fromkeys(wanted):
         stacks[a], names = channel_stack(paths, px, year=a)
         if args.with_drivers:
             stacks[a] = np.concatenate([stacks[a], driver_maps[a]])
@@ -393,31 +404,31 @@ def main(argv: list[str] | None = None) -> int:
     log.info("best epoch %d, stopping average precision %.4f", best_epoch, best)
 
     # ---- predict the test period, over the whole frame ---------------------
-    data = normed(v0)
-    total = np.zeros(cell_frame.shape, dtype="float64")
-    count = np.zeros(cell_frame.shape, dtype="float64")
     turns = 1 if args.no_tta else 4
     pred_origins = TL.tile_origins(px.shape, args.tile, args.tile // 2)
-    with torch.no_grad():
-        for k in range(turns):
-            for s in range(0, len(pred_origins), args.batch_size):
-                chunk = pred_origins[s:s + args.batch_size]
-                xb = np.stack([data[:, r:r + args.tile, c:c + args.tile]
-                               for r, c in chunk])
-                xb = np.stack(TL.symmetry(list(xb), k))
-                out = to_cells(net(torch.from_numpy(xb).to(device).unsqueeze(1)))
-                out = out.squeeze(1).cpu().numpy()
-                # Rotate the prediction back. Only the four rotations are used
-                # here: a rotation composed with a reflection has an inverse
-                # this helper cannot express, and getting that subtly wrong
-                # would smear every prediction across the map.
-                out = np.stack(TL.symmetry(list(out), (4 - k) % 4))
-                for (r, c), o in zip(chunk, out):
-                    rr, cc = r // FACTOR, c // FACTOR
-                    total[rr:rr + cells, cc:cc + cells] += o
-                    count[rr:rr + cells, cc:cc + cells] += 1.0
-    surface = (1.0 / (1.0 + np.exp(-np.clip(total / np.maximum(count, 1), -50, 50)))
-               ).astype("float32")
+
+    def predict(data: np.ndarray) -> np.ndarray:
+        total = np.zeros(cell_frame.shape, dtype="float64")
+        count = np.zeros(cell_frame.shape, dtype="float64")
+        with torch.no_grad():
+            for k in range(turns):
+                for s in range(0, len(pred_origins), args.batch_size):
+                    chunk = pred_origins[s:s + args.batch_size]
+                    xb = np.stack([data[:, r:r + args.tile, c:c + args.tile]
+                                   for r, c in chunk])
+                    xb = np.stack(TL.symmetry(list(xb), k))
+                    out = to_cells(net(torch.from_numpy(xb).to(device).unsqueeze(1)))
+                    out = out.squeeze(1).cpu().numpy()
+                    # Only the four rotations are inverted; a reflection would need a different inverse
+                    out = np.stack(TL.symmetry(list(out), (4 - k) % 4))
+                    for (r, c), o in zip(chunk, out):
+                        rr, cc = r // FACTOR, c // FACTOR
+                        total[rr:rr + cells, cc:cc + cells] += o
+                        count[rr:rr + cells, cc:cc + cells] += 1.0
+        return (1.0 / (1.0 + np.exp(-np.clip(total / np.maximum(count, 1), -50, 50)))
+                ).astype("float32")
+
+    surface = predict(normed(v0))
 
     sm = SurfaceModel(surface=surface, kind="image_model_v2")
     _, predicted, observed, eligible = GM.validate(sm, built, None, cell_frame,
@@ -442,6 +453,12 @@ def main(argv: list[str] | None = None) -> int:
     with rasterio.open(rdir / f"growth_suitability_image_{args.tag}.tif", "w",
                        **cell_frame.profile("float32")) as ds:
         ds.write(surface, 1)
+    if args.forecast_from is not None:
+        forecast = predict(normed(args.forecast_from))
+        with rasterio.open(rdir / f"growth_suitability_image_{args.tag}_from{args.forecast_from}.tif",
+                           "w", **cell_frame.profile("float32")) as ds:
+            ds.write(forecast, 1)
+        log.info("forecast from %d inputs written", args.forecast_from)
 
     sw = rep["neighbourhood_weight_sweep"]
     payload = {"design": {"train": f"{train_period[0]}-{train_period[1]}",
@@ -470,7 +487,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  best weight         {sw['best_figure_of_merit']:.4f} at w={sw['best_weight']}")
     print(f"  hits                {v['hits']} / {demand}")
     print(f"  runtime             {payload['runtime_s'] / 60:.1f} min")
-    print(f"\n  previous image model: FoM 0.0635 (0.0898 best variant)")
+    if cfg.city_slug == "varanasi":
+        print("\n  previous image model: FoM 0.0635 (0.0898 best variant)")
     print(f"  summary  {out}")
     return 0
 
