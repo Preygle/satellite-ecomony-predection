@@ -44,7 +44,9 @@ running, and the megabytes downloaded against the estimate.
 | 12 | Displaying charts | Maps and charts in six result tabs |
 
 The results open in six tabs: **Overview**, **Urban growth**, **Economic activity**, **News &
-developments**, **Expansion opportunities**, and **Method & data**.
+developments**, **Expansion opportunities**, and **Method & data**. The News tab maps each
+development as a numbered badge with a circle for how far it reaches, says which top sites it moves
+and by how much, and shows the ranking with and without news.
 
 ### Results so far
 
@@ -57,6 +59,8 @@ developments**, **Expansion opportunities**, and **Method & data**.
 | Forecast new urban land, 2020 to 2025 | 87.7 km² | 83.9 km² |
 | Night-light growth forecast, tested on 2020-2024 (Spearman) | 0.66 | 0.33 |
 | Top expansion sites | Gandhinagar, Sir MV Layout, Electronics City Phase 2 | Shipra Sun City (Ghaziabad), IFFCO Chowk (Gurugram), Ralpur Khadar (Noida) |
+| News read by Gemini: developments on the map / citywide | 6 / 20 | 8 / 16 (2 more set aside as other places) |
+| City news climate (-1 to +1) | +0.90 | +0.20 |
 | Internet used | 41.7 MB | 112 MB, including a first run stopped by an OpenStreetMap server |
 
 The Figure of Merit compares predicted and observed new urban cells: hits divided by hits, misses
@@ -106,7 +110,8 @@ reader by itself, and the default never costs money:
 1. **The Gemini API free tier**, if you save a key. Create one at
    https://aistudio.google.com/apikey and, in your own terminal, run
    `setx GEMINI_API_KEY "your-key"`. The dashboard's **Refresh news only** button then re-reads the
-   news without downloading or training again.
+   news without downloading or training again. If one Gemini model is busy or out of quota, the
+   next free one is used; reading 140 articles takes about 12 minutes at the free-tier rate.
 2. **A local model through Ollama** (qwen2.5:7b), if Ollama is running. This is free and offline,
    but weaker.
 

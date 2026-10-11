@@ -31,7 +31,7 @@ BASEMAP = ("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Li
 BASEMAP_ATTR = "Base map: Esri, HERE, Garmin, (c) OpenStreetMap contributors"
 UP, DOWN = "#2a78d6", "#e34948"
 PLOT_CONFIG = {"displayModeBar": False}
-NEWS_MIN = 0.001
+NEWS_MIN = 0.0005
 TYPE_LABEL = {
     "metro_rail": ("🚇", "Metro rail"), "suburban_rail_or_station": ("🚆", "Suburban rail or station"),
     "airport": ("✈️", "Airport"), "expressway_or_ring_road": ("🛣️", "Expressway or ring road"),
@@ -533,16 +533,21 @@ with tabs[3]:
         scale = float(sc.get("scale", 1.5))
         weight = float((opp.get("news") or {}).get("weight", 0.10))
         located = sorted([e for e in nw["events"] if e.get("placed") == "located"], key=lambda e: -abs(e["impact"]))
-        citywide = sorted([e for e in nw["events"] if e.get("placed") != "located"], key=lambda e: -e["impact"])
+        citywide = sorted([e for e in nw["events"] if e.get("placed", "citywide") == "citywide"],
+                          key=lambda e: -e["impact"])
+        away = [e for e in nw["events"] if e.get("placed") == "elsewhere"]
         sites = [r for r in opp.get("top", [])[:10] if "lat" in r]
         effects = news_effects(located, sites, scale=scale, weight=weight)
         st.markdown(
-            f"**{len(nw['events'])} developments** found in {nw['development_articles']} news articles "
-            f"(of {nw['unique_articles']} read). **{len(located)}** happen at a place we can map, and their "
-            f"effect fades with distance: a metro station reaches about 2 km, an airport about 10 km. "
+            f"**{len(located) + len(citywide)} developments** found in {nw['development_articles']} news "
+            f"articles (of {nw['unique_articles']} read). **{len(located)}** happen at a place we can map, and "
+            f"their effect fades with distance: a metro station reaches about 2 km, an airport about 10 km. "
             f"**{len(citywide)}** concern the whole city. Blue raises a place's outlook, red lowers it. "
             f"News moves a site's score by at most {weight:.2f} on a 0 to 1 scale, and the satellite "
             f"evidence decides the rest.")
+        if away:
+            st.caption(f"{len(away)} more stories were about other places ("
+                       + ", ".join(sorted({e['location'] for e in away})) + ") and score nothing here.")
 
         a1, b1 = st.columns([1.2, 1])
         with a1:
@@ -550,11 +555,11 @@ with tabs[3]:
             if located or sites:
                 pts = [(e["lat"], e["lon"]) for e in located] + [(r["lat"], r["lon"]) for r in sites]
                 lats, lons = [p_[0] for p_ in pts], [p_[1] for p_ in pts]
-                lon0, lat0, lon1, lat1 = R["aoi"]["bbox"]
-                ext = max(lon1 - lon0, lat1 - lat0)
-                zoom = int(min(13, max(8, math.floor(math.log2(360.0 / max(ext, 1e-3) * 2.2)))))
-                m = folium.Map(location=[(lat0 + lat1) / 2, (lon0 + lon1) / 2], zoom_start=zoom,
-                               tiles=BASEMAP, attr=BASEMAP_ATTR, control_scale=True)
+                # Open on the part of the city that holds the news and the sites, not the whole study area
+                ext = max(max(lats) - min(lats), max(lons) - min(lons)) + 0.03
+                zoom = int(min(14, max(9, math.floor(math.log2(360.0 / ext * 2.4)))))
+                m = folium.Map(location=[(min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2],
+                               zoom_start=zoom, tiles=BASEMAP, attr=BASEMAP_ATTR, control_scale=True)
                 for i, e in enumerate(located, start=1):
                     col = UP if e["impact"] > 0 else DOWN
                     icon, label = kind(e)

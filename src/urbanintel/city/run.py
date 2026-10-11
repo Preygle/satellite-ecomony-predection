@@ -271,7 +271,7 @@ def main(argv=None) -> int:
                 prepare.write(cfg.processed_dir / "rasters" / "news_index.tif", news_zone, coarse)
                 nres["llm_payload_bytes"] = getattr(extractor, "payload_bytes", 0)
                 results["news"] = nres
-                status.end("news_process", note=f"{len(nres['events'])} events "
+                status.end("news_process", note=f"{nres['positive_events'] + nres['negative_events']} events "
                                                 f"({nres['positive_events']} positive, "
                                                 f"{nres['negative_events']} negative)")
 

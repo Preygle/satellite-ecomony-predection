@@ -186,6 +186,13 @@ good and bad news.
   neutral, and every override is listed in the results. The rule is the same for good and bad
   news. It was added after the local model labelled "CMRS completes safety inspection of the Pink
   Line" as stalled.
+- **One-day changes and other places.** A change that the headline or snippet calls temporary, or
+  that lasts "till tomorrow" or "for a day", is not a development, good or bad ("57 Metro stations
+  to remain closed till tomorrow"). A story whose places are all a state, district or city outside
+  the study area ("Odisha", "Nicobar") is kept in the record but scores nothing; this is checked
+  with a settlement search across India. A place that is also a locality inside the city keeps the
+  locality (Dwarka in Delhi), and region names that cover the whole study area (NCR, Delhi-NCR)
+  count as citywide.
 
 **Neutrality safeguards.**
 
@@ -201,12 +208,34 @@ good and bad news.
 the opportunity score by at most ±0.10 on a 0 to 1 scale, and the dashboard always shows the ranking
 with and without it.
 
+**How the dashboard shows it.** The News & developments tab answers "which news affects which part
+of the city, and how":
+
+- **A map.** Each development that has a place is a numbered badge (N1, N2, ...), blue if it raises
+  the outlook and red if it lowers it, inside a dashed circle showing how far it reaches. The top ten
+  expansion sites are numbered circles. Clicking a badge shows the story, its status and evidence,
+  and links to the articles.
+- **A card per development:** what happened and where, its status and evidence basis, its reach and
+  strength, and which top sites it reaches and by how much.
+- **Citywide news** as a bar chart, with the city news climate and why it cannot reorder sites.
+- **The ranking with and without news:** each top site's score change, its new rank, and the
+  development mainly responsible. A site's change is shared among the developments near it in
+  proportion to their pull, `impact x exp(-(d/r)^2)`, the same arithmetic as the pipeline.
+- **The neutrality checks:** the reader used, the name-swap audit with its re-read baseline, the
+  labels set to neutral, and every article read.
+
+The Expansion opportunities tab shows the same "main reason" column, and the Overview names the
+most influential mapped development.
+
 **Readers.** Free by default (`--llm auto`):
 
 1. **The Gemini API free tier** (Google AI Studio), if a key is saved as `GEMINI_API_KEY`. It uses
    the best free text model the key can see (`gemini-3.8-flash`, then `gemini-3.6-flash`,
-   `gemini-3.5-flash-lite`, ...), with JSON-schema output, at most 10 requests a minute, and moves
-   to the next model when one runs out of daily quota. Gemini 3 runs at its default temperature with
+   `gemini-3.5-flash-lite`, ...), with JSON-schema output, at most 12 requests a minute, and moves
+   to the next model when one runs out of daily quota. A model that answers 503, or does not answer
+   within 60 seconds, is rested for five minutes while the next one is used. On 11 October
+   `gemini-3.8-flash` and `gemini-3.6-flash` were overloaded, and `gemini-3.5-flash-lite` read
+   every article. Gemini 3 runs at its default temperature with
    low thinking, as Google recommends. Only public headlines and snippets are sent, which matters
    because Google may use free-tier content to improve its products.
 2. **A local model through Ollama** (qwen2.5:7b on this machine): free and offline, one request at a
@@ -252,13 +281,24 @@ re-read's variation would indicate bias.
 - **The neutrality audit compared unlike things.** It set the evidence-checked original against
   unchecked re-reads, so even an identical re-read could count as a change. Both re-reads now pass
   the same check.
+- **Gemini's newest models were overloaded.** `gemini-3.8-flash` answered 503 and
+  `gemini-3.6-flash` sometimes held a request for minutes. The reader now rests a busy model and
+  moves on (§6).
+- **Place names that are also buildings.** The geocoder searches inside the study area, so "Odisha"
+  in a Delhi story was placed on Odisha Bhawan in Delhi, and "Hyderabad" in a Bengaluru story on a
+  place inside Bengaluru carrying that name. The settlement search (§6) now sets such stories
+  aside. It also fixed the Hosur battery plant that had been put on Hosur Road in Bengaluru; the
+  story now counts citywide. A one-day metro closure counted as a setback until the one-day rule
+  was added.
 
 ---
 
 ## 8. Results: Bengaluru and Delhi
 
-Run on 11 October 2026 with five seeds and the local news reader (qwen2.5:7b), since no Gemini key
-was set. Every number is in `data/cities/<city>/results/results.json`.
+Run on 11 October 2026 with five seeds. The news was first read by the local model (qwen2.5:7b)
+and, once a Gemini key was added, read again by `gemini-3.5-flash-lite` from the same articles
+(prompt `news-extract-v5`); the table shows the Gemini reading. Every number is in
+`data/cities/<city>/results/results.json`.
 
 | | Bengaluru | Delhi |
 |---|---|---|
@@ -274,9 +314,12 @@ was set. Every number is in `data/cities/<city>/results/results.json`.
 | Night-light growth model, tested on 2020-2024 | Spearman 0.66, top-20% precision 0.37 | Spearman 0.33, top-20% precision 0.32 |
 | Past-trend baseline | Spearman 0.49 | Spearman 0.23 |
 | Citywide night-light growth | +1.5%/yr 2013-2021, +6.7%/yr 2022-2025 | -0.9%/yr 2013-2021, +7.3%/yr 2022-2025 |
-| News: development articles, events, placed on the map | 60, 18, 5 | 44, 14, 4 |
-| City news climate (-1 to +1) | +0.89 | +0.70 |
-| Name-swap audit: same score (unchanged re-read) | 2 articles: 100% (100%) | 10 articles: 90% (100%) |
+| News: development articles of 140 read | 83 | 77 |
+| Developments on the map / citywide / set aside as elsewhere | 6 / 20 / 0 | 8 / 16 / 2 |
+| City news climate (-1 to +1) | +0.90 | +0.20 |
+| Labels set to neutral by the evidence check | 23 | 30 |
+| Name-swap audit: same score (unchanged re-read) | 2 articles: 100% (100%) | 10 articles: 90% (90%) |
+| Largest change news makes to a top-ten site | ±0.007; sites 6 and 7 swap | -0.011; four of sites 6 to 9 reorder |
 | Top three sites | Gandhinagar; Sir MV Layout; Electronics City Phase 2 | Shipra Sun City (Ghaziabad); IFFCO Chowk (Gurugram); Ralpur Khadar (Noida) |
 | Downloaded | 40.9 MB, plus 0.8 MB for a news refresh | 85.8 MB in the stopped first run, 25.5 MB in the second, 0.9 MB for a news refresh |
 | Wall-clock time | 39 min | 28 min stopped, then 51 min |
@@ -291,13 +334,22 @@ was set. Every number is in `data/cities/<city>/results/results.json`.
   is consistent with Delhi's citywide switch to LED street lights, which the VIIRS day/night band
   sees less well, so a dimming there need not be an economic decline. This is a limit of the proxy,
   stated rather than corrected.
-- The news layer is the weakest part with a local 7B reader. It filed almost every development
-  article as an "official decision", and the evidence check overrode 17 labels in each city. One
-  of ten audited Delhi articles changed score when party names were swapped. With ten articles
-  that is not statistically meaningful, but a stronger reader (the free Gemini tier) is the remedy.
-  Place names are geocoded inside the study area, so a name shared with a town outside it can be
-  placed wrongly. A plant in Hosur, Tamil Nadu was put on Hosur Road in Bengaluru. Every placement
-  is listed in the events table.
+- The news layer depends on its reader. The local 7B model filed almost every development article
+  as an "official decision" and found 2 setbacks in Delhi. Gemini spread the same articles over
+  reported facts (44 in Bengaluru, 24 in Delhi), official decisions (15, 37) and announcements
+  (22, 16), and found 11 setbacks in Delhi, among them delayed drain projects, a construction ban
+  and factory closures across the NCR. Delhi's news climate fell from +0.70 to +0.20 as a result.
+  The evidence check still set 23 and 30 labels to neutral, mostly positive labels on headlines
+  with no development word.
+- In Delhi, 9 of 10 audited articles kept their score when party names were swapped, and 9 of 10
+  also kept it when re-read unchanged: the swap changed no more than re-reading does. Ten articles
+  are too few for a statistical claim.
+- News never changes the top five in either city. It swaps sites 6 and 7 in Bengaluru and reorders
+  four sites between 6th and 9th in Delhi. This is by design: news is a nudge on top of the
+  satellite evidence, not a replacement for it.
+- Places are geocoded inside the study area. A place that is also a locality inside the city keeps
+  the locality, which is usually right (Dwarka in Delhi) but can be wrong for a same-named
+  neighbourhood. Every placement is shown on the News tab map.
 
 **Demo videos** (timelapse x36, wall clock, elapsed time and stage on every frame, chapter list
 beside each):

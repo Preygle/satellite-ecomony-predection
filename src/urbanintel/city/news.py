@@ -18,7 +18,7 @@ import requests
 from ..aoi import AOI, AnalysisFrame
 from .catalog import NOMINATIM, USER_AGENT
 
-PROMPT_VERSION = "news-extract-v4"
+PROMPT_VERSION = "news-extract-v5"
 MAX_AGE_MONTHS = 24
 PER_QUERY = 8
 MAX_ARTICLES = 140
@@ -64,6 +64,10 @@ ALIASES = {"bengaluru": ["Bangalore"], "mumbai": ["Bombay"], "gurugram": ["Gurga
            "kolkata": ["Calcutta"], "chennai": ["Madras"], "varanasi": ["Banaras", "Kashi"],
            "kochi": ["Cochin"], "visakhapatnam": ["Vizag"], "delhi": ["New Delhi"],
            "pune": ["Poona"], "thiruvananthapuram": ["Trivandrum"], "mysuru": ["Mysore"]}
+# Region names that cover the whole study area, so a story placed there is citywide, not a point
+REGIONS = {"delhi": ["NCR", "Delhi NCR", "Delhi-NCR", "National Capital Region"],
+           "mumbai": ["MMR", "Mumbai Metropolitan Region"], "bengaluru": ["Bengaluru Urban"],
+           "kolkata": ["KMA", "Kolkata Metropolitan Area"], "hyderabad": ["HMDA"]}
 SCALE = 1.5
 CITY_SCALE = 3.0
 # A label must be supported by the text: a setback needs a setback word, progress needs a development word
@@ -100,7 +104,11 @@ SYSTEM = (
     "development (an approval, a start, a delay, a stoppage, an opening, a closure), it is a "
     "development event even when the story is framed as a political dispute: extract the "
     "development and ignore the politics. Only when there is no concrete development at all "
-    "(pure politics, crime, sport, entertainment, opinion) set is_development_event=false. (7) location is the locality, road or area named in the text, or "
+    "(pure politics, crime, sport, entertainment, opinion) set is_development_event=false. A one-off "
+    "incident (an accident, a fire in one building, a crime, a sports or cultural event, one day of "
+    "traffic or rain, a closure for routine testing) is not a development unless the text says it "
+    "permanently changes infrastructure, services, industry or land use; the same rule applies to good "
+    "and bad news. (7) location is the locality, road or area named in the text, or "
     "an empty string if none is named. (8) summary is at most 25 neutral words describing the "
     "development itself. (9) expected_completion_year is 0 when the text gives none. Event types: "
     "metro_rail = metro or light rail; suburban_rail_or_station = suburban trains, railway stations; "
@@ -363,12 +371,20 @@ def impact(ext: dict, age_months: float) -> float:
     return sign * mag * STATUS_WEIGHT[ext["status"]] * BASIS_WEIGHT[ext["basis"]] * recency
 
 
+TEMPORARY = re.compile(r"\btemporar|\b(?:till|until) (?:tomorrow|today|tonight)\b|"
+                       r"\bfor (?:the|a|one|two|three|\d+) (?:day|days|hours?|night|weekend)\b", re.IGNORECASE)
+
+
 def check_evidence(ext: dict | None, a: Article) -> tuple[dict | None, str | None]:
     # The same test for good and bad labels: one the text gives no cue for is set to neutral
     if not ext or not ext.get("is_development_event"):
         return ext, None
     text = f"{a.title} {a.snippet}"
     out = dict(ext)
+    # A temporary change, good or bad, is not a development
+    if TEMPORARY.search(text):
+        out.update(is_development_event=False)
+        return out, "temporary change, not a development"
     if out["status"] in SETBACK_STATUS and not NEG_CUES.search(text):
         out.update(status="unclear", direction="neutral")
         return out, "setback status without a setback word"
@@ -388,10 +404,10 @@ def cluster_events(rows: list[dict], now: datetime, city: str = "") -> list[dict
         if not ext or not ext.get("is_development_event"):
             continue
         a = Article(**r["article"])
-        loc = re.sub(r"[^a-z0-9 ]", "", ext["location"].lower()).strip()
+        loc = re.sub(r"[^a-z0-9]+", " ", ext["location"].lower()).strip()
         # A location that only names the city is the whole city, not a point at its centre
-        if city and re.sub(r"\b(" + "|".join(n.lower() for n in names(city)) + r"|city|india)\b", "",
-                           loc).strip(" ,") == "":
+        whole = [re.escape(n.lower()) for n in names(city) + REGIONS.get(city.lower(), [])]
+        if city and re.sub(r"\b(" + "|".join(whole) + r"|city|india)\b", "", loc).strip(" ,-") == "":
             loc = ""
             ext = {**ext, "location": "", "scope": "citywide"}
         group = "setback" if ext["status"] in SETBACK_STATUS else "progress"
@@ -420,37 +436,63 @@ def cluster_events(rows: list[dict], now: datetime, city: str = "") -> list[dict
     return sorted(out, key=lambda x: -abs(x["impact"]))
 
 
-def _geocode_one(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
-    key = place.lower().strip()
-    if not key:
-        return None
-    if key in cache:
-        return tuple(cache[key]) if cache[key] else None
-    lon0, lat0, lon1, lat1 = aoi.bbox_ll
+PLACE_CATEGORIES = {"place", "boundary"}
+SPLIT = re.compile(r"\s*(?:-|\u2013|,|/|\bto\b|\band\b)\s*")
+ELSEWHERE = "elsewhere"
+
+
+def _nominatim(params: dict) -> dict | None:
     try:
         r = requests.get(f"{NOMINATIM}/search", headers={"User-Agent": USER_AGENT}, timeout=30,
-                         params={"q": f"{place}, {aoi.name}", "format": "jsonv2", "limit": 1,
-                                 "countrycodes": "in", "viewbox": f"{lon0},{lat1},{lon1},{lat0}",
-                                 "bounded": 1})
+                         params={"format": "jsonv2", "limit": 1, "countrycodes": "in", **params})
         time.sleep(1.1)
-        hit = r.json()[0] if r.ok and r.json() else None
+        return r.json()[0] if r.ok and r.json() else None
     except (requests.RequestException, ValueError, IndexError):
-        hit = None
-    cache[key] = [float(hit["lon"]), float(hit["lat"])] if hit else None
-    return tuple(cache[key]) if hit else None
+        return None
 
 
-def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
-    pt = _geocode_one(place, aoi, cache)
-    if pt is not None:
-        return pt
+def _geocode_one(place: str, aoi: AOI, cache: dict) -> tuple[float, float, str] | None:
+    key = "v2:" + place.lower().strip()
+    if key == "v2:":
+        return None
+    if key not in cache:
+        lon0, lat0, lon1, lat1 = aoi.bbox_ll
+        hit = _nominatim({"q": f"{place}, {aoi.name}", "viewbox": f"{lon0},{lat1},{lon1},{lat0}", "bounded": 1})
+        cache[key] = [float(hit["lon"]), float(hit["lat"]), hit.get("category", "")] if hit else None
+    return tuple(cache[key]) if cache[key] else None
+
+
+def _elsewhere(place: str, aoi: AOI, cache: dict) -> bool:
+    # A state, district or city outside the study area ("Odisha", "Hyderabad") is another place,
+    # even when a building inside the area carries its name
+    key = "away2:" + place.lower().strip()
+    if key not in cache:
+        hit = _nominatim({"q": place, "featureType": "settlement"})
+        lon0, lat0, lon1, lat1 = aoi.bbox_ll
+        cache[key] = bool(hit and int(hit.get("place_rank", 30)) <= 16
+                          and not (lon0 <= float(hit["lon"]) <= lon1 and lat0 <= float(hit["lat"]) <= lat1))
+    return cache[key]
+
+
+def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | str | None:
+    # A point; None when the place cannot be found (the event then counts citywide);
+    # or ELSEWHERE when every place it names lies outside the study area
+    city = {n.lower() for n in names(aoi.name) + REGIONS.get(aoi.name.lower(), [])}
+    parts = [p.strip() for p in SPLIT.split(place)[:3] if len(p.strip()) >= 3]
+    named = [p for p in parts if p.lower() not in city]
+    whole = _geocode_one(place, aoi, cache)
+    if whole is not None and whole[2] in PLACE_CATEGORIES:
+        return whole[:2]
+    if named and all(_elsewhere(p, aoi, cache) for p in named):
+        return ELSEWHERE if len(named) == len(parts) else None
+    if whole is not None:
+        return whole[:2]
     # "Kalena Agrahara-Tavarekere" or "Sector 5, Noida": try each named place on its own
-    city = {n.lower() for n in names(aoi.name)}
-    for part in re.split(r"\s*(?:-|\u2013|,|/|\bto\b|\band\b)\s*", place)[:3]:
-        if len(part.strip()) >= 3 and part.strip().lower() not in city:
-            pt = _geocode_one(part.strip(), aoi, cache)
+    for p in named:
+        if not _elsewhere(p, aoi, cache):
+            pt = _geocode_one(p, aoi, cache)
             if pt is not None:
-                return pt
+                return pt[:2]
     return None
 
 
@@ -467,7 +509,10 @@ def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame,
             continue
         _, radius = EFFECT.get(e["event_type"], EFFECT["other"])
         pt = None if e["scope"] == "citywide" else geocode(e["location"], aoi, cache)
-        if pt is None:
+        if pt == ELSEWHERE:
+            # Kept for the record but scores nothing: the story is about another place
+            e["placed"] = ELSEWHERE
+        elif pt is None:
             city_total += e["impact"]
             e["placed"] = "citywide"
         else:
@@ -537,13 +582,14 @@ def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: di
         "fetch_errors": got["errors"], "extracted": len(ok),
         "extraction_errors": [r["error"] for r in rows if r["error"]][:10],
         "development_articles": len(dev), "events": placed,
-        "positive_events": sum(1 for e in events if e["impact"] > 0),
-        "negative_events": sum(1 for e in events if e["impact"] < 0),
+        "positive_events": sum(1 for e in placed if e["impact"] > 0 and e.get("placed") != ELSEWHERE),
+        "negative_events": sum(1 for e in placed if e["impact"] < 0 and e.get("placed") != ELSEWHERE),
         "basis_counts": basis_counts, "top_sources": sorted(srcs.items(), key=lambda kv: -kv[1])[:8],
         "max_source_share": round(max(srcs.values()) / len(dev), 3) if dev else None,
         "audit": audit, "retrieval_balance": got["balance"],
         "evidence_overrides": overrides, "city_news_index": round(city_index, 3),
         "located_events": sum(1 for e in placed if e.get("placed") == "located"),
+        "elsewhere_events": sum(1 for e in placed if e.get("placed") == ELSEWHERE),
         "scoring": {"effect": EFFECT, "status_weight": STATUS_WEIGHT, "basis_weight": BASIS_WEIGHT,
                     "half_life_months": HALF_LIFE_MONTHS, "scale": SCALE,
                     "corroboration": "min(1, 0.5 + 0.25 x distinct sources)",
@@ -551,7 +597,10 @@ def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: di
                     "city_news_index": "tanh(sum of citywide and unlocated event impacts / 3)",
                     "evidence_check": ("a setback status or negative direction needs a setback word in the "
                                        "headline or snippet, a positive direction needs a development word; "
-                                       "otherwise the label is set to neutral")},
+                                       "otherwise the label is set to neutral; a change the text calls "
+                                       "temporary or one-day is not a development"),
+                    "elsewhere": ("a story whose places are all a state, district or city outside the "
+                                  "study area is kept for the record and scores nothing")},
         "articles": [{"title": redact(r["article"]["title"])[0], "source": r["article"]["source"],
                       "url": r["article"]["url"], "published": r["article"]["published"][:10],
                       "retrieval": r["article"]["retrieval"], "query": r["article"]["query"],
