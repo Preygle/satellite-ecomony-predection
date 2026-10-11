@@ -15,6 +15,7 @@ from pyproj import Transformer  # noqa: E402
 from urbanintel.aoi import AnalysisFrame  # noqa: E402
 from urbanintel.city import economy as EC  # noqa: E402
 from urbanintel.city import fetch as F  # noqa: E402
+from urbanintel.city import llm as L  # noqa: E402
 from urbanintel.city import model as M  # noqa: E402
 from urbanintel.city import news as N  # noqa: E402
 from urbanintel.city import opportunity as OP  # noqa: E402
@@ -165,6 +166,80 @@ def test_listed_sites_are_spaced_apart():
         for c, d in rc[i + 1:]:
             assert ((a - c) ** 2 + (b - d) ** 2) ** 0.5 * 500 >= 1500
     assert picks[0] == int(np.argmax(v))
+
+
+def test_gemini_schema_is_the_openapi_subset():
+    g = L.to_gemini_schema(N.SCHEMA)
+    assert g["type"] == "OBJECT" and "additionalProperties" not in g
+    assert g["properties"]["event_type"]["type"] == "STRING"
+    assert g["properties"]["event_type"]["enum"] == N.EVENT_TYPES
+    assert g["propertyOrdering"] == list(N.SCHEMA["properties"]) and g["required"] == N.SCHEMA["required"]
+
+
+class _Resp:
+    def __init__(self, status, payload):
+        self.status_code, self._p = status, payload
+        self.text = json.dumps(payload)
+        self.content = self.text.encode()
+        self.request = type("R", (), {"body": b"{}"})()
+
+    def json(self):
+        return self._p
+
+
+def _gemini(models):
+    g = L.GeminiExtractor.__new__(L.GeminiExtractor)
+    g.key, g.models, g.model = "k", models, models[0]
+    g.exhausted, g.no_thinking, g.next_slot = set(), set(), {}
+    g.lock = __import__("threading").Lock()
+    g.payload_bytes, g.calls = 0, 0
+    return g
+
+
+def test_gemini_settings_follow_the_model_family():
+    g = _gemini(["gemini-3.8-flash", "gemini-2.5-flash"])
+    b3 = g.body("gemini-3.8-flash", "sys", "user", N.SCHEMA)["generationConfig"]
+    b2 = g.body("gemini-2.5-flash", "sys", "user", N.SCHEMA)["generationConfig"]
+    assert "temperature" not in b3 and b3["thinkingConfig"] == {"thinkingLevel": "low"}
+    assert b2["temperature"] == 0 and "thinkingConfig" not in b2
+    assert b3["responseMimeType"] == "application/json"
+
+
+def test_gemini_retries_then_moves_to_the_next_model_on_daily_quota():
+    g = _gemini(["gemini-3.8-flash", "gemini-3.6-flash"])
+    ok = {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(ext())}]}}]}
+    replies = [_Resp(429, {"error": {"message": "Quota exceeded for GenerateRequestsPerDayPerProjectPerModel"}}),
+               _Resp(429, {"error": {"details": [{"retryDelay": "0s"}]}}), _Resp(200, ok)]
+    used = []
+    real_post, real_sleep = L.requests.post, L.time.sleep
+
+    def post(url, **kw):
+        used.append(url.rsplit("/", 1)[1].split(":")[0])
+        return replies.pop(0)
+
+    L.requests.post, L.time.sleep = post, (lambda s: None)
+    old_rpm = L.GEMINI_RPM
+    L.GEMINI_RPM = 1e9
+    try:
+        out = g.extract("sys", "user", N.SCHEMA)
+    finally:
+        L.requests.post, L.time.sleep, L.GEMINI_RPM = real_post, real_sleep, old_rpm
+    assert out["event_type"] == "metro_rail"
+    assert used == ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.6-flash"]
+    assert g.exhausted == {"gemini-3.8-flash"}
+
+
+def test_audit_separates_swap_effect_from_rerun_noise():
+    class Fixed:
+        def extract(self, system, user, schema):
+            return ext()
+
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [{"article": {"title": "BJP opens Sector 5 metro station", "source": "s", "url": "u",
+                         "published": now, "snippet": "", "query": "q", "retrieval": "t"},
+             "extraction": ext(), "error": None}]
+    a = N.counterfactual_audit(rows, "Delhi", Fixed())
+    assert a["tested"] == 1 and a["score_invariance"] == 1.0 and a["rerun_same_score"] == 1.0
 
 
 def test_status_round_trip():
