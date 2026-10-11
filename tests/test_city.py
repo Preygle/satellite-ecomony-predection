@@ -242,6 +242,32 @@ def test_audit_separates_swap_effect_from_rerun_noise():
     assert a["tested"] == 1 and a["score_invariance"] == 1.0 and a["rerun_same_score"] == 1.0
 
 
+def _art(title, snippet=""):
+    return N.Article(title=title, source="s", url="https://s/x", published=datetime.now(timezone.utc).isoformat(),
+                     snippet=snippet, query="q", retrieval="t")
+
+
+def test_evidence_check_neutralises_unsupported_labels_both_ways():
+    good_news = _art("CMRS completes safety inspection of Namma Metro Pink Line")
+    fixed, why = N.check_evidence(ext(status="stalled", direction="negative"), good_news)
+    assert fixed["status"] == "unclear" and fixed["direction"] == "neutral" and why
+    bad_news = _art("Work on the Sector 5 flyover stalled for two years")
+    kept, why = N.check_evidence(ext(status="stalled", direction="negative"), bad_news)
+    assert kept["status"] == "stalled" and why is None
+    vague = _art("Sector 5 market in focus")
+    fixed, why = N.check_evidence(ext(direction="positive"), vague)
+    assert fixed["direction"] == "neutral" and why
+
+
+def test_location_naming_only_the_city_is_citywide():
+    now = datetime.now(timezone.utc)
+    row = {"article": _art("Exide commissions lithium cell plant in Bengaluru").__dict__,
+           "extraction": ext(event_type="industrial_or_manufacturing", status="completed",
+                             location="Bengaluru, India"), "error": None}
+    ev = N.cluster_events([row], now, "Bengaluru")
+    assert ev[0]["scope"] == "citywide" and ev[0]["location"] == ""
+
+
 def test_status_round_trip():
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "status.json"

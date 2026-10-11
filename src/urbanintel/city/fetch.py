@@ -14,9 +14,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+import hashlib
+
 import numpy as np
 import rasterio
 import requests
+import urllib3
 from pyproj import Transformer
 from rasterio.crs import CRS
 
@@ -90,7 +93,9 @@ class Meter:
                     return body
             except PermanentError:
                 raise
-            except (requests.RequestException, FetchError, OSError, zlib.error) as exc:
+            except (requests.RequestException, urllib3.exceptions.HTTPError, FetchError, OSError,
+                    zlib.error) as exc:
+                # A read timeout while streaming comes from urllib3, not requests, and must be retried too
                 last = exc
                 if attempt < attempts - 1:
                     time.sleep(5 * (attempt + 1))
@@ -271,17 +276,17 @@ def overpass(cfg: Config, query: str, meter: Meter, *, rounds: int = 4) -> dict:
                     continue
                 try:
                     wait_for_slot(ep, meter)
-                    body = meter.fetch(ep, method="POST", data={"data": query}, timeout=420, attempts=1,
-                                       trace=True)
+                    body = meter.fetch(ep, method="POST", data={"data": query}, timeout=(20, 330),
+                                       attempts=1, trace=True)
                     payload = json.loads(body)
                     if "elements" not in payload:
                         raise FetchError(f"unexpected Overpass response from {ep}")
                     if payload.get("remark") and "error" in payload["remark"].lower():
                         raise FetchError(payload["remark"][:200])
                     return payload
-                except (FetchError, json.JSONDecodeError) as exc:
+                except Exception as exc:  # noqa: BLE001
                     last = exc
-                    if "SSL" in str(exc) or "Connection" in str(exc) or "429" in str(exc):
+                    if any(k in str(exc) for k in ("SSL", "Connection", "429", "timed out", "Timeout")):
                         COOLDOWN[ep] = time.time() + 90
                     log.warning("overpass %s: %s", ep.split("/")[2], str(exc)[:120])
             time.sleep(30 * (rnd + 1))
@@ -313,15 +318,27 @@ def road_queries(aoi: AOI) -> list[tuple[str, tuple]]:
     return out
 
 
+def _cached_query(cfg: Config, query: str, meter: Meter, parts: Path, name: str) -> dict:
+    # Each Overpass answer is kept on disk, so a failure later in the list never costs earlier downloads
+    parts.mkdir(parents=True, exist_ok=True)
+    path = parts / f"{name}_{hashlib.sha1(query.encode()).hexdigest()[:10]}.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    payload = overpass(cfg, query, meter)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
+
+
 def fetch_roads(cfg: Config, aoi: AOI, meter: Meter, *, on_step: Callable[[str], None] | None = None) -> dict:
     seen: dict[int, dict] = {}
-    for cls, b in road_queries(aoi):
+    parts = cfg.raw_dir / "osm" / "parts"
+    for i, (cls, b) in enumerate(road_queries(aoi)):
         if "|" in cls:
             # Arterial classes are few, so one query with tags is cheaper than five without
-            q = f'[out:json][timeout:400];way["highway"~"^({cls})$"]({_ov_bbox(b)});out tags geom qt;'
+            q = f'[out:json][timeout:300];way["highway"~"^({cls})$"]({_ov_bbox(b)});out tags geom qt;'
         else:
-            q = f'[out:json][timeout:400];way["highway"="{cls}"]({_ov_bbox(b)});out skel geom qt;'
-        payload = overpass(cfg, q, meter)
+            q = f'[out:json][timeout:300];way["highway"="{cls}"]({_ov_bbox(b)});out skel geom qt;'
+        payload = _cached_query(cfg, q, meter, parts, f"roads_{i:02d}")
         for el in payload["elements"]:
             geom = el.get("geometry")
             if el.get("type") != "way" or not geom or len(geom) < 2:
@@ -336,9 +353,11 @@ def fetch_roads(cfg: Config, aoi: AOI, meter: Meter, *, on_step: Callable[[str],
 def fetch_pois(cfg: Config, aoi: AOI, meter: Meter, *, on_step: Callable[[str], None] | None = None) -> dict:
     out: dict[str, list] = {}
     bb = _ov_bbox(aoi.bbox_ll)
+    parts = cfg.raw_dir / "osm" / "parts"
     for group, selectors in POI_GROUPS.items():
         body = "".join(f"{sel}({bb});" for sel in selectors)
-        payload = overpass(cfg, f"[out:json][timeout:300];({body});out skel center qt;", meter)
+        payload = _cached_query(cfg, f"[out:json][timeout:300];({body});out skel center qt;", meter, parts,
+                                f"pois_{group}")
         pts = []
         for el in payload["elements"]:
             if el.get("type") == "node" and "lat" in el:
@@ -348,10 +367,7 @@ def fetch_pois(cfg: Config, aoi: AOI, meter: Meter, *, on_step: Callable[[str], 
         out[group] = pts
         if on_step:
             on_step(f"POIs: {group} ({len(pts):,})")
-        time.sleep(1.0)
     return out
-
-
 
 
 # --------------------------------------------------------- availability + plan
@@ -392,7 +408,8 @@ OHSOME_POI = ("shop=* or office=* or amenity in (marketplace, restaurant, cafe, 
               "university, fuel, bus_station, taxi) or tourism in (hotel, guest_house, hostel) or "
               "landuse=industrial or industrial=* or man_made=works or railway in (station, halt) or "
               "public_transport=station")
-DEFAULT_BYTES_PER_WAY = 90.0
+# Gzip wire bytes per road way: 89 measured on Chandigarh, 77 on Bengaluru
+DEFAULT_BYTES_PER_WAY = 85.0
 
 
 def osm_counts(cfg: Config, aoi: AOI, meter: Meter) -> dict:
@@ -535,8 +552,8 @@ def plan(cfg: Config, aoi: AOI, fine: AnalysisFrame, avail: dict) -> list[Item]:
                       lambda m: ee_on_frame(slope_image(cfg, aoi, fine), fine, gdir / "slope.tif",
                                             m, dtype="float32")))
     osm_c, sample = avail["osm"], avail["osm_sample"]
-    # The calibration sample is the dense centre, so bytes per way there is an upper-end figure
-    per_way = sample["bytes_per_way"] * 1.15
+    # The centre sample runs high, so it only raises the measured figure for unusually dense networks
+    per_way = max(DEFAULT_BYTES_PER_WAY, min(sample["bytes_per_way"], 1.5 * DEFAULT_BYTES_PER_WAY))
     items.append(Item("osm_roads", "Road network (8 classes)", "OpenStreetMap via Overpass API",
                       "OpenStreetMap", int(osm_c["road_ways"] * per_way), odir / "roads.json",
                       True, lambda m: _write_json(odir / "roads.json", fetch_roads(cfg, aoi, m))))
@@ -609,8 +626,8 @@ def execute(items: list[Item], meter: Meter, *, workers: int = 3,
     return failed
 
 
-# Measured on the Varanasi frame: bytes per 100 m cell of each deflate-compressed GeoTIFF
-BYTES_PER_CELL = {"landsat": 9.2, "viirs": 0.6, "water": 0.6, "slope": 3.0}
+# Wire bytes per 100 m cell, measured on the Bengaluru run (213,850 cells, deflate GeoTIFF)
+BYTES_PER_CELL = {"landsat": 9.6, "viirs": 0.27, "water": 0.25, "slope": 3.4}
 EE_OVERHEAD = 6_000
 NEWS_BYTES = 3_000_000
 LLM_BYTES_PER_ARTICLE = 4_000

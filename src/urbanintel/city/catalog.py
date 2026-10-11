@@ -46,10 +46,10 @@ CITIES: dict[str, str] = {
     "Gurugram": "Gurugram, Haryana, India",
 }
 
+# Mirrors that answered in testing; two others only returned 500 or held a request for minutes
 OVERPASS = ["https://overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter",
             "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-            "https://lz4.overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
-            "https://overpass.private.coffee/api/interpreter"]
+            "https://lz4.overpass-api.de/api/interpreter"]
 URBAN_TYPES = {"city", "town", "municipality", "state", "state_district", "county",
                "city_district", "district"}
 MIN_AREA_KM2 = 20.0

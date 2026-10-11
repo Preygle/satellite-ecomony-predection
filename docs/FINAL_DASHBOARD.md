@@ -9,6 +9,8 @@ places best suited for a new branch.
 run_final_dashboard.bat                       # the dashboard, at http://localhost:8501
 python -m urbanintel.city.run --city Delhi --estimate-only   # data plan and internet estimate only
 python -m urbanintel.city.run --city Delhi                   # the full run, without the dashboard
+python -m urbanintel.city.run --city Delhi --from evaluate   # keep data and trained seeds, redo the rest
+python -m urbanintel.city.run --city Delhi --from news       # keep everything but the news layer
 python scripts/record_demo.py --city Delhi                   # a timestamped timelapse video of a full run
 python tests/test_city.py                                    # unit tests for this part
 ```
@@ -171,9 +173,19 @@ good and bad news.
 - A political claim or promise has basis weight **0**: it moves nothing.
 - Repeated reports of one event are merged, and independent sources raise confidence:
   `min(1, 0.5 + 0.25 x sources)`.
-- Located events spread over a radius set by type (airport 10 km, metro 2 km, flyover 1 km).
-  Citywide or unlocated events add 0.3 x impact everywhere.
-- The zone index is `tanh(sum / 1.5)`, between -1 and 1.
+- Located events spread over a radius set by type (airport 10 km, metro 2 km, flyover 1 km). The
+  zone index is `tanh(sum / 1.5)`, between -1 and 1, and it is built from located events only: it
+  says *where* news matters inside the city. A location that only names the city counts as citywide.
+- Citywide and unlocated events form a separate **city news climate**, `tanh(sum / 3)`. It shifts
+  every zone of the city equally, so it cannot change where to open a branch, but it does matter
+  when comparing cities. In the first Bengaluru run, before this split, about twenty citywide
+  events pushed every zone to the top of the scale and the map showed nothing.
+- **Evidence check.** A setback status or a negative direction needs a setback word in the headline
+  or snippet ("delay", "stall", "scrap", "closure", "flood" and so on). A positive direction needs a
+  development word ("open", "approve", "complete", "invest" and so on). Otherwise the label is set to
+  neutral, and every override is listed in the results. The rule is the same for good and bad
+  news. It was added after the local model labelled "CMRS completes safety inspection of the Pink
+  Line" as stalled.
 
 **Neutrality safeguards.**
 
