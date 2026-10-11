@@ -25,3 +25,7 @@ plotly>=5.18
 folium>=0.15
 streamlit>=1.49
 streamlit-folium>=0.18
+psutil>=5.9
+
+# News layer of the final dashboard (headlines from Google News RSS)
+feedparser>=6.0

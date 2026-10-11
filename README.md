@@ -1,177 +1,201 @@
 # Satellite-Based Urban Growth and Economic Activity Intelligence System
 
-Detects urban expansion, commercial growth, green cover loss, urban heat
-islands, and **built-but-inactive "ghost growth" zones** from open satellite
-and geospatial data — then presents them as planning intelligence.
+Choose an Indian city. The system finds and downloads the satellite, population and map data for
+it, trains a deep-learning image model on that city's own history, tests the model on a period it
+never saw, forecasts where the city will grow and where economic activity is rising, reads recent
+development news, and ranks the places best suited for a company's new branch.
 
-**Study city: Varanasi, Uttar Pradesh, India.** The system is city-agnostic;
-Varanasi is set in `config/varanasi.yaml` and any other city is a new config
-file.
+**Status (Review 4, October 2026):** the final dashboard is complete and has been run end to end
+on **Bengaluru** and **Delhi**. It grew out of a research pipeline built on **Varanasi** in
+Reviews 1 to 3, which is still here and is described further down.
 
-**Status (Review 3, September 2026):** analysis pipeline, growth models,
-validation against independent and Indian data, and the dashboard are
-complete; city search follows in Review 4. Start with
-[`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md). `run_review3.bat`
-reproduces every number and figure in it.
+| Start here | |
+|---|---|
+| [`docs/FINAL_DASHBOARD.md`](docs/FINAL_DASHBOARD.md) | The final dashboard: every stage, the data, the checks, the Bengaluru and Delhi results |
+| [`docs/GUIDE_FINAL_PREVIEW.md`](docs/GUIDE_FINAL_PREVIEW.md) | The image model end to end, in plain English (Varanasi) |
+| [`docs/figures/paper/`](docs/figures/paper/README.md) | Publication figures of the image model, with captions |
 
 ---
 
-## Why it works without credentials
+## The workflow
 
-Most satellite-analysis projects stall at "first, get an Earth Engine account."
-This one is built on two data paths:
+![How the image model turns imagery into a growth forecast](docs/figures/paper/fig1_framework.png)
 
-| Path | Sources | Credentials | Gives you |
-|---|---|---|---|
-| **Open** | GHSL (Global Human Settlement Layer), OpenStreetMap | none | Built-up growth, urban form, population, POI/road activity, ghost-growth screening |
-| **Earth Engine** | VIIRS (Visible Infrared Imaging Radiometer Suite), Sentinel-2, Landsat, Dynamic World, Open Buildings | one-time `earthengine authenticate` | Nightlights, NDVI/green cover, land surface temperature, building height |
+*The image model at the centre of every run, shown on Varanasi: data, preprocessing, the 45-channel
+input, the network, the allocation of new urban cells, and the held-out evaluation.*
 
-The pipeline runs end-to-end on the open path alone and folds in the Earth
-Engine layers automatically once they exist. Missing layers are recorded with
-a reason in the output rather than silently dropped, and the dashboard shows
-what was skipped.
+Open the dashboard, choose a city, press **Estimate** to see the data plan and the internet it
+will use, then press **Run**. Each stage shows a progress bar, an x/N counter, the script that is
+running, and the megabytes downloaded against the estimate.
+
+| # | Stage | What happens |
+|---|---|---|
+| 1 | Resolving the city boundary | The city's boundary from OpenStreetMap, plus a 3 to 8 km growth belt, on a 100 m grid in the city's UTM zone |
+| 2 | Looking for datasets | Counts clear Landsat scenes per year, lists the night-light years, counts roads and points of interest; writes the plan and the internet estimate |
+| 3 | Downloading datasets | About 35 downloads from Earth Engine and OpenStreetMap, with every byte counted |
+| 4 | Processing datasets | Every layer onto one 100 m grid |
+| 5 | Training the image model | The Review 4 network (45 channels, 115,345 parameters), five seeds, trained on 2010-2015 |
+| 6 | Evaluating on the held-out period | Scored once on 2015-2020 against random placement and logistic regression |
+| 7 | Forecasting urban growth | New urban land by 2025, with how many seeds agree on each cell |
+| 8 | Analysing economic activity | Night-light trend and a four-year growth forecast, tested on 2020-2024 |
+| 9 | Fetching news information | Balanced queries to Google News and GDELT: developments and setbacks |
+| 10 | Processing news information | A language model fills a fixed form for each article; a fixed table scores it |
+| 11 | Scoring expansion opportunities | Five components per 500 m zone, checked under 2,000 random weightings |
+| 12 | Displaying charts | Maps and charts in six result tabs |
+
+The results open in six tabs: **Overview**, **Urban growth**, **Economic activity**, **News &
+developments**, **Expansion opportunities**, and **Method & data**.
+
+### Results so far
+
+| | Bengaluru | Delhi |
+|---|---|---|
+| Study area | 2,139 km², 213,850 cells | 4,371 km², 437,100 cells |
+| Image model, held-out 2015-2020 (Figure of Merit / AUC) | **0.176** / 0.931 | **0.222** / 0.964 |
+| Logistic regression on the same drivers | 0.083 | 0.139 |
+| Random placement | 0.016 | 0.011 |
+| Forecast new urban land, 2020 to 2025 | 87.7 km² | 83.9 km² |
+| Night-light growth forecast, tested on 2020-2024 (Spearman) | 0.66 | 0.33 |
+| Top expansion sites | Gandhinagar, Sir MV Layout, Electronics City Phase 2 | Shipra Sun City (Ghaziabad), IFFCO Chowk (Gurugram), Ralpur Khadar (Noida) |
+| Internet used | 41.7 MB | 112 MB, including a first run stopped by an OpenStreetMap server |
+
+The Figure of Merit compares predicted and observed new urban cells: hits divided by hits, misses
+and false alarms together. AUC (area under the ROC curve) measures how well the model ranks cells
+that converted above cells that did not. The Delhi night-light forecast is weaker for a reason
+explained in [`docs/FINAL_DASHBOARD.md`](docs/FINAL_DASHBOARD.md) §8: a 2016 drop that matches the
+city's switch to LED street lights.
+
+**Demo videos.** Timelapse recordings of both runs, with the clock, elapsed time and stage on every
+frame, are in `data/cities/bengaluru/demo/` and `data/cities/delhi/demo/`. They are not in git.
 
 ---
 
 ## Quick start
 
-Use a virtual environment — it keeps this project's dependencies off your
-system Python and puts `streamlit` somewhere findable.
-
-**Windows**
-
-```bat
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m pip install -e .
-
-run_pipeline.bat --no-gee
-run_dashboard.bat
-```
-
-**macOS / Linux**
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt && pip install -e .
-
-python scripts/prefetch.py      # ~330 MB, one time, 30-45 min
-python -m urbanintel.pipeline --no-gee
-streamlit run dashboard/app.py
-```
-
-### If a teammate hands you the data on a pendrive
-
-The repository does not carry the satellite downloads, the Indian statistical
-archives or the pipeline outputs — about 1.4 GB, excluded by `.gitignore`.
-Rather than re-downloading them:
+**Requirements:** Python 3.11 or later, a free Earth Engine account (one-time
+`earthengine authenticate`), and up to about 300 MB of disk per large city (Bengaluru 77 MB,
+Delhi 258 MB). No GPU is needed. On a laptop CPU, training takes about 10 minutes for Bengaluru
+and 22 for Delhi, and a full run takes 40 to 50 minutes. `run_final_dashboard.bat` is for Windows;
+the Python commands work anywhere.
 
 ```bat
-python scripts\external_data.py import E:\urbanintel-data
-```
-
-or leave the files where they are and point the project at them:
-
-```bat
-python scripts\external_data.py link ..\urbanintel-data
-python scripts\external_data.py check
-```
-
-`link` writes `config/local.yaml`, which is never tracked by git, so each
-machine can keep its data somewhere different without any merge conflict.
-Full instructions, including how to make the bundle:
-[`docs/DATA_TRANSFER.md`](docs/DATA_TRANSFER.md).
-
-> Always invoke Streamlit as `python -m streamlit`, not bare `streamlit`. The
-> console script is installed into a `Scripts/` directory that is often not on
-> PATH on Windows; the module form always works. The `.bat` launchers do this
-> for you.
-
-Verified 11 September 2026 (Python 3.13): 41/41 tests pass, the pipeline
-writes 61 raster layers and a 4,754-cell reporting grid, and the dashboard
-renders with 0 exceptions.
-
-To add the satellite layers:
-
-```bash
+pip install -r requirements.txt -r requirements-dl.txt
 earthengine authenticate
-python scripts/gee_export.py --project YOUR_GCP_PROJECT
-python -m urbanintel.pipeline       # re-run; now includes NTL, NDVI, LST
+run_final_dashboard.bat
 ```
 
-See [`docs/SETUP.md`](docs/SETUP.md) for the full setup, including the
-Code Editor route (`scripts/gee_export.js`) if you prefer not to install the
-Python Earth Engine client.
+The dashboard opens at http://localhost:8501. The same run without the dashboard:
+
+```bat
+python -m urbanintel.city.run --city Delhi --estimate-only    :: data plan and internet estimate only
+python -m urbanintel.city.run --city Delhi                    :: the full run
+python -m urbanintel.city.run --city Delhi --from evaluate    :: keep data and trained seeds, redo the rest
+python -m urbanintel.city.run --city Delhi --from news        :: redo only the news layer
+python scripts/record_demo.py --city Delhi                    :: a timelapse video of a full run
+python tests/test_city.py                                     :: tests for this part
+```
+
+The video recorder also needs the `playwright` Python package, Google Chrome and `ffmpeg` on the
+PATH.
+
+### The news reader (free)
+
+The news layer uses a language model only to fill in a fixed form for each article. It picks a
+reader by itself, and the default never costs money:
+
+1. **The Gemini API free tier**, if you save a key. Create one at
+   https://aistudio.google.com/apikey and, in your own terminal, run
+   `setx GEMINI_API_KEY "your-key"`. The dashboard's **Refresh news only** button then re-reads the
+   news without downloading or training again.
+2. **A local model through Ollama** (qwen2.5:7b), if Ollama is running. This is free and offline,
+   but weaker.
+
+The Claude API can be chosen with `--llm claude`, but it is never chosen automatically.
+
+### Internet use
+
+Everything is measured, not guessed. The **Estimate** button shows the plan before anything is
+downloaded. A city of about 2,000 km² uses roughly 40 to 50 MB, and Delhi-sized areas about 90 MB.
+Earth Engine layers are cut to the city and averaged to 100 m on Google's servers, so a city needs
+a few MB of Landsat instead of hundreds. Every download is cached, so a stopped run resumes without
+fetching anything twice.
 
 ---
 
-## What it produces
+## What makes the results trustworthy
 
+- **Three separate periods.** The model learns on 2010-2015, chooses its stopping point on
+  2000-2005, and is scored once on 2015-2020. The periods never mix.
+- **Baselines on the same test.** Random placement and logistic regression on the same drivers.
+- **Checked data paths.** GHSL from the Earth Engine mirror is pixel-identical to the JRC bulk files
+  the Varanasi model used. Landsat averaged on Earth Engine matches the local route (r ≥ 0.9997).
+- **Economic activity is a proxy.** VIIRS (Visible Infrared Imaging Radiometer Suite) night-time
+  radiance stands in for economic activity. In this project's own check, it tracks Uttar Pradesh
+  district GDP with Spearman 0.85 across 71 districts. It is never presented as GDP.
+- **Neutral news.** Political promises carry zero weight. Party names are removed from every
+  output. Labels the article text does not support are set to neutral, by the same rule for good
+  and bad news. A name-swap audit checks that the score does not change when party names are
+  replaced. The news layer moves a zone's score by at most 0.10 on a 0 to 1 scale, and is shown
+  separately from the satellite evidence.
+- **Recommendations that do not depend on the weights.** Each top site reports the share of 2,000
+  random weightings in which it stays in the top ten.
+
+---
+
+## Data
+
+| Official identifier | Provider | Used for |
+|---|---|---|
+| `JRC/GHSL/P2023A/GHS_BUILT_S` (GHS-BUILT-S R2023A) | European Commission JRC | built-up surface 1995-2020, the labels |
+| `JRC/GHSL/P2023A/GHS_POP` (GHS-POP R2023A) | European Commission JRC | population 1995-2020 |
+| `LANDSAT/LT05/C02/T1_L2`, `LANDSAT/LE07/C02/T1_L2`, `LANDSAT/LC08/C02/T1_L2` | USGS | dry-season surface reflectance composites, 1995-2020 |
+| `NOAA/VIIRS/DNB/ANNUAL_V21`, `NOAA/VIIRS/DNB/ANNUAL_V22` | NOAA / Colorado School of Mines | night-time radiance 2013-2025, an economic-activity proxy |
+| `GOOGLE/DYNAMICWORLD/V1` | Google and World Resources Institute | water, for distance to water |
+| `USGS/SRTMGL1_003` | NASA / USGS | terrain slope |
+| OpenStreetMap (Overpass API; ohsome API for counts) | OpenStreetMap contributors | roads and points of interest |
+| Google News RSS, GDELT DOC 2.0 | publishers, via Google News and the GDELT Project | headlines and snippets for the news layer |
+
+The Varanasi research pipeline also uses `COPERNICUS/S2_SR_HARMONIZED`, `LANDSAT/LC09/C02/T1_L2`,
+`MODIS/061/MOD11A2`, `ESA/WorldCover/v200`, `GOOGLE/Research/open-buildings-temporal/v1`,
+`WorldPop/GP/100m/pop`, the Census of India, and SHRUG. See [`docs/DATASETS.md`](docs/DATASETS.md).
+
+---
+
+## The Varanasi research pipeline (Reviews 1 to 4)
+
+The final dashboard is built on this work, and all of it still runs.
+
+**Analytical layers** (`python -m urbanintel.pipeline`, or `run_review3.bat` for the whole chain):
+
+1. **Built-up expansion.** GHS-BUILT-S differenced across 2010, 2015 and 2020, classified as infill,
+   edge expansion or leapfrog (Liu et al. 2010).
+2. **Economic activity.** VIIRS radiance and its trend, plus OpenStreetMap commercial points of
+   interest, normalised per unit of built-up area.
+3. **Green cover loss.** NDVI (Normalized Difference Vegetation Index) change from Sentinel-2,
+   intersected with Dynamic World built-up gain over the same years.
+4. **Urban heat island.** Landsat land surface temperature minus a rural reference that excludes
+   water and recently built land.
+5. **Ghost growth.** New development whose activity is far below what this city shows for the same
+   built-up intensity, separated from neighbourhoods that are still filling up. It has six
+   classes: `ghost_growth`, `emerging`, `healthy_growth`, `established_active`, `declining` and
+   `undeveloped`. This is a screening tool, not an occupancy census.
+6. **Growth prediction.** Logistic regression and random forest (Review 3, Figure of Merit 0.103),
+   then the image model (Review 4).
+
+**The image model** (`scripts/train_image_v2.py`) is a small two-path convolutional network that
+reads Landsat imagery and 15 place features together. Its five-seed ensemble scores a Figure of
+Merit of **0.1507** (AUC 0.935) on Varanasi's held-out 2015-2020, against 0.103 for the Review 3
+random forest. The final dashboard runs exactly this trainer on every city.
+
+```bat
+python scripts/export_landsat_stack.py --years 1990 1995 2000 2005 2010 2015 --ghsl
+python -m urbanintel.pipeline
+python scripts/train_image_v2.py --factor 1 --with-drivers --stop-on 2000 --epochs 250 ^
+       --patience 40 --steps 20 --widths 16 32 --dropout 0.5 --seed 0 --tag v5_s0
+python scripts/make_paper_figures.py
 ```
-outputs/
-  varanasi_summary.json     all statistics, provenance, and skipped layers
-  varanasi_grid.geojson     500 m reporting grid, every layer as an attribute
-  varanasi_grid.csv         same, tabular
-data/processed/rasters/
-  *.tif                     every analytical layer at 100 m, UTM 44N
-```
 
-### The analytical layers
-
-1. **Built-up expansion** — GHSL built-up surface differenced across the
-   observed epochs 2010/2015/2020 (GHSL's 2025 epoch is a model projection and
-   appears only as a labelled comparison), classified into **infill / edge expansion / leapfrog**
-   using a landscape-expansion-index method (Liu et al. 2010). Leapfrog share
-   is the leading indicator for ghost growth.
-2. **Economic activity** — VIIRS nightlight radiance and its per-pixel trend,
-   plus OSM commercial POI (Point of Interest) density. Always normalised **per unit built-up
-   area**, because raw radiance mostly measures how big a place is.
-3. **Green cover loss** — Sentinel-2 NDVI (Normalized Difference Vegetation Index) change, intersected with
-   Dynamic World built-up gain over the same years, so the reported figure is
-   *conversion to urban*, not the cropping calendar.
-4. **Urban heat island** — Landsat land surface temperature minus an in-scene
-   rural reference (water and recently built land excluded), with a
-   population-weighted vulnerability surface.
-5. **Ghost growth** — the differentiating layer. See below.
-6. **Growth prediction** — logistic regression and a random forest trained on
-   2010–2015 conversions, scored on a held-out 2015–2020, then used to project
-   new urban land +5 and +10 years from 2020 (`scripts/run_growth_model.py`).
-
-Every layer is checked against independent data — other satellite products,
-the Census of India, the 2013 Economic Census and Uttar Pradesh district GDP —
-in `scripts/validate_*.py` and `scripts/cross_checks.py`; the results are in
-[`docs/REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) §5.
-
-### Ghost growth: the method
-
-Flagging "low nightlights" catches every empty field. Flagging "low
-population" catches every industrial estate. Both mistake *different* for
-*empty*.
-
-Instead, this system learns **the activity level normal for a given built-up
-intensity in this specific city** (a binned median, so it adapts rather than
-imposing a threshold), and flags cells that fall far below their own city's
-norm **and** are recently developed. Where a nightlight time series is
-available, cells that are dim but brightening *significantly faster than the
-established city* are separated out as `emerging` — a neighbourhood
-mid-occupation is not a failed one.
-
-Output is a six-class growth typology:
-
-| Class | Meaning |
-|---|---|
-| `ghost_growth` | New development, activity far below expectation, not rising |
-| `emerging` | New development, low activity but rising — filling up |
-| `healthy_growth` | New development performing normally |
-| `established_active` | Built before the baseline, performing normally |
-| `declining` | Established, underperforming and falling |
-| `undeveloped` | Below the built-up threshold |
-
-**This is a screening tool, not an occupancy census.** VIIRS at ~460 m cannot
-resolve one empty housing block; the unit of a reliable finding is a
-neighbourhood. Limitations are stated in
-[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) and surfaced in the dashboard.
+`run_dashboard.bat` opens the Review 3 dashboard for Varanasi.
 
 ---
 
@@ -179,132 +203,96 @@ neighbourhood. Limitations are stated in
 
 | Document | What it covers |
 |---|---|
-| [`REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) | **Current state.** Review 3: implementation status, results, validation, corrections log ([PDF](docs/REVIEW3_REPORT.pdf)) |
-| [`DIAGRAMS.md`](docs/DIAGRAMS.md) | **Architecture diagrams and progress charts** — 15 images, what each shows, what to say over it |
-| [`Review3_Panel_Presentation.pptx`](docs/Review3_Panel_Presentation.pptx) | **Review 3 panel deck** — 24 slides on architecture, algorithms, flow and results; no code on any slide; talking points in the speaker notes |
-| [`AGENT.md`](AGENT.md) | **For anyone continuing the work** — rules, repository map, how to run and verify, known traps |
-| [`DATA_TRANSFER.md`](docs/DATA_TRANSFER.md) | Moving the 1.4 GB of data between machines; `config/local.yaml` |
-| [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | Who owns which work package; AI acknowledgement |
-| [`METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) | The simple version: datasets, the six implementation steps, expected output |
-| [`WORKFLOW.md`](docs/WORKFLOW.md) | What runs, in what order — the seven pipeline stages and the prediction step |
-| [`DESIGN.md`](docs/DESIGN.md) | How the system is put together — layers, modules, key decisions |
-| [`METHODOLOGY.md`](docs/METHODOLOGY.md) | The full method, with thresholds and the ghost-growth screen |
+| [`FINAL_DASHBOARD.md`](docs/FINAL_DASHBOARD.md) | **The final system.** Stages, data, checks, problems met, Bengaluru and Delhi results |
+| [`GUIDE_FINAL_PREVIEW.md`](docs/GUIDE_FINAL_PREVIEW.md) | The image model end to end, with figures and a per-layer table |
+| [`figures/paper/`](docs/figures/paper/README.md) | Four publication figures (PDF, SVG, PNG) with captions |
+| [`DEEP_MODELS.md`](docs/DEEP_MODELS.md) | The running record of every deep model tried, with dates and results |
+| [`REVIEW3_REPORT.md`](docs/REVIEW3_REPORT.md) | Review 3: implementation, results, validation, corrections log |
+| [`METHODOLOGY.md`](docs/METHODOLOGY.md), [`METHODOLOGY_SIMPLE.md`](docs/METHODOLOGY_SIMPLE.md) | The full method, and a short version |
+| [`WORKFLOW.md`](docs/WORKFLOW.md), [`DESIGN.md`](docs/DESIGN.md) | The Varanasi pipeline stages and how the system is put together |
 | [`DATASETS.md`](docs/DATASETS.md) | Every dataset, why it is used, and what is deliberately not used |
-| [`REVIEW2_DOCUMENTATION.md`](docs/REVIEW2_DOCUMENTATION.md) | **Review 2 submission** — abstract, literature, methodology, datasets, architecture, proposed solution |
-| [`LITERATURE_REVIEW.md`](docs/LITERATURE_REVIEW.md) | Chapter 2 — 20 papers by theme, comparison, research gap |
-| [`PAPER_SUMMARIES.md`](docs/PAPER_SUMMARIES.md) | Each paper: title, technology, results, use to this project |
+| [`DIAGRAMS.md`](docs/DIAGRAMS.md) | Architecture diagrams and progress charts |
+| [`LITERATURE_REVIEW.md`](docs/LITERATURE_REVIEW.md), [`PAPER_SUMMARIES.md`](docs/PAPER_SUMMARIES.md) | The literature behind the method |
 | [`CONVENTIONS.md`](docs/CONVENTIONS.md) | Abbreviations, official dataset identifiers, writing rules |
-| [`SETUP.md`](docs/SETUP.md) | Installation and Earth Engine setup |
-
----
-
-## Writing and naming conventions
-
-Official dataset identifiers, the full abbreviation list, and the writing rules
-this project follows are in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
-Dataset identifiers are never shortened or renamed; readable labels are used
-only in figure captions and dashboard headings.
+| [`SETUP.md`](docs/SETUP.md), [`DATA_TRANSFER.md`](docs/DATA_TRANSFER.md) | Installation, Earth Engine, moving the data between machines |
+| [`AGENT.md`](AGENT.md), [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | For anyone continuing the work; who built what, and the AI acknowledgement |
 
 ---
 
 ## Repository layout
 
 ```
-config/varanasi.yaml            AOI, epochs, thresholds, sources — the one tracked config
-config/local.yaml               (gitignored) this machine's data paths
+run_final_dashboard.bat         the final dashboard
+dashboard/final_app.py          the final dashboard (Streamlit): city picker, live progress, six result tabs
+dashboard/app.py                the Review 3 dashboard for Varanasi
+config/varanasi.yaml            the template every city's configuration is generated from
 src/urbanintel/
-  config.py  aoi.py             config loading, epoch checks, paths; AOI, frames, grid
-  data/                         acquisition
-    ghsl.py                     GHS-BUILT-S / GHS-POP (open)
-    osm.py                      Overpass POIs + roads (open)
-    gee.py                      Earth Engine layers, cloud masks, composite-depth check
-    shrug.py                    SHRUG census, economic census and polygons (Indian data)
-    worldpop.py                 bulk WorldPop download (the checks use Earth Engine)
-    download.py                 resumable HTTP, zip extraction
-  analysis/
-    builtup.py                  change detection, urban form, hotspots
-    nightlights.py              trends, relative-to-city trend, Sum of Lights
-    vegetation.py               green cover change, Dynamic World built-up gain
-    thermal.py                  SUHI, heat vulnerability, cooling potential
-    ghost.py                    activity index, expected-activity residual, typology
-    growth_model.py             logistic regression, random forest, CA allocation, FoM, TOC
-    validation.py               kappa, Mann-Whitney, elasticity, paired comparison
-    zonal.py                    100 m -> 500 m aggregation, export
-  pipeline.py                   orchestration; `python -m urbanintel.pipeline`
+  city/                         the final system, one city end to end
+    catalog.py                  city search, study area, UTM zone, per-city configuration
+    fetch.py                    every download, byte-metered and cached; the internet estimate
+    prepare.py                  every layer onto the 100 m grid
+    model.py                    runs the image-model trainer, evaluates, forecasts 2025
+    economy.py                  night-light trend and the four-year growth forecast
+    news.py, llm.py             news retrieval, the fixed form, scoring, neutrality audit
+    opportunity.py              expansion score and its robustness
+    charts.py                   map layers for the dashboard
+    progress.py, run.py         live status for the dashboard; the orchestrator
+  deep/                         the image model: features, stacks, tiles, network, training
+  data/                         GHSL, Landsat, Earth Engine, OpenStreetMap, SHRUG, WorldPop
+  analysis/                     built-up change, night lights, vegetation, heat, ghost growth, growth models
+  pipeline.py                   the Varanasi pipeline
 scripts/
-  prefetch.py                   parallel download of all open data
-  gee_export.py / .js           Earth Engine exports (Python and Code Editor)
-  export_review3_layers.py      the extra Earth Engine layers used by the checks
-  fetch_indian_data.py          SHRUG and Uttar Pradesh district GDP downloads
-  run_growth_model.py           fit, validate, compare and project the growth models
-  train_image_model.py          train the image model (Model A) and score it once
-  run_deep_system.py            image + boosted trees + blend + ensemble + ghost check
-  export_landsat_stack.py       six-band Landsat composites, harmonised across sensors
-  make_dl_figures.py            11 analytics figures -> docs/figures/dl/
-  validate_typology.py          temporal hold-out test of the ghost / emerging split
-  cross_checks.py               six built-up datasets, Open Buildings, Landsat vs MODIS
-  validate_population.py        GHS-POP and WorldPop against the Census of India
-  validate_economy.py           night light against the Economic Census and district GDP
-  make_figures.py               14 figures + outputs/review3_results.json
-  make_zone_cards.py            one evidence card per ghost-growth zone
-  make_diagrams.py              architecture diagrams + progress charts -> docs/diagrams/
-  make_presentation_r3.py       the Review 3 deck
-  external_data.py              check / export / import / link the data bundle
-  md_to_pdf.py                  Markdown report -> PDF
-dashboard/app.py                Streamlit dashboard, 7 tabs
-tests/test_core.py              41 tests
-tests/test_deep.py              12 tests for the deep models (no PyTorch needed)
-docs/GUIDE_FINAL_PREVIEW.md     the whole workflow end to end, in plain English
-docs/                           reports, method documents, figures/, diagrams/, decks
-run_review3.bat                 the whole chain in one command
-run_demo.bat, demo/             live demo website (offline): trains and runs the model on request
-train_model.bat                 the same training run in a terminal, with full command-line output
+  train_image_v2.py             the image-model trainer (used by every city)
+  record_demo.py                timelapse video of a dashboard run
+  make_paper_figures.py         the four publication figures
+  export_landsat_stack.py       Landsat composites for Varanasi
+  run_growth_model.py, run_deep_system.py, validate_*.py, cross_checks.py, make_figures.py
+tests/
+  test_core.py                  41 tests: the Varanasi pipeline
+  test_deep.py                  16 tests: the deep models
+  test_city.py                  23 tests: the final system
+data/                           (gitignored) downloads, rasters, models; data/cities/<city>/ per city
 ```
 
 ---
 
 ## Design decisions worth knowing
 
-- **Two grids.** Analysis runs at GHSL-native 100 m to keep change detection
-  sharp; reporting is at 500 m, because a 121,000-polygon web map is unusable
-  and would over-claim precision that VIIRS cannot support.
-- **Density-preserving reprojection.** GHSL ships in Mollweide (equal-area);
-  the analysis frame is UTM. Built-up m² and population are *extensive*
-  quantities, so both are converted to density, reprojected, and rescaled —
-  otherwise totals would not survive the warp.
-- **GHS-SMOD is not downloaded.** It is a large global file that is itself
-  derived from BUILT-S + POP by thresholding, so the two masks actually needed
-  are derived directly — no fidelity lost, ~1 GB of transfer saved, and the
-  masks stay at 100 m instead of being forced to a 1 km floor.
-- **The chart palette is validated, not chosen by eye.** The obvious
-  green-for-healthy / red-for-ghost pairing measures ΔE 4.1 under
-  deuteranopia — the two most important classes would be indistinguishable to
-  a red-green colourblind reader. Blue carries "healthy" instead. See
-  `analysis/ghost.py`.
+- **One model design for every city, trained on that city.** There is no transfer from Varanasi
+  and no per-city tuning, so a city's score measures the method, not adjustments made for it.
+- **Two grids.** Analysis runs at 100 m, the GHSL resolution, to keep change detection sharp.
+  Economic activity and opportunities are scored on 500 m zones, close to the VIIRS pixel, so the
+  results do not claim detail the sensor does not have.
+- **Density-preserving reprojection.** Built-up area and population are totals per cell, so they
+  are converted to density, reprojected from Mollweide to UTM, and rescaled. Totals survive the
+  change of grid.
+- **A dry-season window per city.** October to March suits north India, but October and November
+  are monsoon months in Bengaluru. Each city uses the window with the most clear Landsat scenes, the
+  same for every year.
+- **The chart palette is validated, not chosen by eye.** Colours are checked for colour-blind
+  readers. Red is reserved for errors, which is why "healthy" is blue.
 
 ---
 
 ## Literature
 
-Method choices are grounded in [`RECOMMENDED_PAPERS.md`](RECOMMENDED_PAPERS.md).
-Two focused sets — VIIRS cross-sensor calibration implementations, and U-Net
-architectures in urban remote sensing — with comparison tables and the trends
-drawn from them are in
-[`docs/LITERATURE_NTL_AND_UNET.md`](docs/LITERATURE_NTL_AND_UNET.md).
+Method choices are grounded in [`RECOMMENDED_PAPERS.md`](RECOMMENDED_PAPERS.md) and
+[`docs/LITERATURE_NTL_AND_UNET.md`](docs/LITERATURE_NTL_AND_UNET.md). The load-bearing references:
 
-The load-bearing references:
-
-- Jin et al. 2017, *Applied Geography* 80:112 — multi-source ghost-city identification
-- Lu et al. 2018, *Remote Sensing* 10:1037 — nighttime + daytime ghost-city mapping
-- Liu et al. 2010, *Landscape and Urban Planning* — landscape expansion index (urban form)
-- Henderson, Storeygard & Weil 2012, *AER* 102:994 — what nightlights can and cannot say about output
-- Zhou et al. 2019, *Remote Sensing* 11:48 — SUHI (Surface Urban Heat Island) definition and the urban/rural reference
-- Ermida et al. 2020, *Remote Sensing* 12:1471 — Landsat LST (Land Surface Temperature) in Earth Engine
+- Jin et al. 2017, *Applied Geography* 80:112: multi-source ghost-city identification
+- Liu et al. 2010, *Landscape and Urban Planning*: landscape expansion index (urban form)
+- Henderson, Storeygard & Weil 2012, *AER* 102:994: what night lights can and cannot say about output
+- Roy et al. 2016, *Remote Sensing of Environment*: harmonising Landsat 5/7 with Landsat 8
+- Pontius & Si 2014: the Total Operating Characteristic and the Figure of Merit
+- Lin et al. 2017: focal loss for rare positives
 
 ---
 
 ## Licence and data terms
 
-Code: for academic use. Data: GHSL (CC BY 4.0), OpenStreetMap (ODbL — requires
-attribution), Copernicus/Sentinel (open), Landsat/VIIRS (US public domain),
-Dynamic World (CC BY 4.0), Google Open Buildings (CC BY 4.0).
+Code: for academic use. Data: GHSL (CC BY 4.0), OpenStreetMap (ODbL, attribution required),
+Landsat and VIIRS (US public domain), Copernicus/Sentinel (open), Dynamic World and Open Buildings
+(CC BY 4.0). The news layer reads public headlines and snippets and stores no article text. Content
+sent to the Gemini free tier may be used by Google to improve its products, so only public headlines
+are sent. Use of AI assistance in this project is acknowledged in
+[`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
