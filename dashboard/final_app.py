@@ -71,12 +71,12 @@ def alive(pid) -> bool:
         return False
 
 
-def launch(city: str, *, seeds: int, news: bool, llm: str, estimate: bool) -> None:
+def launch(city: str, *, seeds: int, news: bool, llm: str, estimate: bool, start: str = "start") -> None:
     args = [sys.executable, "-u", "-m", "urbanintel.city.run", "--city", city]
     if estimate:
         args.append("--estimate-only")
     else:
-        args += ["--seeds", str(seeds), "--llm", llm] + ([] if news else ["--no-news"])
+        args += ["--seeds", str(seeds), "--llm", llm, "--from", start] + ([] if news else ["--no-news"])
     d = catalog.city_dir(catalog.resolve(city))
     log = open(d / "process.log", "w", encoding="utf-8")
     flags = (subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
@@ -104,8 +104,9 @@ pick = c1.selectbox("City", names, index=names.index("Bengaluru"))
 city_name = c1.text_input("City name", placeholder="e.g. Mysuru") if pick.startswith("Other") else pick
 seeds = c2.slider("Model seeds", 1, 5, 5, help="Five independently trained networks are averaged")
 news_on = c3.toggle("Development news", value=True)
-llm = c3.selectbox("News reader", ["auto", "claude", "ollama"], label_visibility="collapsed",
-                   disabled=not news_on)
+llm = c3.selectbox("News reader", ["auto", "gemini", "ollama", "claude"], label_visibility="collapsed",
+                   disabled=not news_on,
+                   help="auto: the free Gemini API if GEMINI_API_KEY is saved, otherwise a local Ollama model")
 
 if not city_name:
     st.stop()
@@ -129,6 +130,12 @@ with c4:
         st.rerun()
     if b2.button("Run", type="primary", use_container_width=True, disabled=running):
         launch(city_name, seeds=seeds, news=news_on, llm=llm, estimate=False)
+        time.sleep(1.5)
+        st.rerun()
+    if (not running and news_on and (cdir / "results" / "results.json").exists()
+            and st.button("Refresh news only", use_container_width=True,
+                          help="Keeps this city's data, model and economy; re-reads the news")):
+        launch(city_name, seeds=seeds, news=True, llm=llm, estimate=False, start="news")
         time.sleep(1.5)
         st.rerun()
     if running and st.button("Stop run", use_container_width=True):
@@ -335,8 +342,11 @@ with tabs[0]:
         if nw:
             au = nw["audit"]
             check = (f"name-swap neutrality test: same score in {au['score_invariance'] * 100:.0f}% of "
-                     f"{au['tested']} re-tests" if au.get("tested") else "no article named a party, so "
-                     "the name-swap test had nothing to re-test")
+                     f"{au['tested']} re-tests"
+                     + (f" against {au['rerun_same_score'] * 100:.0f}% for an unchanged re-read"
+                        if au.get("rerun_same_score") is not None else "")
+                     if au.get("tested") else "no article named a party, so the name-swap test had "
+                     "nothing to re-test")
             lines.append(f"- {len(nw['events'])} development events from {nw['development_articles']} "
                          f"articles ({nw['positive_events']} positive, {nw['negative_events']} negative); "
                          f"{check}.")
@@ -443,8 +453,9 @@ with tabs[2]:
 
 with tabs[3]:
     if not nw:
-        st.info("The news layer was not run. It needs an LLM: set ANTHROPIC_API_KEY, or start Ollama "
-                "with a model pulled, then run again.")
+        st.info("The news layer was not run. It needs a language model: save a free Gemini API key as "
+                "GEMINI_API_KEY (https://aistudio.google.com/apikey), or start Ollama with a model pulled, "
+                "then press Refresh news only.")
     else:
         a, b = st.columns([1.15, 1])
         with a:
@@ -456,9 +467,12 @@ with tabs[3]:
             k = st.columns(3)
             kpi(k[0], nw["development_articles"], "development articles", f"of {nw['unique_articles']} unique")
             kpi(k[1], f"{nw['positive_events']} / {nw['negative_events']}", "positive / negative events", "")
-            inv = nw["audit"].get("score_invariance")
+            au = nw["audit"]
+            inv = au.get("score_invariance")
+            base = au.get("rerun_same_score")
             kpi(k[2], "not tested" if inv is None else f"{inv * 100:.0f}%", "same score after name swap",
-                f"{nw['audit']['tested']} articles re-tested, {nw['audit'].get('identical', 0)} fully identical")
+                (f"unchanged re-read: {base * 100:.0f}%, {au['tested']} articles" if base is not None
+                 else f"{au['tested']} articles re-tested"))
             st.write("")
             st.caption(f"Reader: large language model (LLM) {nw['extractor']} ({nw['prompt_version']}). Political claims and promises "
                        f"carry zero weight; party names are removed from every output; the score comes "

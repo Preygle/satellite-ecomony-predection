@@ -284,28 +284,45 @@ def extract_all(arts: list[Article], city: str, extractor, *, workers: int = 4,
     return out
 
 
+AUDIT_KEYS = ("is_development_event", "event_type", "direction", "status", "basis")
+
+
+def same_score(x: dict, y: dict) -> bool:
+    a0, a1 = impact(x, 0), impact(y, 0)
+    if a0 == a1 == 0:
+        return True
+    return bool(np.sign(a0) == np.sign(a1) and abs(a0 - a1) <= 0.25 * max(abs(a0), abs(a1)))
+
+
 def counterfactual_audit(rows: list[dict], city: str, extractor, *, limit: int = 12) -> dict:
+    # Re-reading unchanged as well as name-swapped separates a swap effect from run-to-run variation
     sample = [r for r in rows if r["extraction"] and mentions_politics(Article(**r["article"]))][:limit]
-    keys = ("is_development_event", "event_type", "direction", "status", "basis")
-    agree, same_sign, cases = 0, 0, []
+    cases = []
     for r in sample:
         a = Article(**r["article"])
         b = Article(**{**a.__dict__, "title": neutralise(a.title), "snippet": neutralise(a.snippet)})
         try:
-            alt = extractor.extract(SYSTEM, prompt_for(b, city), SCHEMA)
+            again = extractor.extract(SYSTEM, prompt_for(a, city), SCHEMA)
+            swap = extractor.extract(SYSTEM, prompt_for(b, city), SCHEMA)
         except Exception:  # noqa: BLE001
             continue
-        same = all(alt.get(k) == r["extraction"].get(k) for k in keys)
-        agree += same
-        a0, a1 = impact(r["extraction"], 0), impact(alt, 0)
-        same_sign += (np.sign(a0) == np.sign(a1)) and (abs(a0 - a1) <= 0.25 * max(abs(a0), abs(a1), 1e-9) or a0 == a1 == 0)
-        cases.append({"title": redact(a.title)[0], "same": same,
-                      "changed": [k for k in keys if alt.get(k) != r["extraction"].get(k)]})
-    return {"tested": len(cases), "identical": agree,
-            "invariance": round(agree / len(cases), 3) if cases else None,
-            "score_invariance": round(same_sign / len(cases), 3) if cases else None,
-            "method": "party names and office titles replaced by neutral placeholders, then the "
-                      "same article re-extracted; identical = same type, direction, status, basis",
+        orig = r["extraction"]
+        cases.append({"title": redact(a.title)[0],
+                      "rerun_identical": all(again.get(k) == orig.get(k) for k in AUDIT_KEYS),
+                      "swap_identical": all(swap.get(k) == orig.get(k) for k in AUDIT_KEYS),
+                      "rerun_same_score": same_score(orig, again), "swap_same_score": same_score(orig, swap),
+                      "swap_changed": [k for k in AUDIT_KEYS if swap.get(k) != orig.get(k)]})
+    n = len(cases)
+
+    def share(key):
+        return round(sum(c[key] for c in cases) / n, 3) if n else None
+
+    return {"tested": n, "identical": sum(c["swap_identical"] for c in cases),
+            "invariance": share("swap_identical"), "score_invariance": share("swap_same_score"),
+            "rerun_identical": share("rerun_identical"), "rerun_same_score": share("rerun_same_score"),
+            "method": ("each article that names a party or an office holder is read twice more: unchanged, "
+                       "and with those names replaced by neutral placeholders. A swap effect larger than "
+                       "the unchanged re-read's variation would indicate bias."),
             "cases": cases}
 
 

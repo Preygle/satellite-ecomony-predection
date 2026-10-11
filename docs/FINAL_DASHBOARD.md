@@ -189,10 +189,26 @@ good and bad news.
 the opportunity score by at most ±0.10 on a 0 to 1 scale, and the dashboard always shows the ranking
 with and without it.
 
-**Readers.** The Claude API (`claude-opus-5-5` by default, `URBANINTEL_LLM_MODEL` to change it) with
-structured outputs, so every answer matches the schema, and server-side fallback if a request is
-declined. Or a local model through Ollama (qwen2.5:7b on this machine: free and offline, but weaker).
-Models under 3 billion parameters are refused because they ignore the schema.
+**Readers.** Free by default (`--llm auto`):
+
+1. **The Gemini API free tier** (Google AI Studio), if a key is saved as `GEMINI_API_KEY`. It uses
+   the best free text model the key can see (`gemini-3.8-flash`, then `gemini-3.6-flash`,
+   `gemini-3.5-flash-lite`, ...), with JSON-schema output, at most 10 requests a minute, and moves
+   to the next model when one runs out of daily quota. Gemini 3 runs at its default temperature with
+   low thinking, as Google recommends. Only public headlines and snippets are sent, which matters
+   because Google may use free-tier content to improve its products.
+2. **A local model through Ollama** (qwen2.5:7b on this machine): free and offline, one request at a
+   time, about 4 seconds an article, but weaker. Models under 3 billion parameters are refused because
+   they ignore the schema.
+
+The Claude API stays available with `--llm claude`, but it is never chosen automatically. The reader
+is picked when the news stage starts, so a key saved part-way through a run is still used, and
+`python -m urbanintel.city.run --city <city> --from news` re-reads the news later without
+downloading or training again.
+
+Because Gemini 3 runs at its default temperature, the neutrality audit re-reads each tested article
+twice: once unchanged and once with names swapped. A swap effect larger than the unchanged
+re-read's variation would indicate bias.
 
 ---
 
