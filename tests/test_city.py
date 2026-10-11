@@ -268,6 +268,58 @@ def test_location_naming_only_the_city_is_citywide():
     assert ev[0]["scope"] == "citywide" and ev[0]["location"] == ""
 
 
+def test_temporary_changes_are_not_developments_either_way():
+    for title, d in (("57 metro stations closed temporarily", "negative"),
+                     ("Temporary bus service added for the festival", "positive")):
+        fixed, why = N.check_evidence(ext(direction=d), _art(title))
+        assert fixed["is_development_event"] is False and why
+
+
+def test_region_names_count_as_citywide():
+    now = datetime.now(timezone.utc)
+    row = {"article": _art("CAQM orders closure of 9 factories across NCR").__dict__,
+           "extraction": ext(event_type="industrial_or_manufacturing", direction="negative",
+                             status="operational", location="NCR"), "error": None}
+    ev = N.cluster_events([row], now, "Delhi")
+    assert ev[0]["scope"] == "citywide" and ev[0]["location"] == ""
+
+
+def test_places_outside_the_city_score_nothing():
+    class Box:
+        name, bbox_ll = "Delhi", (76.8, 28.4, 77.4, 28.9)
+    bounded = {"Odisha, Delhi": {"lon": "77.20", "lat": "28.52", "category": "building"},
+               "Dwarka, Delhi": {"lon": "77.04", "lat": "28.59", "category": "place"},
+               "Delhi-Hyderabad, Delhi": None}
+    india = {"Odisha": {"lon": "85.0", "lat": "20.5", "place_rank": 8},
+             "Dwarka": {"lon": "69.0", "lat": "22.2", "place_rank": 16},
+             "Hyderabad": {"lon": "78.5", "lat": "17.4", "place_rank": 16}}
+    real = N._nominatim
+    N._nominatim = lambda params: (bounded.get(params["q"]) if params.get("bounded") else india.get(params["q"]))
+    try:
+        cache: dict = {}
+        assert N.geocode("Odisha", Box, cache) == N.ELSEWHERE
+        assert N.geocode("Dwarka", Box, cache) == (77.04, 28.59)
+        assert N.geocode("Delhi-Hyderabad", Box, cache) is None
+    finally:
+        N._nominatim = real
+
+
+def test_one_day_closures_are_not_developments():
+    fixed, why = N.check_evidence(ext(direction="negative", status="operational"),
+                                  _art("57 Metro stations in Delhi to remain closed till tomorrow"))
+    assert fixed["is_development_event"] is False and why
+    fixed, why = N.check_evidence(ext(direction="negative", status="operational"),
+                                  _art("Delhi bans construction for 6 weeks due to winter smog"))
+    assert fixed["is_development_event"] is True
+
+
+def test_hyphenated_regions_are_citywide():
+    now = datetime.now(timezone.utc)
+    row = {"article": _art("Developer to invest Rs 900 crore in Delhi-NCR projects").__dict__,
+           "extraction": ext(event_type="housing_or_township", location="Delhi\u2013NCR"), "error": None}
+    assert N.cluster_events([row], now, "Delhi")[0]["scope"] == "citywide"
+
+
 def test_status_round_trip():
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "status.json"
