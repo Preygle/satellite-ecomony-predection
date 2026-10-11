@@ -14,7 +14,8 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 # Free-tier text models in order of preference; the reader moves down the list when one runs out of daily quota
 GEMINI_PREFERRED = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite",
                     "gemini-2.5-flash", "gemini-2.5-flash-lite"]
-GEMINI_RPM = float(os.environ.get("URBANINTEL_GEMINI_RPM", "10"))
+GEMINI_RPM = float(os.environ.get("URBANINTEL_GEMINI_RPM", "12"))
+GEMINI_REST_S = 300
 # Local models in order of preference; very small models ignore the JSON schema and are refused
 OLLAMA_PREFERRED = ["qwen2.5:14b", "qwen3.5:9b", "llama3.1:8b", "qwen2.5:7b", "mistral:7b", "gemma2:9b"]
 OLLAMA_TOO_SMALL = ("0.5b", "0.6b", "0.8b", "1b", "1.5b", "1.7b", "2b")
@@ -162,6 +163,7 @@ class GeminiExtractor:
             raise LLMUnavailable(f"none of {GEMINI_PREFERRED} is available to this key")
         self.model = self.models[0]
         self.exhausted: set[str] = set()
+        self.resting: dict[str, float] = {}
         self.no_thinking: set[str] = set()
         self.lock = threading.Lock()
         self.next_slot: dict[str, float] = {}
@@ -187,21 +189,34 @@ class GeminiExtractor:
         return {"systemInstruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": user}]}], "generationConfig": gen}
 
+    def _rest(self, model: str) -> None:
+        # A busy or hanging model is set aside for a few minutes and the next free model is used
+        with self.lock:
+            self.resting[model] = time.time() + GEMINI_REST_S
+
+    def _live(self) -> list[str]:
+        now = time.time()
+        usable = [m for m in self.models if m not in self.exhausted]
+        ready = [m for m in usable if self.resting.get(m, 0) <= now]
+        return ready or sorted(usable, key=lambda m: self.resting.get(m, 0))
+
     def extract(self, system: str, user: str, schema: dict) -> dict:
         last = None
         for _ in range(12):
-            live = [m for m in self.models if m not in self.exhausted]
+            live = self._live()
             if not live:
                 raise LLMUnavailable(f"every free Gemini model is out of quota today ({last})")
             model = self.model = live[0]
+            if self.resting.get(model, 0) > time.time():
+                time.sleep(min(30.0, self.resting[model] - time.time()))
             self._wait(model)
             try:
-                r = requests.post(f"{GEMINI_BASE}/models/{model}:generateContent", timeout=180,
+                r = requests.post(f"{GEMINI_BASE}/models/{model}:generateContent", timeout=(10, 60),
                                   json=self.body(model, system, user, schema),
                                   headers={"x-goog-api-key": self.key, "Content-Type": "application/json"})
             except requests.RequestException as exc:
-                last = exc
-                time.sleep(5)
+                last = f"{type(exc).__name__} on {model}"
+                self._rest(model)
                 continue
             self.payload_bytes += len(r.request.body or b"") + len(r.content)
             if r.status_code == 429:
@@ -214,7 +229,7 @@ class GeminiExtractor:
                 continue
             if r.status_code in (500, 502, 503, 504):
                 last = f"{r.status_code} on {model}"
-                time.sleep(8)
+                self._rest(model)
                 continue
             if r.status_code == 400 and "thinking" in r.text.lower() and model not in self.no_thinking:
                 self.no_thinking.add(model)

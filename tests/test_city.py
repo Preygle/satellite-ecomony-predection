@@ -190,7 +190,7 @@ class _Resp:
 def _gemini(models):
     g = L.GeminiExtractor.__new__(L.GeminiExtractor)
     g.key, g.models, g.model = "k", models, models[0]
-    g.exhausted, g.no_thinking, g.next_slot = set(), set(), {}
+    g.exhausted, g.no_thinking, g.next_slot, g.resting = set(), set(), {}, {}
     g.lock = __import__("threading").Lock()
     g.payload_bytes, g.calls = 0, 0
     return g
