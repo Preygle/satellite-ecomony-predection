@@ -47,8 +47,9 @@ def parse(argv=None) -> argparse.Namespace:
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--no-news", action="store_true")
     ap.add_argument("--llm", choices=["auto", "gemini", "ollama", "claude"], default="auto")
-    ap.add_argument("--from", dest="start", choices=["start", "news"], default="start",
-                    help="news: keep the last run's data, model and economy, redo news onwards")
+    ap.add_argument("--from", dest="start", choices=["start", "evaluate", "news"], default="start",
+                    help="evaluate: keep the data and trained seeds and redo everything after them; "
+                         "news: also keep the evaluation, forecast and economy")
     ap.add_argument("--estimate-only", action="store_true")
     return ap.parse_args(argv)
 
@@ -124,77 +125,91 @@ def main(argv=None) -> int:
             for key in ("search", "download", "process", "train", "evaluate", "forecast", "economy"):
                 status.skip(key, f"kept from run {prev['run_id']}")
         else:
-            status.begin("search", module="urbanintel.city.fetch.availability",
-                         detail="checking Earth Engine archives and OpenStreetMap counts")
-            avail = fetch.availability(cfg, aoi, meter, on_step=lambda m: (
-                status.update("search", detail=m), log.info("search: %s", m)))
-            if avail["viirs_years"]:
-                cfg_path = catalog.write_config(city, nightlights_end=avail["viirs_years"][-1])
-                cfg = load_config(cfg_path)
-            items = fetch.plan(cfg, aoi, fine, avail)
-            est = fetch.estimate(items, news_articles=0 if args.no_news else NEWS_ARTICLES_EST)
-            plan = {"availability": {k: v for k, v in avail.items() if k != "osm_sample"},
-                    "estimate": est, "aoi_km": [round(w_km, 1), round(h_km, 1)],
-                    "cells": fine.width * fine.height,
-                    "items": [{"key": i.key, "label": i.label, "dataset": i.dataset, "group": i.group,
-                               "est_bytes": i.est_bytes, "essential": i.essential, "cached": i.cached()}
-                              for i in items]}
-            (cdir / "plan.json").write_text(json.dumps(plan, indent=1, default=str), encoding="utf-8")
-            status.set(estimated_bytes=est["total_bytes"], plan_rows=est["rows"],
-                       downloads_total=len(items))
-            status.end("search", note=f"{len(items)} downloads, about {human(est['total_bytes'])} "
-                                      f"({est['cached']} already cached)")
-            if args.estimate_only:
-                for key in ("download", "process", "train", "evaluate", "forecast", "economy",
-                            "news_fetch", "news_process", "opportunity", "charts"):
-                    status.skip(key, "estimate only")
-                status.finish("estimated")
-                print(json.dumps(est, indent=1))
-                return 0
+            if args.start == "evaluate":
+                prev_path = cdir / "results" / "results.json"
+                if not prev_path.exists():
+                    raise RuntimeError("--from evaluate needs a finished earlier run of this city")
+                prev = json.loads(prev_path.read_text(encoding="utf-8"))
+                for k in ("downloads", "stats"):
+                    if k in prev:
+                        results[k] = prev[k]
+                results["resumed_from"] = prev["run_id"]
+                design = model.check_design(cfg)
+                seeds = [s["seed"] for s in prev["evaluation"]["seeds"]]
+                for key in ("search", "download", "process", "train"):
+                    status.skip(key, f"kept from run {prev['run_id']}")
+            else:
+                status.begin("search", module="urbanintel.city.fetch.availability",
+                             detail="checking Earth Engine archives and OpenStreetMap counts")
+                avail = fetch.availability(cfg, aoi, meter, on_step=lambda m: (
+                    status.update("search", detail=m), log.info("search: %s", m)))
+                if avail["viirs_years"]:
+                    cfg_path = catalog.write_config(city, nightlights_end=avail["viirs_years"][-1])
+                    cfg = load_config(cfg_path)
+                items = fetch.plan(cfg, aoi, fine, avail)
+                est = fetch.estimate(items, news_articles=0 if args.no_news else NEWS_ARTICLES_EST)
+                plan = {"availability": {k: v for k, v in avail.items() if k != "osm_sample"},
+                        "estimate": est, "aoi_km": [round(w_km, 1), round(h_km, 1)],
+                        "cells": fine.width * fine.height,
+                        "items": [{"key": i.key, "label": i.label, "dataset": i.dataset, "group": i.group,
+                                   "est_bytes": i.est_bytes, "essential": i.essential, "cached": i.cached()}
+                                  for i in items]}
+                (cdir / "plan.json").write_text(json.dumps(plan, indent=1, default=str), encoding="utf-8")
+                status.set(estimated_bytes=est["total_bytes"], plan_rows=est["rows"],
+                           downloads_total=len(items))
+                status.end("search", note=f"{len(items)} downloads, about {human(est['total_bytes'])} "
+                                          f"({est['cached']} already cached)")
+                if args.estimate_only:
+                    for key in ("download", "process", "train", "evaluate", "forecast", "economy",
+                                "news_fetch", "news_process", "opportunity", "charts"):
+                        status.skip(key, "estimate only")
+                    status.finish("estimated")
+                    print(json.dumps(est, indent=1))
+                    return 0
 
-            status.begin("download", total=len(items), module="urbanintel.city.fetch.execute",
-                         detail="Earth Engine and OpenStreetMap downloads")
+                status.begin("download", total=len(items), module="urbanintel.city.fetch.execute",
+                             detail="Earth Engine and OpenStreetMap downloads")
 
-            def done(it, err):
-                status.update("download", advance=1, detail=f"{'FAILED ' if err else ''}{it.label}",
-                              module=f"{it.dataset}")
-                log.info("download %s: %s", "failed" if err else "ok", it.label)
+                def done(it, err):
+                    status.update("download", advance=1, detail=f"{'FAILED ' if err else ''}{it.label}",
+                                  module=f"{it.dataset}")
+                    log.info("download %s: %s", "failed" if err else "ok", it.label)
 
-            failed = fetch.execute(items, meter, on_done=done)
-            bad = [i.label for i in items if i.key in failed and i.essential]
-            if bad:
-                raise RuntimeError(f"essential downloads failed: {', '.join(bad)}")
-            status.end("download", note=f"{human(meter.total)} downloaded, {len(failed)} optional failed")
-            results["downloads"] = {"bytes": meter.total, "failed": failed, "items": [
-                {"key": i.key, "label": i.label, "dataset": i.dataset, "group": i.group,
-                 "estimated_bytes": i.est_bytes, "actual_bytes": i.actual_bytes, "cached": i.actual_bytes is None}
-                for i in items]}
+                failed = fetch.execute(items, meter, on_done=done)
+                bad = [i.label for i in items if i.key in failed and i.essential]
+                if bad:
+                    raise RuntimeError(f"essential downloads failed: {', '.join(bad)}")
+                status.end("download", note=f"{human(meter.total)} downloaded, {len(failed)} optional failed")
+                results["downloads"] = {"bytes": meter.total, "failed": failed, "items": [
+                    {"key": i.key, "label": i.label, "dataset": i.dataset, "group": i.group,
+                     "estimated_bytes": i.est_bytes, "actual_bytes": i.actual_bytes, "cached": i.actual_bytes is None}
+                    for i in items]}
 
-            status.begin("process", module="urbanintel.city.prepare",
-                         detail="putting every layer onto the 100 m analysis grid")
-            stats = prepare.prepare(cfg, aoi, fine, on_step=lambda mod, m: status.update(
-                "process", module=mod, detail=m))
-            results["stats"] = stats
-            status.end("process", note=f"{stats['area_km2']:,} km2, urban 2020 "
-                                       f"{stats['urban_km2'].get(2020, 0):,} km2")
+                status.begin("process", module="urbanintel.city.prepare",
+                             detail="putting every layer onto the 100 m analysis grid")
+                stats = prepare.prepare(cfg, aoi, fine, on_step=lambda mod, m: status.update(
+                    "process", module=mod, detail=m))
+                results["stats"] = stats
+                status.end("process", note=f"{stats['area_km2']:,} km2, urban 2020 "
+                                           f"{stats['urban_km2'].get(2020, 0):,} km2")
 
-            design = model.check_design(cfg)
-            seeds = list(range(args.seeds))
-            status.begin("train", total=len(seeds), module="scripts/train_image_v2.py",
-                         detail=f"train {design['train']}, stop on {design['stop']}, test {design['test']}")
+                design = model.check_design(cfg)
+                seeds = list(range(args.seeds))
+                status.begin("train", total=len(seeds), module="scripts/train_image_v2.py",
+                             detail=f"train {design['train']}, stop on {design['stop']}, test {design['test']}")
 
-            def on_line(i, seed, line, info):
-                if info:
-                    status.update("train", done=i, detail=(
-                        f"seed {i + 1}/{len(seeds)} - epoch {info['epoch']} - stopping AP "
-                        f"{info['stop_ap']:.3f} (best {info['best_ap']:.3f} at epoch {info['best_epoch']}; "
-                        f"stops by epoch {info['stops_by']} unless it improves)"),
-                        module=f"scripts/train_image_v2.py --seed {seed}")
-                elif "INFO" in line:
-                    log.info("seed %d: %s", seed, line.split("INFO", 1)[1].strip()[:150])
+                def on_line(i, seed, line, info):
+                    if info:
+                        status.update("train", done=i, detail=(
+                            f"seed {i + 1}/{len(seeds)} - epoch {info['epoch']} - stopping AP "
+                            f"{info['stop_ap']:.3f} (best {info['best_ap']:.3f} at epoch {info['best_epoch']}; "
+                            f"stops by epoch {info['stops_by']} unless it improves)"),
+                            module=f"scripts/train_image_v2.py --seed {seed}")
+                    elif "INFO" in line:
+                        log.info("seed %d: %s", seed, line.split("INFO", 1)[1].strip()[:150])
 
-            model.train_seeds(cfg_path, seeds, on_line=on_line)
-            status.end("train", note=f"{len(seeds)} seeds trained")
+                model.train_seeds(cfg_path, seeds, on_line=on_line)
+                status.end("train", note=f"{len(seeds)} seeds trained")
 
             status.begin("evaluate", module="urbanintel.city.model.evaluate",
                          detail="ensemble scored once on 2015-2020")

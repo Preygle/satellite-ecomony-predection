@@ -365,15 +365,15 @@ with tabs[1]:
                  "AUC": e.get("auc"), "kappa": e.get("kappa")}]
         for s_ in ev.get("seeds", []):
             rows.append({"model": f"  seed {s_['seed']} (best epoch {s_['best_epoch']})",
-                         "Figure of Merit": s_["figure_of_merit"], "AUC": s_["auc"], "kappa": None})
+                         "Figure of Merit": s_["figure_of_merit"], "AUC": s_["auc"], "kappa": s_.get("kappa")})
         lr = ev.get("logistic_regression", {})
         rows.append({"model": "Logistic regression, 8 drivers", "Figure of Merit": lr.get("figure_of_merit"),
-                     "AUC": lr.get("auc"), "kappa": None})
+                     "AUC": lr.get("auc"), "kappa": lr.get("kappa")})
         rows.append({"model": "Random placement", "Figure of Merit": ev.get("random_baseline", {}).get(
             "figure_of_merit"), "AUC": 0.5, "kappa": 0.0})
         st.markdown(f"**Held-out test {ev.get('test_period')}** &middot; trained on "
                     f"{ev.get('design', {}).get('train')}, early stopping on {ev.get('design', {}).get('stop')}")
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(rows).fillna("-"), hide_index=True, use_container_width=True)
         toc = ev.get("toc") or {}
         if toc.get("flagged"):
             n_e, n_o = toc["n_eligible"], toc["n_observed"]
@@ -383,7 +383,10 @@ with tabs[1]:
             fig.add_trace(go.Scatter(x=[0, n_e], y=[0, n_o], name="random", line=dict(color=MUTED, dash="dot", width=2)))
             fig.add_trace(go.Scatter(x=[0, n_o, n_e], y=[0, n_o, n_o], name="perfect",
                                      line=dict(color=INK2, dash="dash", width=1)))
-            st.plotly_chart(layout(fig, 280, "Total Operating Characteristic"), use_container_width=True)
+            fig.update_xaxes(range=[0, min(n_e, 6 * n_o)], title_text="cells flagged, most suitable first")
+            fig.update_yaxes(title_text="conversions found")
+            st.plotly_chart(layout(fig, 280, "Total Operating Characteristic (first part of the curve)"),
+                            use_container_width=True)
         ux = fc.get("urban_extent_km2", {})
         if ux:
             yrs = sorted(int(y) for y in ux)
@@ -464,9 +467,13 @@ with tabs[3]:
                  "tip": f"{ev_['event_type']} ({ev_['status']}, impact {ev_['impact']:+.2f})"}
                 for ev_ in nw["events"] if ev_.get("placed") == "located"][:40])
         with b:
-            k = st.columns(3)
+            k = st.columns(4)
             kpi(k[0], nw["development_articles"], "development articles", f"of {nw['unique_articles']} unique")
-            kpi(k[1], f"{nw['positive_events']} / {nw['negative_events']}", "positive / negative events", "")
+            kpi(k[1], f"{nw['positive_events']} / {nw['negative_events']}", "positive / negative events",
+                f"{nw.get('located_events', 0)} placed on the map")
+            cni = nw.get("city_news_index")
+            kpi(k[3], "-" if cni is None else f"{cni:+.2f}", "city news climate",
+                "citywide events, -1 to +1")
             au = nw["audit"]
             inv = au.get("score_invariance")
             base = au.get("rerun_same_score")
@@ -494,6 +501,9 @@ with tabs[3]:
                                         "development": (x["extraction"] or {}).get("is_development_event"),
                                         "impact": x["impact"], "url": x["url"]} for x in nw["articles"]]),
                          hide_index=True, use_container_width=True)
+        if nw.get("evidence_overrides"):
+            with st.expander(f"Labels set to neutral by the evidence check ({len(nw['evidence_overrides'])})"):
+                st.dataframe(pd.DataFrame(nw["evidence_overrides"]), hide_index=True, use_container_width=True)
         with st.expander("Scoring table and neutrality audit"):
             st.json({"scoring": nw["scoring"], "audit": nw["audit"], "per_query": nw["per_query"],
                      "top_sources": nw["top_sources"], "max_source_share": nw["max_source_share"]})

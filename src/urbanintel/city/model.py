@@ -99,6 +99,7 @@ def _seed_summary(cfg: Config, seed: int) -> dict:
     d = json.loads(p.read_text(encoding="utf-8"))
     a = d["analytics"]
     return {"seed": seed, "figure_of_merit": a["validation"]["figure_of_merit"],
+            "kappa": a["validation"].get("kappa"),
             "auc": a["auc_test"], "average_precision": a["average_precision"],
             "best_epoch": d["design"]["best_epoch"], "epochs_run": d["design"]["epochs_run"],
             "parameters": d["design"]["parameters"], "channels": len(d["design"]["channels"]),
@@ -159,7 +160,8 @@ def evaluate(cfg: Config, fine: AnalysisFrame, seeds: list[int]) -> dict:
         "random_baseline": {"figure_of_merit": rand, "hits": base["mean_hits"]},
         "skill_vs_random": round(fom / rand, 1) if rand else None,
         "logistic_regression": {"figure_of_merit": round(lr.validation.figure_of_merit, 4),
-                                "auc": round(lr.test_auc, 4), "drivers": lr.driver_names},
+                                "auc": round(lr.test_auc, 4), "kappa": round(lr.validation.kappa, 4),
+                                "drivers": lr.driver_names},
         "toc": rep.get("toc"), "calibration": rep.get("calibration"),
         "precision_at_k": rep.get("precision_at_k"), "block_stability": rep.get("block_stability"),
     }

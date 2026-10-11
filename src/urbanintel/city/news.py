@@ -17,7 +17,7 @@ import requests
 from ..aoi import AOI, AnalysisFrame
 from .catalog import NOMINATIM, USER_AGENT
 
-PROMPT_VERSION = "news-extract-v3"
+PROMPT_VERSION = "news-extract-v4"
 MAX_AGE_MONTHS = 24
 PER_QUERY = 8
 MAX_ARTICLES = 140
@@ -64,6 +64,16 @@ ALIASES = {"bengaluru": ["Bangalore"], "mumbai": ["Bombay"], "gurugram": ["Gurga
            "kochi": ["Cochin"], "visakhapatnam": ["Vizag"], "delhi": ["New Delhi"],
            "pune": ["Poona"], "thiruvananthapuram": ["Trivandrum"], "mysuru": ["Mysore"]}
 SCALE = 1.5
+CITY_SCALE = 3.0
+# A label must be supported by the text: a setback needs a setback word, progress needs a development word
+NEG_CUES = re.compile(r"delay|stall|halt|scrap|cancel|postpon|stuck|shelv|closure|clos(e|es|ed|ing) down|"
+                      r"shut|layoff|lay off|job cut|flood|waterlog|collaps|ban|shortage|crisis|damag|"
+                      r"fire|accident|protest|dispute|slow|behind schedule|miss(ed|es) (the )?deadline|"
+                      r"exit|pull(s|ed)? out|withdraw|loss|decline|fall|drop", re.IGNORECASE)
+POS_CUES = re.compile(r"open|launch|inaugurat|complet|approv|sanction|clear|start|begin|began|build|"
+                      r"construct|invest|expan|plan|propos|tender|award|commission|foundation|operational|"
+                      r"new |set up|sets up|upgrad|add|introduc|unveil|allot|fund|develop|work on|"
+                      r"progress|connect|link|extend|acquir|hire|hiring|jobs", re.IGNORECASE)
 
 # Names are used only to redact them from outputs and for the counterfactual neutrality test
 PARTIES = ["Bharatiya Janata Party", "BJP", "Indian National Congress", "Congress", "INC",
@@ -338,7 +348,25 @@ def impact(ext: dict, age_months: float) -> float:
     return sign * mag * STATUS_WEIGHT[ext["status"]] * BASIS_WEIGHT[ext["basis"]] * recency
 
 
-def cluster_events(rows: list[dict], now: datetime) -> list[dict]:
+def check_evidence(ext: dict | None, a: Article) -> tuple[dict | None, str | None]:
+    # The same test for good and bad labels: one the text gives no cue for is set to neutral
+    if not ext or not ext.get("is_development_event"):
+        return ext, None
+    text = f"{a.title} {a.snippet}"
+    out = dict(ext)
+    if out["status"] in SETBACK_STATUS and not NEG_CUES.search(text):
+        out.update(status="unclear", direction="neutral")
+        return out, "setback status without a setback word"
+    if out["direction"] == "negative" and not NEG_CUES.search(text):
+        out["direction"] = "neutral"
+        return out, "negative direction without a setback word"
+    if out["direction"] == "positive" and not POS_CUES.search(text):
+        out["direction"] = "neutral"
+        return out, "positive direction without a development word"
+    return out, None
+
+
+def cluster_events(rows: list[dict], now: datetime, city: str = "") -> list[dict]:
     events: dict[tuple, dict] = {}
     for r in rows:
         ext = r["extraction"]
@@ -346,6 +374,11 @@ def cluster_events(rows: list[dict], now: datetime) -> list[dict]:
             continue
         a = Article(**r["article"])
         loc = re.sub(r"[^a-z0-9 ]", "", ext["location"].lower()).strip()
+        # A location that only names the city is the whole city, not a point at its centre
+        if city and re.sub(r"\b(" + "|".join(n.lower() for n in names(city)) + r"|city|india)\b", "",
+                           loc).strip(" ,") == "":
+            loc = ""
+            ext = {**ext, "location": "", "scope": "citywide"}
         group = "setback" if ext["status"] in SETBACK_STATUS else "progress"
         key = (ext["event_type"], loc, group)
         e = events.setdefault(key, {"event_type": ext["event_type"], "location": ext["location"].strip(),
@@ -392,10 +425,13 @@ def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
     return tuple(cache[key]) if hit else None
 
 
-def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame, cache: dict) -> tuple[np.ndarray, list[dict]]:
+def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame,
+               cache: dict) -> tuple[np.ndarray, float, list[dict]]:
+    # Located events say where; citywide ones only say how much, so they form a separate city figure
     xs, ys = coarse.xy_centres()
     X, Y = np.meshgrid(xs, ys)
     total = np.zeros(coarse.shape, dtype="float64")
+    city_total = 0.0
     placed = []
     for e in events:
         if e["impact"] == 0:
@@ -403,8 +439,7 @@ def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame, cache: dict)
         _, radius = EFFECT.get(e["event_type"], EFFECT["other"])
         pt = None if e["scope"] == "citywide" else geocode(e["location"], aoi, cache)
         if pt is None:
-            # Unlocated or citywide events spread evenly at a reduced weight
-            total += 0.3 * e["impact"]
+            city_total += e["impact"]
             e["placed"] = "citywide"
         else:
             x, y = aoi.to_metres(*pt)
@@ -412,7 +447,7 @@ def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame, cache: dict)
             total += e["impact"] * np.exp(-(d / radius) ** 2)
             e.update(placed="located", lon=pt[0], lat=pt[1], radius_km=radius)
         placed.append(e)
-    return np.tanh(total / SCALE).astype("float32"), placed
+    return np.tanh(total / SCALE).astype("float32"), float(np.tanh(city_total / CITY_SCALE)), placed
 
 
 def fetch_stage(city: str, fetch: Callable[[str], bytes], *, on_step=None) -> dict:
@@ -427,9 +462,15 @@ def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: di
     now = got["now"]
     rows = extract_all(got["articles"], city, extractor, workers=getattr(extractor, "workers", 4),
                        on_step=on_step)
+    overrides = []
+    for r in rows:
+        r["raw_extraction"] = r["extraction"]
+        r["extraction"], why = check_evidence(r["extraction"], Article(**r["article"]))
+        if why:
+            overrides.append({"title": redact(r["article"]["title"])[0], "reason": why})
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
-    events = cluster_events(rows, now)
-    index, placed = zone_index(events, aoi, coarse, cache)
+    events = cluster_events(rows, now, city)
+    index, city_index, placed = zone_index(events, aoi, coarse, cache)
     cache_path.write_text(json.dumps(cache, indent=1), encoding="utf-8")
     audit = counterfactual_audit(rows, city, extractor)
     ok = [r for r in rows if r["extraction"]]
@@ -452,11 +493,16 @@ def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: di
         "basis_counts": basis_counts, "top_sources": sorted(srcs.items(), key=lambda kv: -kv[1])[:8],
         "max_source_share": round(max(srcs.values()) / len(dev), 3) if dev else None,
         "audit": audit, "retrieval_balance": got["balance"],
+        "evidence_overrides": overrides, "city_news_index": round(city_index, 3),
+        "located_events": sum(1 for e in placed if e.get("placed") == "located"),
         "scoring": {"effect": EFFECT, "status_weight": STATUS_WEIGHT, "basis_weight": BASIS_WEIGHT,
                     "half_life_months": HALF_LIFE_MONTHS, "scale": SCALE,
                     "corroboration": "min(1, 0.5 + 0.25 x distinct sources)",
-                    "zone_index": ("tanh(sum of impact x exp(-(d/r)^2) / 1.5); unlocated or citywide "
-                                   "events add 0.3 x impact everywhere")},
+                    "zone_index": "tanh(sum over located events of impact x exp(-(d/r)^2) / 1.5)",
+                    "city_news_index": "tanh(sum of citywide and unlocated event impacts / 3)",
+                    "evidence_check": ("a setback status or negative direction needs a setback word in the "
+                                       "headline or snippet, a positive direction needs a development word; "
+                                       "otherwise the label is set to neutral")},
         "articles": [{"title": redact(r["article"]["title"])[0], "source": r["article"]["source"],
                       "url": r["article"]["url"], "published": r["article"]["published"][:10],
                       "retrieval": r["article"]["retrieval"], "query": r["article"]["query"],

@@ -137,6 +137,6 @@ def build_overlays(rdir: Path, out: Path, fine: AnalysisFrame, coarse: AnalysisF
     if nw is not None and np.nanmax(np.abs(nw)) > 0:
         o["news"] = {**continuous(nw, coarse, out / "news.png", cmap=DIVERGING, vmin=-1, vmax=1,
                                   alpha=0.7),
-                     "title": "News development index (qualitative, not validated)"}
+                     "title": "Located development news (qualitative, not validated)"}
     (out / "overlays.json").write_text(json.dumps(o, indent=1), encoding="utf-8")
     return o
