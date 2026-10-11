@@ -243,3 +243,69 @@ re-read's variation would indicate bias.
   11.1 MB on roads where a clean run uses 2.5 MB, so the estimate is a clean-run figure.
 - The CARTO base map now needs an API key, so the maps use Esri's light grey canvas.
 - `OLLAMA_HOST` on this machine has no `http://` prefix; it is added when missing.
+- **The first Delhi run stopped after 34 of 35 downloads.** One Overpass mirror held the road
+  request for seven minutes. The read timeout came from urllib3, which the retry logic did not
+  catch, so the road item failed and about 16 MB of road data already received was lost. Errors now
+  move to the next mirror, every Overpass answer is cached on disk, and two mirrors that only ever
+  returned 500 or hung are dropped. The second run reused the 34 finished downloads and fetched
+  only the roads.
+- **The neutrality audit compared unlike things.** It set the evidence-checked original against
+  unchecked re-reads, so even an identical re-read could count as a change. Both re-reads now pass
+  the same check.
+
+---
+
+## 8. Results: Bengaluru and Delhi
+
+Run on 11 October 2026 with five seeds and the local news reader (qwen2.5:7b), since no Gemini key
+was set. Every number is in `data/cities/<city>/results/results.json`.
+
+| | Bengaluru | Delhi |
+|---|---|---|
+| Study area | 46 x 45 km, 2,139 km², 213,850 cells | 61 x 69 km, 4,371 km², 437,100 cells |
+| Landsat dry-season window | October-March; 2000 from two dry seasons | November-April |
+| Urban extent 2010 to 2020 (GHS-BUILT-S) | 478 to 622 km² | 1,054 to 1,206 km² |
+| **Image model, held-out 2015-2020** | **FoM 0.1765**, AUC 0.931, kappa 0.277 | **FoM 0.2215**, AUC 0.964, kappa 0.348 |
+| The five seeds alone | 0.160 to 0.181 | 0.208 to 0.223 |
+| Logistic regression, 8 drivers | 0.083 | 0.139 |
+| Random placement | 0.016 (the model is 10.9x) | 0.011 (20.0x) |
+| Forecast new urban land, 2020 to 2025 | 87.7 km² (622 to 710 km²) | 83.9 km² (1,206 to 1,290 km²) |
+| Predicted cells chosen by most seeds | 97% | 92% |
+| Night-light growth model, tested on 2020-2024 | Spearman 0.66, top-20% precision 0.37 | Spearman 0.33, top-20% precision 0.32 |
+| Past-trend baseline | Spearman 0.49 | Spearman 0.23 |
+| Citywide night-light growth | +1.5%/yr 2013-2021, +6.7%/yr 2022-2025 | -0.9%/yr 2013-2021, +7.3%/yr 2022-2025 |
+| News: development articles, events, placed on the map | 60, 18, 5 | 44, 14, 4 |
+| City news climate (-1 to +1) | +0.89 | +0.70 |
+| Name-swap audit: same score (unchanged re-read) | 2 articles: 100% (100%) | 10 articles: 90% (100%) |
+| Top three sites | Gandhinagar; Sir MV Layout; Electronics City Phase 2 | Shipra Sun City (Ghaziabad); IFFCO Chowk (Gurugram); Ralpur Khadar (Noida) |
+| Downloaded | 40.9 MB, plus 0.8 MB for a news refresh | 85.8 MB in the stopped first run, 25.5 MB in the second, 0.9 MB for a news refresh |
+| Wall-clock time | 39 min | 28 min stopped, then 51 min |
+
+**What this shows.**
+
+- The image model transfers. Trained only on each city's own history, it beats logistic
+  regression on the same drivers by 2.1x in Bengaluru and 1.6x in Delhi, and both cities score
+  above Varanasi's 0.1507. It is still the same design, with no city-specific tuning.
+- The night-light growth model works in Bengaluru and is weak in Delhi. Delhi's Sum of Lights drops
+  9% from 2015 to 2016 and stays flat until 2021, while Bengaluru and Chandigarh do not. The timing
+  is consistent with Delhi's citywide switch to LED street lights, which the VIIRS day/night band
+  sees less well, so a dimming there need not be an economic decline. This is a limit of the proxy,
+  stated rather than corrected.
+- The news layer is the weakest part with a local 7B reader. It filed almost every development
+  article as an "official decision", and the evidence check overrode 17 labels in each city. One
+  of ten audited Delhi articles changed score when party names were swapped. With ten articles
+  that is not statistically meaningful, but a stronger reader (the free Gemini tier) is the remedy.
+  Place names are geocoded inside the study area, so a name shared with a town outside it can be
+  placed wrongly. A plant in Hosur, Tamil Nadu was put on Hosur Road in Bengaluru. Every placement
+  is listed in the events table.
+
+**Demo videos** (timelapse x36, wall clock, elapsed time and stage on every frame, chapter list
+beside each):
+
+- `data/cities/bengaluru/demo/bengaluru_run_timelapse_20261011-135959.mp4`: 91 s for the 39-minute run
+- `data/cities/delhi/demo/delhi_full_story_timelapse.mp4`: 170 s. The stopped first run, a card
+  explaining the fix, then the resumed run.
+
+The videos were recorded before the final news fixes, so their news tabs show the first news pass.
+The dashboard shows the final one.
+

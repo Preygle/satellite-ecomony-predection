@@ -231,9 +231,12 @@ if not res_path.exists():
 R = json.loads(res_path.read_text(encoding="utf-8"))
 OV = json.loads((cdir / "results" / "overlays.json").read_text(encoding="utf-8"))
 st.divider()
-st.markdown(f"### Results for {R['city']['name']} <span class='note'>(run {R['run_id']}, "
-            f"{R['runtime_s'] / 60:.0f} min, {human(R['bytes_downloaded'])} downloaded)</span>",
-            unsafe_allow_html=True)
+data_bytes = (R.get("downloads") or {}).get("bytes", 0)
+refresh = (f"refreshed in run {R['run_id']} ({R['runtime_s'] / 60:.0f} min, {human(R['bytes_downloaded'])}) "
+           f"from run {R['resumed_from']}; " if R.get("resumed_from") else
+           f"run {R['run_id']}, {R['runtime_s'] / 60:.0f} min; ")
+st.markdown(f"### Results for {R['city']['name']} <span class='note'>({refresh}data download "
+            f"{human(data_bytes)})</span>", unsafe_allow_html=True)
 
 
 def layout(fig, h=300, title=""):
