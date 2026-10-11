@@ -29,6 +29,25 @@ GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"
 BASEMAP = ("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/"
            "MapServer/tile/{z}/{y}/{x}")
 BASEMAP_ATTR = "Base map: Esri, HERE, Garmin, (c) OpenStreetMap contributors"
+UP, DOWN = "#2a78d6", "#e34948"
+PLOT_CONFIG = {"displayModeBar": False}
+NEWS_MIN = 0.001
+TYPE_LABEL = {
+    "metro_rail": ("🚇", "Metro rail"), "suburban_rail_or_station": ("🚆", "Suburban rail or station"),
+    "airport": ("✈️", "Airport"), "expressway_or_ring_road": ("🛣️", "Expressway or ring road"),
+    "flyover_or_road_widening": ("🌉", "Flyover or road widening"),
+    "bus_or_electric_transit": ("🚌", "Buses or electric transit"), "it_park_or_offices": ("🏢", "IT park or offices"),
+    "industrial_or_manufacturing": ("🏭", "Industry or manufacturing"), "data_centre": ("🖥️", "Data centre"),
+    "retail_or_commercial": ("🛍️", "Retail or commercial"), "housing_or_township": ("🏘️", "Housing or township"),
+    "utilities_water_power_sewage": ("💧", "Water, power or sewage"),
+    "health_or_education_campus": ("🏥", "Hospital or campus"), "flood_or_disaster": ("🌊", "Flood or disaster"),
+    "business_closure_or_layoffs": ("📉", "Closure or layoffs"),
+    "environmental_or_construction_restriction": ("🚫", "Construction or pollution restriction"),
+    "water_or_power_shortage": ("🚱", "Water or power shortage"), "other": ("📰", "Other development"),
+}
+BASIS_LABEL = {"reported_fact": "reported fact", "official_decision": "official decision",
+               "announcement_or_plan": "announcement or plan",
+               "political_claim_or_promise": "political claim (carries no weight)", "opinion": "opinion"}
 ICON = {"done": ("✓", GOOD), "running": ("◐", BLUE), "pending": ("○", MUTED),
         "skipped": ("–", MUTED), "failed": ("✕", CRIT)}
 
@@ -46,6 +65,14 @@ st.markdown("""
 .kpi .l {font-size:.8rem; color:#52514e;}
 .kpi .s {font-size:.78rem; color:#8a8984;}
 .note {color:#52514e; font-size:.85rem;}
+.ev {border:1px solid #e6e5e0; border-radius:8px; padding:.55rem .75rem; margin-bottom:.5rem; background:#fcfcfb;}
+.ev .hd {display:flex; gap:.5rem; align-items:center; color:#0b0b0b; font-weight:600;}
+.ev .ln {color:#52514e; font-size:.86rem; margin-top:.15rem;}
+.badge {display:inline-block; min-width:2.1rem; text-align:center; color:#ffffff; border-radius:10px;
+        padding:.05rem .4rem; font-weight:700; font-size:.78rem;}
+[data-testid="stHeaderActionElements"] {display:none;}
+.site {display:inline-block; min-width:1.4rem; text-align:center; border:2px solid #0b0b0b; border-radius:50%;
+       font-weight:700; font-size:.72rem; color:#0b0b0b; background:#fff;}
 </style>""", unsafe_allow_html=True)
 
 
@@ -239,6 +266,39 @@ st.markdown(f"### Results for {R['city']['name']} <span class='note'>({refresh}d
             f"{human(data_bytes)})</span>", unsafe_allow_html=True)
 
 
+def kind(e: dict) -> tuple[str, str]:
+    return TYPE_LABEL.get(e.get("event_type"), TYPE_LABEL["other"])
+
+
+def strength(v: float) -> str:
+    a = abs(v)
+    return "strong" if a >= 0.5 else ("moderate" if a >= 0.2 else "mild")
+
+
+def km_between(lat1, lon1, lat2, lon2) -> float:
+    p = math.pi / 180
+    h = (math.sin((lat2 - lat1) * p / 2) ** 2
+         + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin((lon2 - lon1) * p / 2) ** 2)
+    return 12742.0 * math.asin(math.sqrt(h))
+
+
+def news_effects(located: list[dict], sites: list[dict], *, scale: float, weight: float) -> list[dict]:
+    # The same arithmetic as the pipeline: each event fades as exp(-(d/r)^2); the site's change is
+    # weight x tanh(sum / scale), shared among events in proportion to their part of the sum
+    out = []
+    for s_ in sites:
+        if "lat" not in s_:
+            continue
+        terms = [(i, e["impact"] * math.exp(-(km_between(s_["lat"], s_["lon"], e["lat"], e["lon"])
+                                                 / e["radius_km"]) ** 2)) for i, e in enumerate(located)]
+        total = sum(t for _, t in terms)
+        adj = weight * math.tanh(total / scale)
+        parts = sorted(((i, adj * t / total) for i, t in terms if total and abs(adj * t / total) >= NEWS_MIN),
+                       key=lambda x: -abs(x[1]))
+        out.append({**s_, "news_change": adj, "drivers": parts})
+    return out
+
+
 def layout(fig, h=300, title=""):
     fig.update_layout(height=h, margin=dict(l=10, r=10, t=36 if title else 10, b=10),
                       title=dict(text=title, font=dict(size=14, color=INK)), plot_bgcolor="#fcfcfb",
@@ -343,6 +403,12 @@ with tabs[0]:
                          f"{gb['spearman_rho']:.2f} on {f['test']}, top-quintile precision "
                          f"{gb['top_quintile_precision']:.2f} against 0.20 by chance.")
         if nw:
+            loc_top = sorted([e for e in nw["events"] if e.get("placed") == "located"], key=lambda e: -abs(e["impact"]))
+            if loc_top:
+                e0 = loc_top[0]
+                lines.append(f"- The most influential mapped development: {kind(e0)[0]} {e0['summary']} "
+                             f"({e0['location']}, {'raises' if e0['impact'] > 0 else 'lowers'} the outlook within "
+                             f"about {e0['radius_km']:g} km). See the News tab for where each development lands.")
             au = nw["audit"]
             check = (f"name-swap neutrality test: same score in {au['score_invariance'] * 100:.0f}% of "
                      f"{au['tested']} re-tests"
@@ -389,7 +455,7 @@ with tabs[1]:
             fig.update_xaxes(range=[0, min(n_e, 6 * n_o)], title_text="cells flagged, most suitable first")
             fig.update_yaxes(title_text="conversions found")
             st.plotly_chart(layout(fig, 280, "Total Operating Characteristic (first part of the curve)"),
-                            use_container_width=True)
+                            use_container_width=True, config=PLOT_CONFIG)
         ux = fc.get("urban_extent_km2", {})
         if ux:
             yrs = sorted(int(y) for y in ux)
@@ -400,7 +466,7 @@ with tabs[1]:
             fig.add_trace(go.Scatter(x=[2020, 2025], y=[ux.get("2020", ux.get(2020)), ux.get("2025", ux.get(2025))],
                                      name="prediction", mode="lines+markers",
                                      line=dict(color=ORANGE, width=2, dash="dash")))
-            st.plotly_chart(layout(fig, 240, "Urban extent, km²"), use_container_width=True)
+            st.plotly_chart(layout(fig, 240, "Urban extent, km²"), use_container_width=True, config=PLOT_CONFIG)
         sa = fc.get("seed_agreement") or {}
         if sa:
             st.caption(f"Of the cells predicted to urbanise by 2025, {sa.get('majority', 0) * 100:.0f}% are "
@@ -425,7 +491,7 @@ with tabs[2]:
                                          name=f"NOAA/VIIRS/DNB/{prod}", mode="lines+markers",
                                          line=dict(color=colr, width=2)))
             st.plotly_chart(layout(fig, 250, "Sum of Lights (radiance x km²); product change marked by colour"),
-                            use_container_width=True)
+                            use_container_width=True, config=PLOT_CONFIG)
         f = econ.get("forecast", {})
         if f.get("models"):
             names_ = {"no_change": "No change (baseline)", "trend_extrapolation": "Past trend x 4 (baseline)",
@@ -446,7 +512,7 @@ with tabs[2]:
             fig.add_trace(go.Bar(x=dec["decile"], y=dec["observed"], name="observed", marker_color=BLUE))
             fig.add_trace(go.Scatter(x=dec["decile"], y=dec["predicted"], name="predicted",
                                      mode="lines+markers", line=dict(color=ORANGE, width=2)))
-            st.plotly_chart(layout(fig, 240, "Held-out growth by predicted decile"), use_container_width=True)
+            st.plotly_chart(layout(fig, 240, "Held-out growth by predicted decile"), use_container_width=True, config=PLOT_CONFIG)
             st.caption(f["note"])
         pv = econ.get("proxy_validation")
         if pv:
@@ -463,51 +529,155 @@ with tabs[3]:
                 "GEMINI_API_KEY (https://aistudio.google.com/apikey), or start Ollama with a model pulled, "
                 "then press Refresh news only.")
     else:
-        a, b = st.columns([1.15, 1])
-        with a:
-            overlay_map(["news", "opportunity"], "nw", markers=[
-                {"lat": ev_["lat"], "lon": ev_["lon"], "label": "",
-                 "tip": f"{ev_['event_type']} ({ev_['status']}, impact {ev_['impact']:+.2f})"}
-                for ev_ in nw["events"] if ev_.get("placed") == "located"][:40])
-        with b:
-            k = st.columns(4)
-            kpi(k[0], nw["development_articles"], "development articles", f"of {nw['unique_articles']} unique")
-            kpi(k[1], f"{nw['positive_events']} / {nw['negative_events']}", "positive / negative events",
-                f"{nw.get('located_events', 0)} placed on the map")
-            cni = nw.get("city_news_index")
-            kpi(k[3], "-" if cni is None else f"{cni:+.2f}", "city news climate",
-                "citywide events, -1 to +1")
-            au = nw["audit"]
-            inv = au.get("score_invariance")
-            base = au.get("rerun_same_score")
-            kpi(k[2], "not tested" if inv is None else f"{inv * 100:.0f}%", "same score after name swap",
-                (f"unchanged re-read: {base * 100:.0f}%, {au['tested']} articles" if base is not None
-                 else f"{au['tested']} articles re-tested"))
-            st.write("")
-            st.caption(f"Reader: large language model (LLM) {nw['extractor']} ({nw['prompt_version']}). Political claims and promises "
-                       f"carry zero weight; party names are removed from every output; the score comes "
-                       f"from a fixed table, not from the model.")
-            bc = nw.get("basis_counts", {})
-            if bc:
-                fig = go.Figure(go.Bar(x=list(bc.values()), y=list(bc.keys()), orientation="h",
-                                       marker_color=BLUE))
-                st.plotly_chart(layout(fig, 200, "Evidence basis of development articles"),
-                                use_container_width=True)
-        evdf = pd.DataFrame([{"impact": x["impact"], "type": x["event_type"], "location": x["location"] or "citywide",
-                              "status": x["status"], "basis": x["basis"], "sources": x["n_sources"],
-                              "summary": x["summary"]} for x in nw["events"]])
-        if len(evdf):
-            st.dataframe(evdf, hide_index=True, use_container_width=True, height=320)
-        with st.expander("Every article read, with its extraction"):
+        sc = nw.get("scoring", {})
+        scale = float(sc.get("scale", 1.5))
+        weight = float((opp.get("news") or {}).get("weight", 0.10))
+        located = sorted([e for e in nw["events"] if e.get("placed") == "located"], key=lambda e: -abs(e["impact"]))
+        citywide = sorted([e for e in nw["events"] if e.get("placed") != "located"], key=lambda e: -e["impact"])
+        sites = [r for r in opp.get("top", [])[:10] if "lat" in r]
+        effects = news_effects(located, sites, scale=scale, weight=weight)
+        st.markdown(
+            f"**{len(nw['events'])} developments** found in {nw['development_articles']} news articles "
+            f"(of {nw['unique_articles']} read). **{len(located)}** happen at a place we can map, and their "
+            f"effect fades with distance: a metro station reaches about 2 km, an airport about 10 km. "
+            f"**{len(citywide)}** concern the whole city. Blue raises a place's outlook, red lowers it. "
+            f"News moves a site's score by at most {weight:.2f} on a 0 to 1 scale, and the satellite "
+            f"evidence decides the rest.")
+
+        a1, b1 = st.columns([1.2, 1])
+        with a1:
+            st.markdown("##### Where the news lands")
+            if located or sites:
+                pts = [(e["lat"], e["lon"]) for e in located] + [(r["lat"], r["lon"]) for r in sites]
+                lats, lons = [p_[0] for p_ in pts], [p_[1] for p_ in pts]
+                lon0, lat0, lon1, lat1 = R["aoi"]["bbox"]
+                ext = max(lon1 - lon0, lat1 - lat0)
+                zoom = int(min(13, max(8, math.floor(math.log2(360.0 / max(ext, 1e-3) * 2.2)))))
+                m = folium.Map(location=[(lat0 + lat1) / 2, (lon0 + lon1) / 2], zoom_start=zoom,
+                               tiles=BASEMAP, attr=BASEMAP_ATTR, control_scale=True)
+                for i, e in enumerate(located, start=1):
+                    col = UP if e["impact"] > 0 else DOWN
+                    icon, label = kind(e)
+                    links = "".join(f"<li><a href='{x['url']}' target='_blank'>{x['title'][:90]}</a> "
+                                    f"<span style='color:#8a8984'>({x['source']}, {x['published']})</span></li>"
+                                    for x in e["articles"][:4])
+                    pop = (f"<b>N{i} {icon} {label}</b>, {e['status'].replace('_', ' ')}<br>{e['summary']}<br>"
+                           f"<i>{e['location']}</i> - reaches about {e['radius_km']:g} km - "
+                           f"{strength(e['impact'])} ({e['impact']:+.2f}) - {e['n_sources']} source(s)"
+                           f"<ul style='padding-left:1rem;margin:.3rem 0'>{links}</ul>")
+                    folium.Circle([e["lat"], e["lon"]], radius=e["radius_km"] * 1000, color=col, weight=1.5,
+                                  dash_array="5 4", fill=True, fill_color=col, fill_opacity=0.12,
+                                  tooltip=f"N{i}: {e['summary']}").add_to(m)
+                    folium.Marker([e["lat"], e["lon"]], tooltip=f"N{i} {label}: {e['summary']}",
+                                  popup=folium.Popup(pop, max_width=360),
+                                  icon=folium.DivIcon(icon_size=(34, 20), icon_anchor=(17, 10), html=(
+                                      f"<div style='background:{col};color:#fff;border-radius:10px;"
+                                      f"font:700 11px sans-serif;text-align:center;padding:2px 0;"
+                                      f"border:1.5px solid #fff'>N{i}</div>"))).add_to(m)
+                for r in sites:
+                    folium.Marker([r["lat"], r["lon"]], tooltip=f"Site #{r['rank']} {r.get('locality') or ''}",
+                                  icon=folium.DivIcon(icon_size=(22, 22), icon_anchor=(11, 11), html=(
+                                      f"<div style='width:22px;height:22px;border-radius:50%;background:#fff;"
+                                      f"border:2px solid #0b0b0b;font:700 11px sans-serif;color:#0b0b0b;"
+                                      f"display:flex;align-items:center;justify-content:center'>{r['rank']}"
+                                      f"</div>"))).add_to(m)
+                st_folium(m, height=540, use_container_width=True, returned_objects=[], key="newsmap")
+                st.markdown(f"<span class='badge' style='background:{UP}'>N</span> development that raises "
+                            f"the outlook &nbsp; <span class='badge' style='background:{DOWN}'>N</span> one that "
+                            f"lowers it &nbsp; dashed circle: how far it reaches &nbsp; "
+                            f"<span class='site'>1</span> expansion site, by rank", unsafe_allow_html=True)
+        with b1:
+            st.markdown("##### What each development does")
+            if not located:
+                st.caption("No development in these articles could be placed on the map.")
+            near: dict[int, list[str]] = {}
+            for eff in effects:
+                for i, v in eff["drivers"]:
+                    near.setdefault(i, []).append(f"#{eff['rank']} {eff.get('locality') or ''} ({v:+.3f} to its score)")
+            for i, e in enumerate(located, start=1):
+                col = UP if e["impact"] > 0 else DOWN
+                icon, label = kind(e)
+                verb = "raises" if e["impact"] > 0 else "lowers"
+                touched = near.get(i - 1, [])
+                st.markdown(
+                    f"<div class='ev'><div class='hd'><span class='badge' style='background:{col}'>N{i}</span>"
+                    f"{icon} {label}, {e['status'].replace('_', ' ')}</div>"
+                    f"<div class='ln'><b>{e['location']}</b>: {e['summary']}</div>"
+                    f"<div class='ln'>{'▲' if e['impact'] > 0 else '▼'} {verb} the outlook within about "
+                    f"{e['radius_km']:g} km ({strength(e['impact'])}, {e['impact']:+.2f}); "
+                    f"{e['n_sources']} source(s); {BASIS_LABEL.get(e['basis'], e['basis'])}</div>"
+                    f"<div class='ln'>{'Top sites it reaches: ' + ', '.join(touched[:3]) if touched else 'No top-10 site is close enough to feel it.'}</div>"
+                    f"</div>", unsafe_allow_html=True)
+
+        st.markdown("##### News about the whole city")
+        cni = nw.get("city_news_index")
+        if citywide:
+            pos = sum(1 for e in citywide if e["impact"] > 0)
+            st.markdown(
+                f"City news climate **{cni:+.2f}** (from -1 to +1): {pos} of {len(citywide)} citywide "
+                f"developments are positive. These shift every part of the city by the same amount, so they "
+                f"cannot change which site ranks first, but they matter when comparing one city with another.")
+            show = citywide[:12]
+            fig = go.Figure(go.Bar(
+                x=[e["impact"] for e in show], orientation="h",
+                y=[f"{kind(e)[0]} {e['summary'][:70]}" for e in show],
+                marker_color=[UP if e["impact"] > 0 else DOWN for e in show],
+                customdata=[[kind(e)[1], e["status"].replace("_", " "), e["n_sources"],
+                             BASIS_LABEL.get(e["basis"], e["basis"])] for e in show],
+                hovertemplate="%{customdata[0]}, %{customdata[1]}<br>effect %{x:+.2f}<br>"
+                              "%{customdata[2]} source(s), %{customdata[3]}<extra></extra>"))
+            fig.update_yaxes(autorange="reversed", tickfont=dict(size=11))
+            fig.update_xaxes(zeroline=True, zerolinecolor="#8a8984", title_text="effect on the city outlook")
+            st.plotly_chart(layout(fig, 60 + 34 * len(show)), use_container_width=True, config=PLOT_CONFIG)
+        else:
+            st.caption("No citywide development was found.")
+
+        st.markdown("##### How the news changes the ranking of the top sites")
+        if effects:
+            ranked = sorted(effects, key=lambda r: -(r["score"] + r["news_change"]))
+            after = {r["rank"]: i for i, r in enumerate(ranked, start=1)}
+            rows = []
+            for r in effects:
+                d = r["drivers"][0] if r["drivers"] else None
+                move = r["rank"] - after[r["rank"]]
+                rows.append({"site": r["rank"], "place": r.get("locality") or "",
+                             "satellite score": round(r["score"], 3),
+                             "news change": f"{r['news_change']:+.3f}" if abs(r["news_change"]) >= NEWS_MIN else "none",
+                             "score with news": round(r["score"] + r["news_change"], 3),
+                             "rank with news": f"{after[r['rank']]} ({'up ' + str(move) if move > 0 else 'down ' + str(-move) if move < 0 else 'same'})",
+                             "main reason": (f"N{d[0] + 1} {kind(located[d[0]])[1]} at {located[d[0]]['location']}"
+                                             if d else "no mapped news nearby")})
+            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+            st.caption("Ranks here are among the ten sites shown. Each site's news change is shared among the "
+                       "developments near it in proportion to their pull; 'main reason' is the largest.")
+
+        st.markdown("##### How the reading is kept neutral")
+        k = st.columns(4)
+        au = nw["audit"]
+        inv, base = au.get("score_invariance"), au.get("rerun_same_score")
+        kpi(k[0], nw["extractor"].split(":", 1)[-1] or "-", "news reader", nw["extractor"].split(":", 1)[0])
+        kpi(k[1], f"{nw['positive_events']} / {nw['negative_events']}", "positive / negative developments",
+            "same scoring table for both")
+        kpi(k[2], "not tested" if inv is None else f"{inv * 100:.0f}%", "same score after party names swapped",
+            (f"unchanged re-read {base * 100:.0f}%, {au['tested']} articles" if base is not None
+             else f"{au['tested']} articles"))
+        kpi(k[3], len(nw.get("evidence_overrides", [])), "labels set to neutral",
+            "the article text did not support them")
+        st.caption("The language model only fills in a fixed form for each article; it never sets a score. "
+                   "Political claims and promises carry zero weight, party names are removed from every "
+                   "output, and good and bad news pass the same evidence check.")
+        with st.expander("Every article read, with what the model extracted"):
             st.dataframe(pd.DataFrame([{"published": x["published"], "source": x["source"], "title": x["title"],
-                                        "type": (x["extraction"] or {}).get("event_type"),
                                         "development": (x["extraction"] or {}).get("is_development_event"),
-                                        "impact": x["impact"], "url": x["url"]} for x in nw["articles"]]),
-                         hide_index=True, use_container_width=True)
+                                        "type": kind(x["extraction"] or {})[1] if x["extraction"] else None,
+                                        "status": (x["extraction"] or {}).get("status"),
+                                        "effect": x["impact"], "url": x["url"]} for x in nw["articles"]]),
+                         hide_index=True, use_container_width=True,
+                         column_config={"url": st.column_config.LinkColumn("article")})
         if nw.get("evidence_overrides"):
             with st.expander(f"Labels set to neutral by the evidence check ({len(nw['evidence_overrides'])})"):
                 st.dataframe(pd.DataFrame(nw["evidence_overrides"]), hide_index=True, use_container_width=True)
-        with st.expander("Scoring table and neutrality audit"):
+        with st.expander("Scoring table and audit details"):
             st.json({"scoring": nw["scoring"], "audit": nw["audit"], "per_query": nw["per_query"],
                      "top_sources": nw["top_sources"], "max_source_share": nw["max_source_share"]})
 
@@ -531,10 +701,18 @@ with tabs[4]:
             st.caption("'top-10 under random weights' is the share of 2,000 random weightings of the five "
                        "components in which the zone stays in the top ten: near 1 means the ranking does "
                        "not depend on how the components are weighted.")
-        if opp.get("top_with_news"):
-            st.markdown("**With the development-news adjustment** (score + 0.10 x news index)")
-            st.dataframe(pd.DataFrame(opp["top_with_news"])[["rank", "locality", "score_with_news", "news_adjustment"]][:10],
-                         hide_index=True, use_container_width=True)
+        if opp.get("top_with_news") and nw:
+            loc_ev = sorted([e for e in nw["events"] if e.get("placed") == "located"], key=lambda e: -abs(e["impact"]))
+            eff = news_effects(loc_ev, [r for r in opp["top_with_news"][:10] if "lat" in r],
+                               scale=float(nw.get("scoring", {}).get("scale", 1.5)),
+                               weight=float((opp.get("news") or {}).get("weight", 0.10)))
+            st.markdown("**With the development-news adjustment** (the News tab shows each development on the map)")
+            st.dataframe(pd.DataFrame([{
+                "rank": r["rank"], "place": r.get("locality") or "", "score with news": r["score_with_news"],
+                "news change": f"{r['news_change']:+.3f}" if abs(r["news_change"]) >= NEWS_MIN else "none",
+                "main reason": (f"N{r['drivers'][0][0] + 1} {kind(loc_ev[r['drivers'][0][0]])[1]} at "
+                                f"{loc_ev[r['drivers'][0][0]]['location']}" if r["drivers"] else "no mapped news nearby")}
+                for r in eff]), hide_index=True, use_container_width=True)
 
 with tabs[5]:
     d = ev.get("design", {})
