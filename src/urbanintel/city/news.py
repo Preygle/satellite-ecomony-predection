@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import email.utils
+import hashlib
 import json
 import re
 import time
@@ -273,13 +274,24 @@ def prompt_for(a: Article, city: str) -> str:
 
 
 def extract_all(arts: list[Article], city: str, extractor, *, workers: int = 4,
-                on_step: Callable[[int, int, str], None] | None = None) -> list[dict]:
+                on_step: Callable[[int, int, str], None] | None = None,
+                cache_path: Path | None = None) -> list[dict]:
     out: list[dict | None] = [None] * len(arts)
+    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path and cache_path.exists() else {}
+    tag = f"{PROMPT_VERSION}|{extractor.name}:{getattr(extractor, 'model', '')}"
+
+    def key(a: Article) -> str:
+        return hashlib.sha1(f"{tag}|{a.title}|{a.snippet}".encode("utf-8")).hexdigest()
 
     def one(i: int):
         a = arts[i]
+        # The same article, prompt and model give the same answer, so a refresh only reads what is new
+        if key(a) in cache:
+            return i, cache[key(a)], None
         try:
-            return i, extractor.extract(SYSTEM, prompt_for(a, city), SCHEMA), None
+            res = extractor.extract(SYSTEM, prompt_for(a, city), SCHEMA)
+            cache[key(a)] = res
+            return i, res, None
         except Exception as exc:  # noqa: BLE001
             return i, None, f"{type(exc).__name__}: {str(exc)[:160]}"
 
@@ -291,6 +303,8 @@ def extract_all(arts: list[Article], city: str, extractor, *, workers: int = 4,
             done += 1
             if on_step:
                 on_step(done, len(arts), arts[i].title[:90])
+    if cache_path is not None:
+        cache_path.write_text(json.dumps(cache), encoding="utf-8")
     return out
 
 
@@ -312,8 +326,9 @@ def counterfactual_audit(rows: list[dict], city: str, extractor, *, limit: int =
         a = Article(**r["article"])
         b = Article(**{**a.__dict__, "title": neutralise(a.title), "snippet": neutralise(a.snippet)})
         try:
-            again = extractor.extract(SYSTEM, prompt_for(a, city), SCHEMA)
-            swap = extractor.extract(SYSTEM, prompt_for(b, city), SCHEMA)
+            # Both re-reads pass the same evidence check as the original, so like is compared with like
+            again = check_evidence(extractor.extract(SYSTEM, prompt_for(a, city), SCHEMA), a)[0]
+            swap = check_evidence(extractor.extract(SYSTEM, prompt_for(b, city), SCHEMA), b)[0]
         except Exception:  # noqa: BLE001
             continue
         orig = r["extraction"]
@@ -405,7 +420,7 @@ def cluster_events(rows: list[dict], now: datetime, city: str = "") -> list[dict
     return sorted(out, key=lambda x: -abs(x["impact"]))
 
 
-def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
+def _geocode_one(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
     key = place.lower().strip()
     if not key:
         return None
@@ -423,6 +438,20 @@ def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
         hit = None
     cache[key] = [float(hit["lon"]), float(hit["lat"])] if hit else None
     return tuple(cache[key]) if hit else None
+
+
+def geocode(place: str, aoi: AOI, cache: dict) -> tuple[float, float] | None:
+    pt = _geocode_one(place, aoi, cache)
+    if pt is not None:
+        return pt
+    # "Kalena Agrahara-Tavarekere" or "Sector 5, Noida": try each named place on its own
+    city = {n.lower() for n in names(aoi.name)}
+    for part in re.split(r"\s*(?:-|\u2013|,|/|\bto\b|\band\b)\s*", place)[:3]:
+        if len(part.strip()) >= 3 and part.strip().lower() not in city:
+            pt = _geocode_one(part.strip(), aoi, cache)
+            if pt is not None:
+                return pt
+    return None
 
 
 def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame,
@@ -450,18 +479,37 @@ def zone_index(events: list[dict], aoi: AOI, coarse: AnalysisFrame,
     return np.tanh(total / SCALE).astype("float32"), float(np.tanh(city_total / CITY_SCALE)), placed
 
 
-def fetch_stage(city: str, fetch: Callable[[str], bytes], *, on_step=None) -> dict:
+CACHE_HOURS = 24
+
+
+def fetch_stage(city: str, fetch: Callable[[str], bytes], *, on_step=None,
+                cache_path: Path | None = None) -> dict:
+    # Articles fetched in the last day are reused, so re-reading the news costs no download
     now = datetime.now(timezone.utc)
+    if cache_path is not None and cache_path.exists():
+        saved = json.loads(cache_path.read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(saved["fetched"])
+        if (now - when).total_seconds() < CACHE_HOURS * 3600:
+            got = {**saved, "articles": [Article(**a) for a in saved["articles"]], "now": when,
+                   "reused_from": saved["fetched"]}
+            if on_step:
+                on_step(1, 1, f"reused {got['unique']} articles fetched at {saved['fetched'][:16]} UTC")
+            return got
     got = collect(city, fetch, now=now, on_step=on_step)
     got["now"] = now
+    if cache_path is not None:
+        cache_path.write_text(json.dumps({**{k: v for k, v in got.items() if k not in ("articles", "now")},
+                                          "fetched": now.isoformat(),
+                                          "articles": [a.__dict__ for a in got["articles"]]}),
+                              encoding="utf-8")
     return got
 
 
 def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: dict, *,
-                  cache_path: Path, on_step=None) -> tuple[dict, np.ndarray]:
+                  cache_path: Path, on_step=None, extraction_cache: Path | None = None) -> tuple[dict, np.ndarray]:
     now = got["now"]
     rows = extract_all(got["articles"], city, extractor, workers=getattr(extractor, "workers", 4),
-                       on_step=on_step)
+                       on_step=on_step, cache_path=extraction_cache)
     overrides = []
     for r in rows:
         r["raw_extraction"] = r["extraction"]
@@ -485,6 +533,7 @@ def process_stage(city: str, aoi: AOI, coarse: AnalysisFrame, extractor, got: di
         "prompt_version": PROMPT_VERSION,
         "extractor": f"{extractor.name}:{getattr(extractor, 'model', '')}",
         "retrieved": got["retrieved"], "unique_articles": got["unique"], "per_query": got["per_query"],
+        "articles_fetched": got["now"].isoformat(), "articles_reused": "reused_from" in got,
         "fetch_errors": got["errors"], "extracted": len(ok),
         "extraction_errors": [r["error"] for r in rows if r["error"]][:10],
         "development_articles": len(dev), "events": placed,
