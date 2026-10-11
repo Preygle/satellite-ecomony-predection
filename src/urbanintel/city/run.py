@@ -65,15 +65,20 @@ def reverse_names(rows: list[dict], aoi: AOI, cache_path: Path) -> None:
     for r in rows:
         lon, lat = aoi.to_lonlat(r["x"], r["y"])
         r["lon"], r["lat"] = round(lon, 5), round(lat, 5)
-        key = f"{lat:.4f},{lon:.4f}"
+        key = f"v2:{lat:.4f},{lon:.4f}"
         if key not in cache:
             try:
                 resp = requests.get(f"{catalog.NOMINATIM}/reverse", timeout=30,
                                     headers={"User-Agent": catalog.USER_AGENT},
                                     params={"lat": lat, "lon": lon, "format": "jsonv2", "zoom": 15})
                 a = resp.json().get("address", {}) if resp.ok else {}
-                cache[key] = (a.get("suburb") or a.get("neighbourhood") or a.get("quarter")
-                              or a.get("village") or a.get("town") or a.get("city_district") or "")
+                place = next((a[k] for k in ("suburb", "neighbourhood", "quarter", "residential", "village",
+                                              "hamlet", "town", "city_district", "road") if a.get(k)), "")
+                town = a.get("city") or a.get("town") or a.get("county") or ""
+                # Name the town too when the zone lies outside the study city, e.g. in Gurugram or Ghaziabad
+                if town and town.lower() not in (aoi.name.lower(), place.lower()):
+                    place = f"{place}, {town}" if place else town
+                cache[key] = place
             except Exception:  # noqa: BLE001
                 cache[key] = ""
             time.sleep(1.1)
@@ -253,13 +258,15 @@ def main(argv=None) -> int:
                              detail="Google News RSS and GDELT, balanced topic queries")
                 got = news.fetch_stage(city.name, lambda u: meter.fetch(u, timeout=60, attempts=2),
                                        on_step=lambda i, n, m: status.update("news_fetch", done=i,
-                                                                             total=n, detail=m))
+                                                                             total=n, detail=m),
+                                       cache_path=cdir / "news_articles.json")
                 status.end("news_fetch", note=f"{got['unique']} unique articles from {got['retrieved']}")
                 status.begin("news_process", total=got["unique"],
                              module=f"urbanintel.city.news ({extractor.name}: {getattr(extractor, 'model', '')})",
                              detail="structured extraction, fixed scoring table, neutrality audit")
                 nres, news_zone = news.process_stage(
                     city.name, aoi, coarse, extractor, got, cache_path=cdir / "geocode_cache.json",
+                    extraction_cache=cdir / "news_extractions.json",
                     on_step=lambda i, n, m: status.update("news_process", done=i, total=n, detail=m))
                 prepare.write(cfg.processed_dir / "rasters" / "news_index.tif", news_zone, coarse)
                 nres["llm_payload_bytes"] = getattr(extractor, "payload_bytes", 0)
