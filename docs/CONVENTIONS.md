@@ -1,7 +1,7 @@
 # Conventions — Abbreviations and Dataset Registry
 
 Single reference for every abbreviation and every dataset used in this project.
-Written to the rules in `CLAUDE.md`: official dataset identifiers are exact,
+Written to project conventions: official dataset identifiers are exact,
 every abbreviation is expanded, and every explanation is in plain English.
 
 The project report's *List of Abbreviations* preliminary page is generated from
@@ -121,7 +121,7 @@ statement about those is an inference, and is labelled as one.
 
 ## Part 5 — Writing rules applied in this project
 
-Condensed from `CLAUDE.md`. Checked before any document is finalised.
+Project writing rules, checked before any document is finalised.
 
 1. Use the proper technical term, then explain it simply.
 2. Expand every abbreviation at its first use in each document.

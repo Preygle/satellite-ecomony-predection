@@ -220,7 +220,7 @@ python scripts/make_paper_figures.py
 | [`LITERATURE_REVIEW.md`](docs/LITERATURE_REVIEW.md), [`PAPER_SUMMARIES.md`](docs/PAPER_SUMMARIES.md) | The literature behind the method |
 | [`CONVENTIONS.md`](docs/CONVENTIONS.md) | Abbreviations, official dataset identifiers, writing rules |
 | [`SETUP.md`](docs/SETUP.md), [`DATA_TRANSFER.md`](docs/DATA_TRANSFER.md) | Installation, Earth Engine, moving the data between machines |
-| [`AGENT.md`](AGENT.md), [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | For anyone continuing the work; who built what, and the AI acknowledgement |
+| [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md) | Who built what, and project contributor roles |
 
 ---
 

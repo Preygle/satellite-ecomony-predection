@@ -42,3 +42,6 @@ Thumbs.db
 
 # Office lock files, present while a document is open
 ~$*
+
+# Local AI assistant config / sessions
+.claude/
