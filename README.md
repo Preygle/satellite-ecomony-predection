@@ -48,7 +48,7 @@ developments**, **Expansion opportunities**, and **Method & data**. The News tab
 development as a numbered badge with a circle for how far it reaches, says which top sites it moves
 and by how much, and shows the ranking with and without news.
 
-### Results so far
+### Results
 
 | | Bengaluru | Delhi |
 |---|---|---|
